@@ -37,7 +37,14 @@ design flow by generating the verilog rtl that you will use as a standard core.
 
 [> Features
 -----------
-TODO
+SERWB:
+  - Wishbone over 3 LVDS pairs.
+  - Artix7, Kintex7, Kintex Ultrascale support.
+  - 8B/10B, integrated gearbox.
+  - Up to 1.25Gbps linerate / 32 bits @ 31.25Mhz user interface.
+  - Automatic sampling window adjustement at startup.
+  - Encapsulated etherbone protocol with buffered writes.
+
 
 [> Possible improvements
 ------------------------
