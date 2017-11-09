@@ -13,7 +13,7 @@ from liteiclink.serwb.s7phy import S7Serdes
 # 2) Master sends K28.5 commas to allow Slave to calibrate, Slave sends idle pattern.
 # 3) Slave sends K28.5 commas to allow Master to calibrate, Master sends K28.5 commas.
 # 4) Master stops sending K28.5 commas.
-# 5) Slave stops sending K25.5 commas.
+# 5) Slave stops sending K28.5 commas.
 # 6) Link is ready.
 
 class _SerdesMasterInit(Module):
@@ -359,9 +359,15 @@ class SERWBPLL(Module):
                 p_CLKOUT2_DIVIDE=8//vco_div, p_CLKOUT2_PHASE=0.0,
                 o_CLKOUT2=pll_serwb_serdes_5x_clk
             ),
-            Instance("BUFG", i_I=pll_serwb_serdes_clk, o_O=self.serwb_serdes_clk),
-            Instance("BUFG", i_I=pll_serwb_serdes_20x_clk, o_O=self.serwb_serdes_20x_clk),
-            Instance("BUFG", i_I=pll_serwb_serdes_5x_clk, o_O=self.serwb_serdes_5x_clk)
+            Instance("BUFG", 
+                i_I=pll_serwb_serdes_clk, 
+                o_O=self.serwb_serdes_clk),
+            Instance("BUFG",
+                i_I=pll_serwb_serdes_20x_clk,
+                o_O=self.serwb_serdes_20x_clk),
+            Instance("BUFG",
+                i_I=pll_serwb_serdes_5x_clk,
+                o_O=self.serwb_serdes_5x_clk)
         ]
         self.specials += MultiReg(pll_locked, self.lock)
 
