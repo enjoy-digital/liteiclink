@@ -120,13 +120,8 @@ class _SerdesMasterInit(Module):
                NextValue(delay_max_found, 0),
                NextState("WAIT_STABLE")
             ).Else(
-                NextState("RESET_SAMPLING_WINDOW")
-            )
-        )
-        fsm.act("RESET_SAMPLING_WINDOW",
-            NextValue(delay, 0),
-            serdes.rx_delay_rst.eq(1),
-            NextState("WAIT_SAMPLING_WINDOW"),
+                NextState("CONFIGURE_SAMPLING_WINDOW")
+            ),
             serdes.tx_comma.eq(1)
         )
         fsm.act("CONFIGURE_SAMPLING_WINDOW",
@@ -246,13 +241,9 @@ class _SerdesSlaveInit(Module, AutoCSR):
                NextValue(delay_max_found, 0),
                NextState("WAIT_STABLE")
             ).Else(
-                NextState("RESET_SAMPLING_WINDOW")
-            )
-        )
-        fsm.act("RESET_SAMPLING_WINDOW",
-            NextValue(delay, 0),
-            serdes.rx_delay_rst.eq(1),
-            NextState("WAIT_SAMPLING_WINDOW")
+                NextState("CONFIGURE_SAMPLING_WINDOW")
+            ),
+            serdes.tx_idle.eq(1)
         )
         fsm.act("CONFIGURE_SAMPLING_WINDOW",
             If(delay == (delay_min + (delay_max - delay_min)[1:]),
