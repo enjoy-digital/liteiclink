@@ -27,13 +27,13 @@ class SERWBCore(Module):
             packetizer.source.connect(tx_cdc.sink),
             If(phy.init.ready,
                 If(tx_cdc.source.valid,
-                    phy.serdes.tx_data.eq(tx_cdc.source.data)
+                    phy.serdes.tx_d.eq(tx_cdc.source.data)
                 ),
                 tx_cdc.source.ready.eq(1)
             ),
 
             # serdes --> core
             rx_cdc.sink.valid.eq(phy.init.ready),
-            rx_cdc.sink.data.eq(phy.serdes.rx_data),
+            rx_cdc.sink.data.eq(phy.serdes.rx_d),
             rx_cdc.source.connect(depacketizer.sink),
         ]
