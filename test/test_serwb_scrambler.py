@@ -16,12 +16,26 @@ class DUT(Module):
 
 
 def main_generator(dut):
-	for i in range(8192):
-		yield dut.scrambler.sink.d.eq(i)
-		d = (yield dut.descrambler.source.d)
-		print("0x{:08x}".format(d))
-		yield
+    i = 0
+    errors = 0
+    last_d = -1
+    while i != 2048:
+        # stim
+        if (yield dut.scrambler.sink.ready):
+            i += 1
+        yield dut.scrambler.sink.d.eq(i)
 
+        # check
+        if (yield dut.descrambler.source.valid):
+            current_d = (yield dut.descrambler.source.d)
+            if (current_d != (last_d + 1)):
+                errors += 1
+            last_d = current_d
+
+        # cycle
+        yield
+
+    print("errors: %d" %errors)
 
 dut = DUT()
 run_simulation(dut, main_generator(dut), vcd_name="sim.vcd")

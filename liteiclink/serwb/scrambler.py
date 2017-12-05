@@ -22,7 +22,7 @@ class Scrambler(Module):
         curval = [state[i] for i in range(n_state)]
         for i in reversed(range(n_io)):
             flip = reduce(xor, [curval[tap] for tap in taps])
-            self.sync += self.o[i].eq(flip ^ self.i[i])
+            self.comb += self.o[i].eq(flip ^ self.i[i])
             curval.insert(0, flip)
             curval.pop()
 
@@ -30,7 +30,7 @@ class Scrambler(Module):
 
 
 class SERWBScrambler(Module):
-    def __init__(self):
+    def __init__(self, sync_interval=1024):
         self.sink = sink = stream.Endpoint([("d", 32)])
         self.source = source = stream.Endpoint([("d", 32), ("k", 4)])
 
@@ -41,11 +41,12 @@ class SERWBScrambler(Module):
         self.submodules += scrambler
         self.comb += scrambler.i.eq(sink.d)
 
-        # insert K.29.7 every 1024 data
-        kcount = Signal(10)
-        self.sync += kcount.eq(kcount + 1)
+        # insert K.29.7 as sync character
+        # every sync_interval cycles
+        count = Signal(max=sync_interval)
+        self.sync += count.eq(count + 1)
         self.comb += [
-            If(kcount == 0,
+            If(count == 0,
                 scrambler.reset.eq(1),
                 source.k[0].eq(1),
                 source.d[:8].eq(K(29, 7))
@@ -67,13 +68,14 @@ class SERWBDescrambler(Module):
         self.submodules += descrambler
         self.comb += descrambler.i.eq(sink.d)
 
-        # detect and remove K.29.7
+        # detect K29.7 and synchronize descrambler
         self.comb += [
+            descrambler.reset.eq(0),
             If((sink.k[0] == 1) &
                (sink.d[:8] == K(29,7)),
-               descrambler.reset.eq(1)
+                descrambler.reset.eq(1)
             ).Else(
                 source.valid.eq(1),
-                source.d.eq(sink.d)
+                source.d.eq(descrambler.o)
             )
         ]
