@@ -10,27 +10,27 @@ from litex.soc.interconnect.stream import Converter
 
 class DUT(Module):
     def __init__(self):
-        self.submodules.scrambler = scrambler.SERWBScrambler()
-        self.submodules.descrambler = scrambler.SERWBDescrambler()
+        self.submodules.scrambler = scrambler.Scrambler()
+        self.submodules.descrambler = scrambler.Descrambler()
         self.comb += self.scrambler.source.connect(self.descrambler.sink)
 
 
 def main_generator(dut):
     i = 0
     errors = 0
-    last_d = -1
+    last_data = -1
     while i != 2048:
         # stim
         if (yield dut.scrambler.sink.ready):
             i += 1
-        yield dut.scrambler.sink.d.eq(i)
+        yield dut.scrambler.sink.data.eq(i)
 
         # check
         if (yield dut.descrambler.source.valid):
-            current_d = (yield dut.descrambler.source.d)
-            if (current_d != (last_d + 1)):
+            current_data = (yield dut.descrambler.source.data)
+            if (current_data != (last_data + 1)):
                 errors += 1
-            last_d = current_d
+            last_data = current_data
 
         # cycle
         yield

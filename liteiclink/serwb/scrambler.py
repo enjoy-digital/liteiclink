@@ -11,7 +11,7 @@ def K(x, y):
 
 
 @ResetInserter()
-class Scrambler(Module):
+class _Scrambler(Module):
     def __init__(self, n_io, n_state=23, taps=[17, 22]):
         self.i = Signal(n_io)
         self.o = Signal(n_io)
@@ -29,17 +29,17 @@ class Scrambler(Module):
         self.sync += state.eq(Cat(*curval[:n_state]))
 
 
-class SERWBScrambler(Module):
+class Scrambler(Module):
     def __init__(self, sync_interval=1024):
-        self.sink = sink = stream.Endpoint([("d", 32)])
+        self.sink = sink = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("d", 32), ("k", 4)])
 
         # # #
 
         # scrambler
-        scrambler = Scrambler(32)
+        scrambler = _Scrambler(32)
         self.submodules += scrambler
-        self.comb += scrambler.i.eq(sink.d)
+        self.comb += scrambler.i.eq(sink.data)
 
         # insert K.29.7 as sync character
         # every sync_interval cycles
@@ -56,15 +56,15 @@ class SERWBScrambler(Module):
             )
         ]
 
-class SERWBDescrambler(Module):
+class Descrambler(Module):
     def __init__(self):
         self.sink = sink = stream.Endpoint([("d", 32), ("k", 4)])
-        self.source = source = stream.Endpoint([("d", 32)])
+        self.source = source = stream.Endpoint([("data", 32)])
 
         # # #
 
         # descrambler
-        descrambler = Scrambler(32)
+        descrambler = _Scrambler(32)
         self.submodules += descrambler
         self.comb += descrambler.i.eq(sink.d)
 
@@ -76,6 +76,6 @@ class SERWBDescrambler(Module):
                 descrambler.reset.eq(1)
             ).Else(
                 source.valid.eq(1),
-                source.d.eq(descrambler.o)
+                source.data.eq(descrambler.o)
             )
         ]
