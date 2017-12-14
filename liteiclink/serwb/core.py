@@ -18,8 +18,8 @@ class SERWBCore(Module):
         rx_cdc = stream.AsyncFIFO([("data", 32)], 32)
         rx_cdc = ClockDomainsRenamer({"write": "serwb_serdes", "read": "sys"})(rx_cdc)
         self.submodules += tx_cdc, rx_cdc
-        scrambler = Scrambler()
-        descrambler = Descrambler()
+        scrambler =  ClockDomainsRenamer("serwb_serdes")(Scrambler())
+        descrambler = ClockDomainsRenamer("serwb_serdes")(Descrambler())
         self.submodules += scrambler, descrambler
         self.comb += [
             # core <--> etherbone

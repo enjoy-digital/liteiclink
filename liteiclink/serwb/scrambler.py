@@ -10,6 +10,7 @@ def K(x, y):
     return (y << 5) | x
 
 
+@CEInserter()
 @ResetInserter()
 class _Scrambler(Module):
     def __init__(self, n_io, n_state=23, taps=[17, 22]):
@@ -36,10 +37,16 @@ class Scrambler(Module):
 
         # # #
 
+        ce = Signal()
+        self.comb += ce.eq(source.valid & source.ready)
+
         # scrambler
         scrambler = _Scrambler(32)
         self.submodules += scrambler
-        self.comb += scrambler.i.eq(sink.data)
+        self.comb += [
+            scrambler.ce.eq(ce),
+            scrambler.i.eq(sink.data)
+        ]
 
         # insert K.29.7 as sync character
         # every sync_interval cycles
@@ -48,10 +55,12 @@ class Scrambler(Module):
         self.comb += [
             If(count == 0,
                 scrambler.reset.eq(1),
+                source.valid.eq(1),
                 source.k[0].eq(1),
                 source.d[:8].eq(K(29, 7))
             ).Else(
-                sink.ready.eq(1),
+                sink.ready.eq(source.ready),
+                source.valid.eq(sink.valid),
                 source.d.eq(scrambler.o)
             )
         ]
@@ -63,19 +72,27 @@ class Descrambler(Module):
 
         # # #
 
+        ce = Signal()
+        self.comb += ce.eq(source.valid & source.ready)
+
         # descrambler
         descrambler = _Scrambler(32)
         self.submodules += descrambler
-        self.comb += descrambler.i.eq(sink.d)
+        self.comb += [
+            descrambler.ce.eq(ce),
+            descrambler.i.eq(sink.d)
+        ]
 
         # detect K29.7 and synchronize descrambler
         self.comb += [
             descrambler.reset.eq(0),
             If((sink.k[0] == 1) &
                (sink.d[:8] == K(29,7)),
+                sink.ready.eq(1),
                 descrambler.reset.eq(1)
             ).Else(
-                source.valid.eq(1),
+                sink.ready.eq(source.ready),
+                source.valid.eq(sink.valid),
                 source.data.eq(descrambler.o)
             )
         ]
