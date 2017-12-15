@@ -89,34 +89,31 @@ class Packetizer(Module):
         #   - length   : 4 bytes
         #   - payload
 
-        fsm = FSM(reset_state="IDLE")
+        fsm = FSM(reset_state="PREAMBLE")
         self.submodules += fsm
 
-        fsm.act("IDLE",
+        fsm.act("PREAMBLE",
             If(sink.valid,
-                NextState("INSERT_PREAMBLE")
+                source.valid.eq(1),
+                source.data.eq(0x5aa55aa5),
+                If(source.ready,
+                    NextState("LENGTH")
+                )
             )
         )
-        fsm.act("INSERT_PREAMBLE",
-            source.valid.eq(1),
-            source.data.eq(0x5aa55aa5),
-            If(source.ready,
-                NextState("INSERT_LENGTH")
-            )
-        )
-        fsm.act("INSERT_LENGTH",
+        fsm.act("LENGTH",
             source.valid.eq(1),
             source.data.eq(sink.length),
             If(source.ready,
-                NextState("COPY")
+                NextState("DATA")
             )
         )
-        fsm.act("COPY",
+        fsm.act("DATA",
             source.valid.eq(sink.valid),
             source.data.eq(sink.data),
             sink.ready.eq(source.ready),
             If(source.ready & sink.last,
-                NextState("IDLE")
+                NextState("PREAMBLE")
             )
         )
 
@@ -128,45 +125,48 @@ class Depacketizer(Module):
 
         # # #
 
+        count = Signal(len(source.length))
+        length = Signal(len(source.length))
+
         # Packet description
         #   - preamble : 4 bytes
         #   - length   : 4 bytes
         #   - payload
 
-        fsm = FSM(reset_state="IDLE")
+        fsm = FSM(reset_state="PREAMBLE")
         self.submodules += fsm
 
-        self.submodules.timer = WaitTimer(clk_freq*timeout)
-        self.comb += self.timer.wait.eq(~fsm.ongoing("IDLE"))
+        timer = WaitTimer(clk_freq*timeout)
+        self.submodules += timer
 
-        fsm.act("IDLE",
+        fsm.act("PREAMBLE",
             sink.ready.eq(1),
-            If(sink.valid & (sink.data == 0x5aa55aa5),
-                   NextState("RECEIVE_LENGTH")
+            If(sink.valid &
+              (sink.data == 0x5aa55aa5),
+                NextState("LENGTH")
             )
         )
-        fsm.act("RECEIVE_LENGTH",
+        fsm.act("LENGTH",
             sink.ready.eq(1),
             If(sink.valid,
-                NextValue(source.length, sink.data),
-                NextState("COPY")
-            )
+                NextValue(count, 0),
+                NextValue(length, sink.data),
+                NextState("DATA")
+            ),
+            timer.wait.eq(1)
         )
-        last = Signal()
-        cnt = Signal(32)
-        fsm.act("COPY",
+        fsm.act("DATA",
             source.valid.eq(sink.valid),
-            source.last.eq(last),
+            source.last.eq(count == (length - 1)),
             source.data.eq(sink.data),
             sink.ready.eq(source.ready),
-            If((source.valid & source.ready & last) | self.timer.done,
-                NextState("IDLE")
-            )
-        )
-        self.sync += \
-            If(fsm.ongoing("IDLE"),
-                cnt.eq(0)
+            If(timer.done,
+                NextState("PREAMBLE")
             ).Elif(source.valid & source.ready,
-                cnt.eq(cnt + 1)
-            )
-        self.comb += last.eq(cnt == source.length[2:] - 1)
+                NextValue(count, count + 1),
+                If(source.last,
+                    NextState("PREAMBLE")
+                )
+            ),
+            timer.wait.eq(1)
+        )
