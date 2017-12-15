@@ -8,21 +8,30 @@ from liteiclink.serwb.etherbone import Etherbone
 
 
 class SERWBCore(Module):
-    def __init__(self, phy, clk_freq, mode):
+    def __init__(self, phy, clk_freq, mode, with_scrambling=True):
+        # etherbone
         self.submodules.etherbone = etherbone = Etherbone(mode)
+
+        # packetizer / depacketizer
         depacketizer = Depacketizer(clk_freq)
         packetizer = Packetizer()
         self.submodules += depacketizer, packetizer
-        tx_cdc = stream.AsyncFIFO([("data", 32)], 32)
+
+        # clock domain crossing
+        tx_cdc = stream.AsyncFIFO([("data", 32)], 32) # FIXME: reduce to minimum?
         tx_cdc = ClockDomainsRenamer({"write": "sys", "read": "serwb_serdes"})(tx_cdc)
-        rx_cdc = stream.AsyncFIFO([("data", 32)], 32)
+        rx_cdc = stream.AsyncFIFO([("data", 32)], 32) # FIXME: reduce to minimum?
         rx_cdc = ClockDomainsRenamer({"write": "serwb_serdes", "read": "sys"})(rx_cdc)
         self.submodules += tx_cdc, rx_cdc
-        scrambler =  ClockDomainsRenamer("serwb_serdes")(Scrambler())
-        descrambler = ClockDomainsRenamer("serwb_serdes")(Descrambler())
+
+        # scrambling
+        scrambler =  ClockDomainsRenamer("serwb_serdes")(Scrambler(enable=with_scrambling))
+        descrambler = ClockDomainsRenamer("serwb_serdes")(Descrambler(enable=with_scrambling))
         self.submodules += scrambler, descrambler
+
+        # modules connection
         self.comb += [
-            # core <--> etherbone
+            # etherbone <--> core
             depacketizer.source.connect(etherbone.sink),
             etherbone.source.connect(packetizer.sink),
 
