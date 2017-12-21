@@ -157,7 +157,8 @@ class Depacketizer(Module):
         )
         fsm.act("DATA",
             source.valid.eq(sink.valid),
-            source.last.eq(count == (length - 1)),
+            source.last.eq(count == (length[2:] - 1)),
+            source.length.eq(length),
             source.data.eq(sink.data),
             sink.ready.eq(source.ready),
             If(timer.done,
