@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
-
+import unittest
 import random
 
 from litex.gen import *
 
+from liteiclink.serwb import scrambler
 from liteiclink.serwb.core import SERWBCore
 
 from litex.soc.interconnect.wishbone import SRAM
@@ -30,7 +30,17 @@ class FakePHY(Module):
         self.serdes = FakeSerdes()
 
 
-class DUT(Module):
+class DUTScrambler(Module):
+    def __init__(self):
+        self.submodules.scrambler = scrambler.Scrambler(sync_interval=16)
+        self.submodules.descrambler = scrambler.Descrambler()
+        self.comb += [
+            self.scrambler.source.connect(self.descrambler.sink),
+            self.descrambler.source.ready.eq(1)
+        ]
+
+
+class DUTCore(Module):
     def __init__(self, **kwargs):
         # wishbone slave
         phy_slave = FakePHY()
@@ -58,29 +68,61 @@ class DUT(Module):
         self.wishbone = serwb_slave.etherbone.wishbone.bus
 
 
-def main_generator(dut):
-    # prepare test
-    prng = random.Random(42)
-    data_base = 0x100
-    data_length = 4
-    datas_w = [prng.randrange(2**32) for i in range(data_length)]
-    datas_r = []
+class TestSERWB(unittest.TestCase):
+    def test_scrambler(self):
+        def generator(dut):
+            i = 0
+            last_data = -1
+            while i != 256:
+                # stim
+                if (yield dut.scrambler.sink.ready):
+                    i += 1
+                yield dut.scrambler.sink.data.eq(i)
 
-    # write
-    for i in range(data_length):
-        yield from dut.wishbone.write(data_base + i, datas_w[i])
+                # check
+                if (yield dut.descrambler.source.valid):
+                    current_data = (yield dut.descrambler.source.data)
+                    if (current_data != (last_data + 1)):
+                        dut.errors += 1
+                    last_data = current_data
 
-    # read
-    for i in range(data_length):
-        datas_r.append((yield from dut.wishbone.read(data_base + i)))
-        print("0x{:08x}".format(datas_r[i]))
+                # cycle
+                yield
+        dut = DUTScrambler()
+        dut.errors = 0
+        run_simulation(dut, generator(dut))
+        self.assertEqual(dut.errors, 0)
 
-    # check
-    errors = 0
-    for i in range(data_length):
-        if datas_r[i] != datas_w[i]:
-            errors += 1
-    print("errors: %d" %errors)
+    def test_serwb(self):
+        def generator(dut):
+            # prepare test
+            prng = random.Random(42)
+            data_base = 0x100
+            data_length = 4
+            datas_w = [prng.randrange(2**32) for i in range(data_length)]
+            datas_r = []
 
-dut = DUT(with_scrambling=True)
-run_simulation(dut, main_generator(dut), vcd_name="sim.vcd")
+            # write
+            for i in range(data_length):
+                yield from dut.wishbone.write(data_base + i, datas_w[i])
+
+            # read
+            for i in range(data_length):
+                datas_r.append((yield from dut.wishbone.read(data_base + i)))
+
+            # check
+            for i in range(data_length):
+                if datas_r[i] != datas_w[i]:
+                    dut.errors += 1
+
+        # scrambling off
+        dut = DUTCore(with_scrambling=False)
+        dut.errors = 0
+        run_simulation(dut, generator(dut))
+        self.assertEqual(dut.errors, 0)
+
+        # scrambling on
+        dut = DUTCore(with_scrambling=True)
+        dut.errors = 0
+        run_simulation(dut, generator(dut))
+        self.assertEqual(dut.errors, 0)
