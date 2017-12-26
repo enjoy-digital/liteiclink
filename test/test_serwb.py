@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import random
+
 from litex.gen import *
 
 from liteiclink.serwb.core import SERWBCore
@@ -57,11 +59,28 @@ class DUT(Module):
 
 
 def main_generator(dut):
-    for i in range(8):
-        yield from dut.wishbone.write(0x100 + i, i)
-    for i in range(8):
-        data = (yield from dut.wishbone.read(0x100 + i))
-        print("0x{:08x}".format(data))
+    # prepare test
+    prng = random.Random(42)
+    data_base = 0x100
+    data_length = 4
+    datas_w = [prng.randrange(2**32) for i in range(data_length)]
+    datas_r = []
+
+    # write
+    for i in range(data_length):
+        yield from dut.wishbone.write(data_base + i, datas_w[i])
+
+    # read
+    for i in range(data_length):
+        datas_r.append((yield from dut.wishbone.read(data_base + i)))
+        print("0x{:08x}".format(datas_r[i]))
+
+    # check
+    errors = 0
+    for i in range(data_length):
+        if datas_r[i] != datas_w[i]:
+            errors += 1
+    print("errors: %d" %errors)
 
 dut = DUT(with_scrambling=False)
 run_simulation(dut, main_generator(dut), vcd_name="sim.vcd")
