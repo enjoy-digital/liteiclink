@@ -19,14 +19,14 @@ class SERWBCore(Module):
 
         # clock domain crossing
         tx_cdc = stream.AsyncFIFO([("data", 32)], 32) # FIXME: reduce to minimum?
-        tx_cdc = ClockDomainsRenamer({"write": "sys", "read": "serwb_serdes"})(tx_cdc)
+        tx_cdc = ClockDomainsRenamer({"write": "sys", "read": phy.cd})(tx_cdc)
         rx_cdc = stream.AsyncFIFO([("data", 32)], 32) # FIXME: reduce to minimum?
-        rx_cdc = ClockDomainsRenamer({"write": "serwb_serdes", "read": "sys"})(rx_cdc)
+        rx_cdc = ClockDomainsRenamer({"write": phy.cd, "read": "sys"})(rx_cdc)
         self.submodules += tx_cdc, rx_cdc
 
         # scrambling
-        scrambler =  ClockDomainsRenamer("serwb_serdes")(Scrambler(enable=with_scrambling))
-        descrambler = ClockDomainsRenamer("serwb_serdes")(Descrambler(enable=with_scrambling))
+        scrambler =  ClockDomainsRenamer(phy.cd)(Scrambler(enable=with_scrambling))
+        descrambler = ClockDomainsRenamer(phy.cd)(Descrambler(enable=with_scrambling))
         self.submodules += scrambler, descrambler
 
         # modules connection
