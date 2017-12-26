@@ -82,5 +82,5 @@ def main_generator(dut):
             errors += 1
     print("errors: %d" %errors)
 
-dut = DUT(with_scrambling=False)
+dut = DUT(with_scrambling=True)
 run_simulation(dut, main_generator(dut), vcd_name="sim.vcd")

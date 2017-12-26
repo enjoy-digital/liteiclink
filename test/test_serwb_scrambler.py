@@ -20,7 +20,6 @@ def main_generator(dut):
     errors = 0
     last_data = -1
     while i != 256:
-        print(i)
         # stim
         if (yield dut.scrambler.sink.ready):
             i += 1

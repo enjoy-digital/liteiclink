@@ -31,10 +31,6 @@ class SERWBCore(Module):
 
         # modules connection
         self.comb += [
-            # etherbone <--> core
-            depacketizer.source.connect(etherbone.sink),
-            etherbone.source.connect(packetizer.sink),
-
             # core --> phy
             packetizer.source.connect(tx_cdc.sink),
             tx_cdc.source.connect(scrambler.sink),
@@ -52,4 +48,8 @@ class SERWBCore(Module):
             descrambler.sink.d.eq(phy.serdes.rx_d),
             descrambler.source.connect(rx_cdc.sink),
             rx_cdc.source.connect(depacketizer.sink),
+
+            # etherbone <--> core
+            depacketizer.source.connect(etherbone.sink),
+            etherbone.source.connect(packetizer.sink)
         ]
