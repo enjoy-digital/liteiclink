@@ -18,9 +18,9 @@ class SERWBCore(Module):
         self.submodules += depacketizer, packetizer
 
         # clock domain crossing
-        tx_cdc = stream.AsyncFIFO([("data", 32)], 32) # FIXME: reduce to minimum?
+        tx_cdc = stream.AsyncFIFO([("data", 32)], 16)
         tx_cdc = ClockDomainsRenamer({"write": "sys", "read": phy.cd})(tx_cdc)
-        rx_cdc = stream.AsyncFIFO([("data", 32)], 32) # FIXME: reduce to minimum?
+        rx_cdc = stream.AsyncFIFO([("data", 32)], 16)
         rx_cdc = ClockDomainsRenamer({"write": phy.cd, "read": "sys"})(rx_cdc)
         self.submodules += tx_cdc, rx_cdc
 
