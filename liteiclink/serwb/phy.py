@@ -314,7 +314,7 @@ class _SerdesControl(Module, AutoCSR):
 class SERWBPLL(Module):
     def __init__(self, refclk_freq, linerate, vco_div=1):
         assert refclk_freq == 125e6
-        assert linerate == 1.25e9
+        assert linerate in [156.25e6, 312.5e6, 625e6, 1.25e9]
 
         self.lock = Signal()
         self.refclk = Signal()
@@ -324,15 +324,11 @@ class SERWBPLL(Module):
 
         # # #
 
-        #----------------------------
-        # refclk:              125MHz
-        # vco:                1250MHz
-        #----------------------------
-        # serwb_serdes:      31.25MHz
-        # serwb_serdes_20x:    625MHz
-        # serwb_serdes_5x:  156.25MHz
-        #----------------------------
         self.linerate = linerate
+
+        linerate_div = 1.25e9//linerate
+
+        print(linerate_div)
 
         pll_locked = Signal()
         pll_fb = Signal()
@@ -349,16 +345,16 @@ class SERWBPLL(Module):
                 i_CLKIN1=self.refclk, i_CLKFBIN=pll_fb,
                 o_CLKFBOUT=pll_fb,
 
-                # 31.25MHz: serwb_serdes
-                p_CLKOUT0_DIVIDE=40//vco_div, p_CLKOUT0_PHASE=0.0,
+                # serwb_serdes
+                p_CLKOUT0_DIVIDE=linerate_div*40//vco_div, p_CLKOUT0_PHASE=0.0,
                 o_CLKOUT0=pll_serwb_serdes_clk,
 
-                # 625MHz: serwb_serdes_20x
-                p_CLKOUT1_DIVIDE=2//vco_div, p_CLKOUT1_PHASE=0.0,
+                # serwb_serdes_20x
+                p_CLKOUT1_DIVIDE=linerate_div*2//vco_div, p_CLKOUT1_PHASE=0.0,
                 o_CLKOUT1=pll_serwb_serdes_20x_clk,
 
-                # 156.25MHz: serwb_serdes_5x
-                p_CLKOUT2_DIVIDE=8//vco_div, p_CLKOUT2_PHASE=0.0,
+                # serwb_serdes_5x
+                p_CLKOUT2_DIVIDE=linerate_div*8//vco_div, p_CLKOUT2_PHASE=0.0,
                 o_CLKOUT2=pll_serwb_serdes_5x_clk
             ),
             Instance("BUFG", 
