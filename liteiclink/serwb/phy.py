@@ -328,8 +328,6 @@ class SERWBPLL(Module):
 
         linerate_div = 1.25e9//linerate
 
-        print(linerate_div)
-
         pll_locked = Signal()
         pll_fb = Signal()
         pll_serwb_serdes_clk = Signal()
