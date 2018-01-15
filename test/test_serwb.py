@@ -7,7 +7,6 @@ from liteiclink.serwb import scrambler
 from liteiclink.serwb.core import SERWBCore
 
 from litex.soc.interconnect.wishbone import SRAM
-from litex.soc.interconnect.stream import StrideConverter
 
 
 class FakeInit(Module):
@@ -88,6 +87,7 @@ class TestSERWB(unittest.TestCase):
 
                 # cycle
                 yield
+
         dut = DUTScrambler()
         dut.errors = 0
         run_simulation(dut, generator(dut))
