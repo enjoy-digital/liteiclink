@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import unittest
 import random
 
@@ -67,7 +68,7 @@ class DUTCore(Module):
         self.wishbone = serwb_slave.etherbone.wishbone.bus
 
 
-class TestSERWB(unittest.TestCase):
+class TestSERWBCore(unittest.TestCase):
     def test_scrambler(self):
         def generator(dut):
             i = 0
