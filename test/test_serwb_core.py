@@ -2,7 +2,7 @@
 import unittest
 import random
 
-from litex.gen import *
+from migen import *
 
 from liteiclink.serwb import scrambler
 from liteiclink.serwb.core import SERWBCore

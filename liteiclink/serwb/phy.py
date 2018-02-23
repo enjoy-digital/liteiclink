@@ -1,6 +1,6 @@
-from litex.gen import *
-from litex.gen.genlib.cdc import MultiReg, PulseSynchronizer
-from litex.gen.genlib.misc import WaitTimer
+from migen import *
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
 
@@ -356,8 +356,8 @@ class SERWBPLL(Module):
                 p_CLKOUT2_DIVIDE=linerate_div*8//vco_div, p_CLKOUT2_PHASE=0.0,
                 o_CLKOUT2=pll_serwb_serdes_5x_clk
             ),
-            Instance("BUFG", 
-                i_I=pll_serwb_serdes_clk, 
+            Instance("BUFG",
+                i_I=pll_serwb_serdes_clk,
                 o_O=self.serwb_serdes_clk),
             Instance("BUFG",
                 i_I=pll_serwb_serdes_20x_clk,
