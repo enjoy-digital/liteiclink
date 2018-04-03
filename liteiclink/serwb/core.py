@@ -1,7 +1,5 @@
 from migen import *
 
-from litex.soc.interconnect import stream
-
 from liteiclink.serwb.scrambler import Scrambler, Descrambler
 from liteiclink.serwb.packet import Packetizer, Depacketizer
 from liteiclink.serwb.etherbone import Etherbone
@@ -17,37 +15,28 @@ class SERWBCore(Module):
         packetizer = Packetizer()
         self.submodules += depacketizer, packetizer
 
-        # clock domain crossing
-        tx_cdc = stream.AsyncFIFO([("data", 32)], 16)
-        tx_cdc = ClockDomainsRenamer({"write": "sys", "read": phy.cd})(tx_cdc)
-        rx_cdc = stream.AsyncFIFO([("data", 32)], 16)
-        rx_cdc = ClockDomainsRenamer({"write": phy.cd, "read": "sys"})(rx_cdc)
-        self.submodules += tx_cdc, rx_cdc
-
         # scrambling
-        scrambler =  ClockDomainsRenamer(phy.cd)(Scrambler(enable=with_scrambling))
-        descrambler = ClockDomainsRenamer(phy.cd)(Descrambler(enable=with_scrambling))
+        scrambler =  Scrambler(enable=with_scrambling)
+        descrambler = Descrambler(enable=with_scrambling)
         self.submodules += scrambler, descrambler
 
         # modules connection
         self.comb += [
             # core --> phy
-            packetizer.source.connect(tx_cdc.sink),
-            tx_cdc.source.connect(scrambler.sink),
+            packetizer.source.connect(scrambler.sink),
             If(phy.init.ready,
                 If(scrambler.source.valid,
                     phy.serdes.tx_k.eq(scrambler.source.k),
                     phy.serdes.tx_d.eq(scrambler.source.d)
                 ),
-                scrambler.source.ready.eq(1)
+                scrambler.source.ready.eq(phy.serdes.tx_ready)
             ),
 
             # phy --> core
-            descrambler.sink.valid.eq(phy.init.ready),
+            descrambler.sink.valid.eq(phy.init.ready & phy.serdes.rx_valid),
             descrambler.sink.k.eq(phy.serdes.rx_k),
             descrambler.sink.d.eq(phy.serdes.rx_d),
-            descrambler.source.connect(rx_cdc.sink),
-            rx_cdc.source.connect(depacketizer.sink),
+            descrambler.source.connect(depacketizer.sink),
 
             # etherbone <--> core
             depacketizer.source.connect(etherbone.sink),

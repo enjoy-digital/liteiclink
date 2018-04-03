@@ -1,18 +1,21 @@
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.genlib.cdc import MultiReg, Gearbox
 from migen.genlib.misc import BitSlip
 
+from litex.soc.interconnect import stream
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 
 class S7Serdes(Module):
+    tx_ready_latency = 2 # Encoder
+    rx_valid_latency = 1 + 2 # Decoder + Bitslip
     def __init__(self, pads, mode="master"):
         if mode == "slave":
             self.refclk = Signal()
 
+        self.tx_ready = Signal()
         self.tx_k = Signal(4)
         self.tx_d = Signal(32)
+        self.rx_valid = Signal()
         self.rx_k = Signal(4)
         self.rx_d = Signal(32)
 
@@ -28,40 +31,28 @@ class S7Serdes(Module):
 
         # # #
 
-        self.submodules.encoder = ClockDomainsRenamer("sys0p2x")(
-            Encoder(4, True))
-        self.decoders = [ClockDomainsRenamer("sys0p2x")(
-            Decoder(True)) for _ in range(4)]
+        self.submodules.encoder = Encoder(4, True)
+        self.decoders = [Decoder(True) for _ in range(4)]
         self.submodules += self.decoders
 
         # clocking:
 
         # In master mode:
-        # - linerate/10 slave refclk generated on clk_pads
+        # - linerate/10 refclk generated on clk_pads
         # In Slave mode:
         # - linerate/10 refclk provided by clk_pads
 
-        # control/status cdc
-        tx_idle = Signal()
-        tx_comma = Signal()
-        rx_idle = Signal()
-        rx_comma = Signal()
-        rx_bitslip_value = Signal(6)
-        self.specials += [
-            MultiReg(self.tx_idle, tx_idle, "sys0p2x"),
-            MultiReg(self.tx_comma, tx_comma, "sys0p2x"),
-            MultiReg(rx_idle, self.rx_idle, "sys"),
-            MultiReg(rx_comma, self.rx_comma, "sys")
-        ]
-        self.specials += MultiReg(self.rx_bitslip_value, rx_bitslip_value, "sys0p2x"),
-
         # tx clock (linerate/10)
         if mode == "master":
-            self.submodules.tx_clk_gearbox = Gearbox(40, "sys0p2x", 8, "sys")
-            self.comb += self.tx_clk_gearbox.i.eq((0b1111100000 << 30) |
-                                                  (0b1111100000 << 20) |
-                                                  (0b1111100000 << 10) |
-                                                  (0b1111100000 <<  0))
+            self.submodules.tx_clk_converter = stream.Converter(40, 8)
+            self.tx_clk_converter.source.ready.rst = 1
+            self.comb += [
+                self.tx_clk_converter.sink.valid.eq(1),
+                self.tx_clk_converter.sink.data.eq((0b1111100000 << 30) |
+                                                   (0b1111100000 << 20) |
+                                                   (0b1111100000 << 10) |
+                                                   (0b1111100000 <<  0))
+            ]
             clk_o = Signal()
             self.specials += [
                 Instance("OSERDESE2",
@@ -73,10 +64,10 @@ class S7Serdes(Module):
                     i_OCE=1,
                     i_RST=ResetSignal("sys"),
                     i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal("sys"),
-                    i_D1=self.tx_clk_gearbox.o[0], i_D2=self.tx_clk_gearbox.o[1],
-                    i_D3=self.tx_clk_gearbox.o[2], i_D4=self.tx_clk_gearbox.o[3],
-                    i_D5=self.tx_clk_gearbox.o[4], i_D6=self.tx_clk_gearbox.o[5],
-                    i_D7=self.tx_clk_gearbox.o[6], i_D8=self.tx_clk_gearbox.o[7]
+                    i_D1=self.tx_clk_converter.source.data[0], i_D2=self.tx_clk_converter.source.data[1],
+                    i_D3=self.tx_clk_converter.source.data[2], i_D4=self.tx_clk_converter.source.data[3],
+                    i_D5=self.tx_clk_converter.source.data[4], i_D6=self.tx_clk_converter.source.data[5],
+                    i_D7=self.tx_clk_converter.source.data[6], i_D8=self.tx_clk_converter.source.data[7]
                 ),
                 Instance("OBUFDS",
                     i_I=clk_o,
@@ -86,10 +77,12 @@ class S7Serdes(Module):
             ]
 
         # tx datapath
-        # tx_data -> encoders -> gearbox -> serdes
-        self.submodules.tx_gearbox = Gearbox(40, "sys0p2x", 8, "sys")
+        # tx_data -> encoders -> converter -> serdes
+        tx_ready_sr = Signal(self.tx_ready_latency)
+        self.submodules.tx_converter = stream.Converter(40, 8)
+        self.tx_converter.source.ready.rst = 1
         self.comb += [
-            If(tx_comma,
+            If(self.tx_comma,
                 self.encoder.k[0].eq(1),
                 self.encoder.d[0].eq(0xbc)
             ).Else(
@@ -103,12 +96,16 @@ class S7Serdes(Module):
                 self.encoder.d[3].eq(self.tx_d[24:32])
             )
         ]
-        self.sync.sys0p2x += \
-            If(tx_idle,
-                self.tx_gearbox.i.eq(0)
+        self.sync += [
+            self.tx_converter.sink.valid.eq(1),
+            tx_ready_sr.eq(Cat(self.tx_converter.sink.ready, tx_ready_sr)),
+            If(self.tx_idle,
+                self.tx_converter.sink.data.eq(0)
             ).Else(
-                self.tx_gearbox.i.eq(Cat(*[self.encoder.output[i] for i in range(4)]))
+                self.tx_converter.sink.data.eq(Cat(*[self.encoder.output[i] for i in range(4)]))
             )
+        ]
+        self.comb += self.tx_ready.eq(tx_ready_sr[-1])
 
         serdes_o = Signal()
         self.specials += [
@@ -121,10 +118,10 @@ class S7Serdes(Module):
                 i_OCE=1,
                 i_RST=ResetSignal("sys"),
                 i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal("sys"),
-                i_D1=self.tx_gearbox.o[0], i_D2=self.tx_gearbox.o[1],
-                i_D3=self.tx_gearbox.o[2], i_D4=self.tx_gearbox.o[3],
-                i_D5=self.tx_gearbox.o[4], i_D6=self.tx_gearbox.o[5],
-                i_D7=self.tx_gearbox.o[6], i_D8=self.tx_gearbox.o[7]
+                i_D1=self.tx_converter.source.data[0], i_D2=self.tx_converter.source.data[1],
+                i_D3=self.tx_converter.source.data[2], i_D4=self.tx_converter.source.data[3],
+                i_D5=self.tx_converter.source.data[4], i_D6=self.tx_converter.source.data[5],
+                i_D7=self.tx_converter.source.data[6], i_D8=self.tx_converter.source.data[7]
             ),
             Instance("OBUFDS",
                 i_I=serdes_o,
@@ -156,9 +153,11 @@ class S7Serdes(Module):
             self.comb += self.refclk.eq(clk_i_bufg)
 
         # rx datapath
-        # serdes -> gearbox -> bitslip -> decoders -> rx_data
-        self.submodules.rx_gearbox = Gearbox(8, "sys", 40, "sys0p2x")
-        self.submodules.rx_bitslip = ClockDomainsRenamer("sys0p2x")(BitSlip(40))
+        # serdes -> converter -> bitslip -> decoders -> rx_data
+        rx_valid_sr = Signal(self.rx_valid_latency)
+        self.submodules.rx_converter = stream.Converter(8, 40)
+        self.rx_converter.source.ready.rst = 1
+        self.submodules.rx_bitslip = BitSlip(40)
 
         serdes_i_nodelay = Signal()
         self.specials += [
@@ -202,21 +201,23 @@ class S7Serdes(Module):
                 o_Q2=serdes_q[6], o_Q1=serdes_q[7]
             )
         ]
-
+        self.sync += rx_valid_sr.eq(Cat(self.rx_converter.source.valid, rx_valid_sr)),
         self.comb += [
-            self.rx_gearbox.i.eq(serdes_q),
-            self.rx_bitslip.value.eq(rx_bitslip_value),
-            self.rx_bitslip.i.eq(self.rx_gearbox.o),
+            self.rx_converter.sink.valid.eq(1),
+            self.rx_converter.sink.data.eq(serdes_q),
+            self.rx_bitslip.value.eq(self.rx_bitslip_value),
+            self.rx_bitslip.i.eq(self.rx_converter.source.data),
             self.decoders[0].input.eq(self.rx_bitslip.o[0:10]),
             self.decoders[1].input.eq(self.rx_bitslip.o[10:20]),
             self.decoders[2].input.eq(self.rx_bitslip.o[20:30]),
             self.decoders[3].input.eq(self.rx_bitslip.o[30:40]),
+            self.rx_valid.eq(rx_valid_sr[-1]),
             self.rx_k.eq(Cat(*[self.decoders[i].k for i in range(4)])),
             self.rx_d.eq(Cat(*[self.decoders[i].d for i in range(4)])),
-            rx_idle.eq(self.rx_bitslip.o == 0),
-            rx_comma.eq(((self.decoders[0].d == 0xbc) & (self.decoders[0].k == 1)) &
-                        ((self.decoders[1].d == 0x00) & (self.decoders[1].k == 0)) &
-                        ((self.decoders[2].d == 0x00) & (self.decoders[2].k == 0)) &
-                        ((self.decoders[3].d == 0x00) & (self.decoders[3].k == 0)))
+            self.rx_idle.eq(self.rx_bitslip.o == 0),
+            self.rx_comma.eq(((self.decoders[0].d == 0xbc) & (self.decoders[0].k == 1)) &
+                             ((self.decoders[1].d == 0x00) & (self.decoders[1].k == 0)) &
+                             ((self.decoders[2].d == 0x00) & (self.decoders[2].k == 0)) &
+                             ((self.decoders[3].d == 0x00) & (self.decoders[3].k == 0)))
 
         ]
