@@ -7,7 +7,7 @@ from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 class KUSSerdes(Module):
     tx_ready_latency = 2 # Encoder
-    rx_valid_latency = 1 + 2 # Decoder + Bitslip
+    rx_valid_latency = 5 # Decoder + Sync + Bitslip
     def __init__(self, pads, mode="master"):
         if mode == "slave":
             self.refclk = Signal()

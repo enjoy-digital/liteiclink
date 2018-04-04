@@ -7,7 +7,7 @@ from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 class S7Serdes(Module):
     tx_ready_latency = 2 # Encoder
-    rx_valid_latency = 1 + 1 +  2 # Decoder + Sync + Bitslip
+    rx_valid_latency = 5 # Decoder + Sync + Bitslip
     def __init__(self, pads, mode="master"):
         if mode == "slave":
             self.refclk = Signal()
@@ -202,7 +202,6 @@ class S7Serdes(Module):
                 o_Q2=serdes_q[6], o_Q1=serdes_q[7]
             )
         ]
-
         self.sync += [
             rx_valid_sr.eq(Cat(self.rx_converter.source.valid, rx_valid_sr)),
             If(self.rx_converter.source.valid,

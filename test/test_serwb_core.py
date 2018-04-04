@@ -4,6 +4,8 @@ import random
 
 from migen import *
 
+from litex.gen.sim import *
+
 from liteiclink.serwb import scrambler
 from liteiclink.serwb.core import SERWBCore
 
@@ -12,7 +14,7 @@ from litex.soc.interconnect.wishbone import SRAM
 
 class FakeInit(Module):
     def __init__(self):
-        self.ready = 1
+        self.ready = Signal(reset=1)
 
 
 class FakeSerdes(Module):
@@ -23,19 +25,21 @@ class FakeSerdes(Module):
         self.rx_valid = Signal()
         self.rx_k = Signal(4)
         self.rx_d = Signal(32)
-        
+
         # # #
 
+        data_ce = Signal(5, reset=0b00001)
+        self.sync += data_ce.eq(Cat(data_ce[1:], data_ce[0]))
+
         self.comb += [
-            self.tx_ready.eq(1),
-            self.rx_valid.eq(1)
+            self.tx_ready.eq(data_ce[0]),
+            self.rx_valid.eq(data_ce[0])
         ]
 
 class FakePHY(Module):
-    cd = "sys"
     def __init__(self):
-        self.init = FakeInit()
-        self.serdes = FakeSerdes()
+        self.submodules.init = FakeInit()
+        self.submodules.serdes = FakeSerdes()
 
 
 class DUTScrambler(Module):
@@ -62,8 +66,11 @@ class DUTCore(Module):
 
         # connect phy
         self.comb += [
+            phy_master.serdes.rx_valid.eq(phy_slave.serdes.tx_ready),
             phy_master.serdes.rx_k.eq(phy_slave.serdes.tx_k),
             phy_master.serdes.rx_d.eq(phy_slave.serdes.tx_d),
+            
+            phy_slave.serdes.rx_valid.eq(phy_master.serdes.tx_ready),
             phy_slave.serdes.rx_k.eq(phy_master.serdes.tx_k),
             phy_slave.serdes.rx_d.eq(phy_master.serdes.tx_d)
         ]
@@ -133,5 +140,5 @@ class TestSERWBCore(unittest.TestCase):
         # scrambling on
         dut = DUTCore(with_scrambling=True)
         dut.errors = 0
-        run_simulation(dut, generator(dut))
+        run_simulation(dut, generator(dut), vcd_name="sim.vcd")
         self.assertEqual(dut.errors, 0)

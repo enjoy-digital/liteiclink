@@ -1,5 +1,6 @@
 from migen import *
 
+from litex.soc.interconnect import stream
 from liteiclink.serwb.scrambler import Scrambler, Descrambler
 from liteiclink.serwb.packet import Packetizer, Depacketizer
 from liteiclink.serwb.etherbone import Etherbone
@@ -15,6 +16,11 @@ class SERWBCore(Module):
         packetizer = Packetizer()
         self.submodules += depacketizer, packetizer
 
+        # fifos
+        tx_fifo = stream.SyncFIFO([("data", 32)], 16)
+        rx_fifo = stream.SyncFIFO([("data", 32)], 16)
+        self.submodules += tx_fifo, rx_fifo
+
         # scrambling
         scrambler =  Scrambler(enable=with_scrambling)
         descrambler = Descrambler(enable=with_scrambling)
@@ -23,7 +29,8 @@ class SERWBCore(Module):
         # modules connection
         self.comb += [
             # core --> phy
-            packetizer.source.connect(scrambler.sink),
+            packetizer.source.connect(tx_fifo.sink),
+            tx_fifo.source.connect(scrambler.sink),
             If(phy.init.ready,
                 If(scrambler.source.valid,
                     phy.serdes.tx_k.eq(scrambler.source.k),
@@ -33,10 +40,13 @@ class SERWBCore(Module):
             ),
 
             # phy --> core
-            descrambler.sink.valid.eq(phy.init.ready & phy.serdes.rx_valid),
-            descrambler.sink.k.eq(phy.serdes.rx_k),
-            descrambler.sink.d.eq(phy.serdes.rx_d),
-            descrambler.source.connect(depacketizer.sink),
+            If(phy.init.ready,
+                descrambler.sink.valid.eq(phy.serdes.rx_valid),
+                descrambler.sink.k.eq(phy.serdes.rx_k),
+                descrambler.sink.d.eq(phy.serdes.rx_d)
+            ),
+			descrambler.source.connect(rx_fifo.sink),
+            rx_fifo.source.connect(depacketizer.sink),
 
             # etherbone <--> core
             depacketizer.source.connect(etherbone.sink),
