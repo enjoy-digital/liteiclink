@@ -46,13 +46,13 @@ class KUSSerdes(Module):
         # tx clock (linerate/10)
         if mode == "master":
             self.submodules.tx_clk_converter = stream.Converter(40, 8)
-            self.tx_clk_converter.source.ready.rst = 1
             self.comb += [
                 self.tx_clk_converter.sink.valid.eq(1),
                 self.tx_clk_converter.sink.data.eq((0b1111100000 << 30) |
                                                    (0b1111100000 << 20) |
                                                    (0b1111100000 << 10) |
-                                                   (0b1111100000 <<  0))
+                                                   (0b1111100000 <<  0)),
+                self.tx_clk_converter.source.ready.eq(1)
             ]
             clk_o = Signal()
             self.specials += [
@@ -76,7 +76,7 @@ class KUSSerdes(Module):
         # tx_data -> encoders -> converter -> serdes
         tx_ready_sr = Signal(self.tx_ready_latency)
         self.submodules.tx_converter = stream.Converter(40, 8)
-        self.tx_converter.source.ready.rst = 1
+        self.comb += self.tx_converter.source.ready.eq(1)
         self.comb += [
             If(self.tx_comma,
                 self.encoder.k[0].eq(1),
@@ -147,7 +147,7 @@ class KUSSerdes(Module):
         # serdes -> converter -> bitslip -> decoders -> rx_data
         rx_valid_sr = Signal(self.rx_valid_latency)
         self.submodules.rx_converter = stream.Converter(8, 40)
-        self.rx_converter.source.ready.rst = 1
+        self.comb += self.rx_converter.source.ready.eq(1)
         self.submodules.rx_bitslip = BitSlip(40)
 
         serdes_i_nodelay = Signal()
