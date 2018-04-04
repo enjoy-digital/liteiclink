@@ -7,7 +7,7 @@ from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 class S7Serdes(Module):
     tx_ready_latency = 2 # Encoder
-    rx_valid_latency = 1 + 2 # Decoder + Bitslip
+    rx_valid_latency = 1 + 1 +  2 # Decoder + Sync + Bitslip
     def __init__(self, pads, mode="master"):
         if mode == "slave":
             self.refclk = Signal()
@@ -31,7 +31,7 @@ class S7Serdes(Module):
 
         # # #
 
-        self.submodules.encoder = Encoder(4, True)
+        self.submodules.encoder = CEInserter()(Encoder(4, True))
         self.decoders = [Decoder(True) for _ in range(4)]
         self.submodules += self.decoders
 
@@ -96,15 +96,16 @@ class S7Serdes(Module):
                 self.encoder.d[3].eq(self.tx_d[24:32])
             )
         ]
-        self.sync += [
+        self.comb += [
+            self.encoder.ce.eq(self.tx_converter.sink.ready),
             self.tx_converter.sink.valid.eq(1),
-            tx_ready_sr.eq(Cat(self.tx_converter.sink.ready, tx_ready_sr)),
-            If(self.tx_idle,
+             If(self.tx_idle,
                 self.tx_converter.sink.data.eq(0)
             ).Else(
                 self.tx_converter.sink.data.eq(Cat(*[self.encoder.output[i] for i in range(4)]))
             )
         ]
+        self.sync += tx_ready_sr.eq(Cat(self.tx_converter.sink.ready, tx_ready_sr))
         self.comb += self.tx_ready.eq(tx_ready_sr[-1])
 
         serdes_o = Signal()
@@ -201,12 +202,17 @@ class S7Serdes(Module):
                 o_Q2=serdes_q[6], o_Q1=serdes_q[7]
             )
         ]
-        self.sync += rx_valid_sr.eq(Cat(self.rx_converter.source.valid, rx_valid_sr)),
+
+        self.sync += [
+            rx_valid_sr.eq(Cat(self.rx_converter.source.valid, rx_valid_sr)),
+            If(self.rx_converter.source.valid,
+                self.rx_bitslip.i.eq(self.rx_converter.source.data)
+            )
+        ]
         self.comb += [
             self.rx_converter.sink.valid.eq(1),
             self.rx_converter.sink.data.eq(serdes_q),
             self.rx_bitslip.value.eq(self.rx_bitslip_value),
-            self.rx_bitslip.i.eq(self.rx_converter.source.data),
             self.decoders[0].input.eq(self.rx_bitslip.o[0:10]),
             self.decoders[1].input.eq(self.rx_bitslip.o[10:20]),
             self.decoders[2].input.eq(self.rx_bitslip.o[20:30]),

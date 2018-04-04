@@ -311,7 +311,7 @@ class _SerdesControl(Module, AutoCSR):
 
 class SERWBPHY(Module, AutoCSR):
     cd = "sys0p2x"
-    def __init__(self, device, pads, mode="master"):
+    def __init__(self, device, pads, mode="master", init_timeout=4096):
         assert mode in ["master", "slave"]
         if device[:4] == "xcku":
             taps = 512
@@ -322,7 +322,7 @@ class SERWBPHY(Module, AutoCSR):
         else:
             raise NotImplementedError
         if mode == "master":
-            self.submodules.init = _SerdesMasterInit(self.serdes, taps)
+            self.submodules.init = _SerdesMasterInit(self.serdes, taps, init_timeout)
         else:
-            self.submodules.init = _SerdesSlaveInit(self.serdes, taps)
+            self.submodules.init = _SerdesSlaveInit(self.serdes, taps, init_timeout)
         self.submodules.control = _SerdesControl(self.init, mode)
