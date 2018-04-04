@@ -17,11 +17,19 @@ class FakeInit(Module):
 
 class FakeSerdes(Module):
     def __init__(self):
+        self.tx_ready = Signal()
         self.tx_k = Signal(4)
         self.tx_d = Signal(32)
+        self.rx_valid = Signal()
         self.rx_k = Signal(4)
         self.rx_d = Signal(32)
+        
+        # # #
 
+        self.comb += [
+            self.tx_ready.eq(1),
+            self.rx_valid.eq(1)
+        ]
 
 class FakePHY(Module):
     cd = "sys"
