@@ -17,7 +17,7 @@ from liteiclink.serwb.s7phy import S7Serdes
 # 6) Link is ready.
 
 class _SerdesMasterInit(Module):
-    def __init__(self, serdes, taps, timeout=2**16):
+    def __init__(self, serdes, taps, timeout=2**14):
         self.reset_link = Signal()
         self.ready = Signal()
         self.error = Signal()
@@ -163,7 +163,7 @@ class _SerdesMasterInit(Module):
 
 
 class _SerdesSlaveInit(Module, AutoCSR):
-    def __init__(self, serdes, taps, timeout=2**16):
+    def __init__(self, serdes, taps, timeout=2**14):
         self.ready = Signal()
         self.error = Signal()
         self.link_reset = Signal()
