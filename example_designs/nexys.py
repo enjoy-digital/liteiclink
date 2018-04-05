@@ -14,6 +14,9 @@ from litex.soc.integration.builder import *
 from litex.soc.cores.uart import UARTWishboneBridge
 
 from liteiclink.serwb.phy import SERWBPHY
+from liteiclink.serwb.core import SERWBCore
+
+from litescope import LiteScopeAnalyzer
 
 
 serwb_io = [
@@ -105,15 +108,51 @@ class BaseSoC(SoCCore):
                                                   clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
+class SERWBTest(Module, AutoCSR):
+    def __init__(self, bus):
+        self.do_write = CSR()
+        self.do_read = CSR()
+
+        # # #
+
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            If(self.do_write.re,
+                NextState("WRITE")
+            ).Elif(self.do_read.re,
+                NextState("READ")
+            )
+        )
+        fsm.act("WRITE",
+            bus.stb.eq(1),
+            bus.cyc.eq(1),
+            bus.we.eq(1),
+            bus.adr.eq(0x12345678),
+            bus.dat_w.eq(0xdeadbeef),
+            If(bus.ack,
+                NextState("IDLE")
+            )
+        )
+        fsm.act("READ",
+            bus.stb.eq(1),
+            bus.cyc.eq(1),
+            bus.adr.eq(0x89abcdef),
+            If(bus.ack,
+                NextState("IDLE")
+            )
+        )
+
 
 class SERDESTestSoC(BaseSoC):
     csr_map = {
         "serwb_master_phy": 20,
         "serwb_slave_phy":  21,
-        "analyzer":         22
+        "serwb_test":       22,
+        "analyzer":         23
     }
     csr_map.update(BaseSoC.csr_map)
-    def __init__(self, platform):
+    
+    def __init__(self, platform, with_core=True, with_analyzer=True):
         BaseSoC.__init__(self, platform)
 
         # serwb enable
@@ -125,24 +164,84 @@ class SERDESTestSoC(BaseSoC):
         # serwb slave
         self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave")
 
-        # data
-        self.sync += [
-            If(self.serwb_master_phy.init.ready & self.serwb_master_phy.serdes.tx_ready,
-                self.serwb_master_phy.serdes.tx_d.eq(self.serwb_master_phy.serdes.tx_d + 1)
-            ),
-            If(self.serwb_slave_phy.init.ready & self.serwb_slave_phy.serdes.tx_ready,
-                self.serwb_slave_phy.serdes.tx_d.eq(self.serwb_slave_phy.serdes.tx_d + 1)
-            ),
-            If(self.serwb_master_phy.serdes.rx_valid,
-                platform.request("user_led", 0).eq(self.serwb_master_phy.serdes.rx_d[24]),
-                platform.request("user_led", 1).eq(self.serwb_master_phy.serdes.rx_d[25])
-            ),
-            If(self.serwb_slave_phy.serdes.rx_valid,
-                platform.request("user_led", 2).eq(self.serwb_slave_phy.serdes.rx_d[24]),
-                platform.request("user_led", 3).eq(self.serwb_slave_phy.serdes.rx_d[25])
-            ),
-        ]
+        if not with_core:
+            # data
+            self.sync += [
+                If(self.serwb_master_phy.init.ready & self.serwb_master_phy.serdes.tx_ready,
+                    self.serwb_master_phy.serdes.tx_d.eq(self.serwb_master_phy.serdes.tx_d + 1)
+                ),
+                If(self.serwb_slave_phy.init.ready & self.serwb_slave_phy.serdes.tx_ready,
+                    self.serwb_slave_phy.serdes.tx_d.eq(self.serwb_slave_phy.serdes.tx_d + 1)
+                ),
+                If(self.serwb_master_phy.serdes.rx_valid,
+                    platform.request("user_led", 0).eq(self.serwb_master_phy.serdes.rx_d[24]),
+                    platform.request("user_led", 1).eq(self.serwb_master_phy.serdes.rx_d[25])
+                ),
+                If(self.serwb_slave_phy.serdes.rx_valid,
+                    platform.request("user_led", 2).eq(self.serwb_slave_phy.serdes.rx_d[24]),
+                    platform.request("user_led", 3).eq(self.serwb_slave_phy.serdes.rx_d[25])
+                ),
+            ]
+        else:
+            # wishbone slave
+            serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave", with_scrambling=False)
+            self.submodules += serwb_master_core
 
+            # wishbone master
+            serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master", with_scrambling=False)
+            self.submodules += serwb_slave_core
+            self.comb += [
+                serwb_slave_core.etherbone.wishbone.bus.ack.eq(1),
+                serwb_slave_core.etherbone.wishbone.bus.dat_r.eq(0xdeadbeef)
+            ]
+
+            # serwb test
+            self.submodules.serwb_test = SERWBTest(serwb_master_core.etherbone.wishbone.bus)
+
+            # analyzer
+            if with_analyzer:
+                analyzer_signals = [
+                    serwb_master_core.etherbone.wishbone.bus,
+                    self.serwb_master_phy.serdes.decoders[0].d,
+                    self.serwb_master_phy.serdes.decoders[0].k,
+                    self.serwb_master_phy.serdes.decoders[1].d,
+                    self.serwb_master_phy.serdes.decoders[1].k,
+                    self.serwb_master_phy.serdes.decoders[2].d,
+                    self.serwb_master_phy.serdes.decoders[2].k,
+                    self.serwb_master_phy.serdes.decoders[3].d,
+                    self.serwb_master_phy.serdes.decoders[3].k,
+                    self.serwb_master_phy.serdes.encoder.k[0],
+                    self.serwb_master_phy.serdes.encoder.d[0],
+                    self.serwb_master_phy.serdes.encoder.k[1],
+                    self.serwb_master_phy.serdes.encoder.d[1],
+                    self.serwb_master_phy.serdes.encoder.k[2],
+                    self.serwb_master_phy.serdes.encoder.d[2],
+                    self.serwb_master_phy.serdes.encoder.k[3],
+                    self.serwb_master_phy.serdes.encoder.d[3],
+
+                    serwb_slave_core.etherbone.wishbone.bus,
+                    self.serwb_slave_phy.serdes.decoders[0].d,
+                    self.serwb_slave_phy.serdes.decoders[0].k,
+                    self.serwb_slave_phy.serdes.decoders[1].d,
+                    self.serwb_slave_phy.serdes.decoders[1].k,
+                    self.serwb_slave_phy.serdes.decoders[2].d,
+                    self.serwb_slave_phy.serdes.decoders[2].k,
+                    self.serwb_slave_phy.serdes.decoders[3].d,
+                    self.serwb_slave_phy.serdes.decoders[3].k,
+                    self.serwb_slave_phy.serdes.encoder.k[0],
+                    self.serwb_slave_phy.serdes.encoder.d[0],
+                    self.serwb_slave_phy.serdes.encoder.k[1],
+                    self.serwb_slave_phy.serdes.encoder.d[1],
+                    self.serwb_slave_phy.serdes.encoder.k[2],
+                    self.serwb_slave_phy.serdes.encoder.d[2],
+                    self.serwb_slave_phy.serdes.encoder.k[3],
+                    self.serwb_slave_phy.serdes.encoder.d[3]
+                ]
+                self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256)
+
+    def do_exit(self, vns):
+        if hasattr(self, "analyzer"):
+            self.analyzer.export_csv(vns, "test/analyzer.csv")
 
 def main():
     platform = nexys.Platform()

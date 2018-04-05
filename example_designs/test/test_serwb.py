@@ -4,13 +4,40 @@ import time
 
 from litex.soc.tools.remote import RemoteClient
 
+from litescope import LiteScopeAnalyzerDriver
+
 wb = RemoteClient()
 wb.open()
 
 # # #
 
+def seed_to_data(seed, random=True):
+    if random:
+        return (1664525*seed + 1013904223) & 0xffffffff
+    else:
+        return seed
+
+def write_pattern(length):
+    for i in range(length):
+        wb.write(wb.mems.serwb.base + 4*i, seed_to_data(i))
+
+def check_pattern(length, debug=False):
+    errors = 0
+    for i in range(length):
+        error = 0
+        read_data = wb.read(wb.mems.serwb.base + 4*i)
+        if read_data != seed_to_data(i):
+            error = 1
+            if debug:
+                print("{}: 0x{:08x}, 0x{:08x}   KO".format(i, read_data, seed_to_data(i)))
+        else:
+            if debug:
+                print("{}: 0x{:08x}, 0x{:08x} OK".format(i, read_data, seed_to_data(i)))
+        errors += error
+    return errors
+
 if len(sys.argv) < 2:
-    print("missing test (init)")
+    print("missing test (init, wishbone, analyzer)")
     wb.close()
     exit()
 
@@ -47,6 +74,26 @@ if sys.argv[1] == "init":
     print("bitslip: {:d}".format(wb.regs.serwb_slave_phy_control_bitslip.read()))
     print("ready: {:d}".format(wb.regs.serwb_slave_phy_control_ready.read()))
     print("error: {:d}".format(wb.regs.serwb_slave_phy_control_error.read()))
+
+elif sys.argv[1] == "wishbone":
+    write_pattern(1024)
+    errors = check_pattern(1024, debug=True)
+    print("errors: {:d}".format(errors))
+
+elif sys.argv[1] == "analyzer":
+    analyzer = LiteScopeAnalyzerDriver(wb.regs, "analyzer", debug=True)
+    analyzer.configure_trigger(cond={"serwb_master_core_wishbone_bus_cyc" : 1})
+    analyzer.run(offset=32, length=256)
+
+    # test write
+    #wb.regs.serwb_test_do_write.write(1)
+    
+    # read
+    wb.regs.serwb_test_do_read.write(1)
+
+    analyzer.wait_done()
+    analyzer.upload()
+    analyzer.save("dump.vcd")
 
 else:
     raise ValueError
