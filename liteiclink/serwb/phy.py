@@ -17,10 +17,11 @@ from liteiclink.serwb.s7phy import S7Serdes
 # 6) Link is ready.
 
 class _SerdesMasterInit(Module):
-    def __init__(self, serdes, taps, timeout=4096):
-        self.reset = Signal()
+    def __init__(self, serdes, taps, timeout=2**16):
+        self.reset_link = Signal()
         self.ready = Signal()
         self.error = Signal()
+        self.debug = Signal(8)
 
         # # #
 
@@ -35,11 +36,12 @@ class _SerdesMasterInit(Module):
         self.submodules += timer
 
         self.submodules.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
-        self.comb += self.fsm.reset.eq(self.reset)
+        self.comb += self.fsm.reset.eq(self.reset_link)
 
         self.comb += serdes.rx_delay_inc.eq(1)
 
         fsm.act("IDLE",
+            self.debug.eq(0),
             NextValue(delay, 0),
             NextValue(delay_min, 0),
             NextValue(delay_min_found, 0),
@@ -51,6 +53,7 @@ class _SerdesMasterInit(Module):
             serdes.tx_idle.eq(1)
         )
         fsm.act("RESET_SLAVE",
+            self.debug.eq(1),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
@@ -59,12 +62,14 @@ class _SerdesMasterInit(Module):
             serdes.tx_idle.eq(1)
         )
         fsm.act("SEND_PATTERN",
+            self.debug.eq(2),
             If(~serdes.rx_idle,
                 NextState("WAIT_STABLE")
             ),
             serdes.tx_comma.eq(1)
         )
         fsm.act("WAIT_STABLE",
+            self.debug.eq(3),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
@@ -73,6 +78,7 @@ class _SerdesMasterInit(Module):
             serdes.tx_comma.eq(1)
         )
         fsm.act("CHECK_PATTERN",
+            self.debug.eq(4),
             If(~delay_min_found,
                 If(serdes.rx_comma,
                     timer.wait.eq(1),
@@ -97,6 +103,7 @@ class _SerdesMasterInit(Module):
         )
         self.comb += serdes.rx_bitslip_value.eq(bitslip)
         fsm.act("INC_DELAY_BITSLIP",
+            self.debug.eq(5),
             NextState("WAIT_STABLE"),
             If(delay == (taps - 1),
                 If(bitslip == (40 - 1),
@@ -114,9 +121,8 @@ class _SerdesMasterInit(Module):
             serdes.tx_comma.eq(1)
         )
         fsm.act("CHECK_SAMPLING_WINDOW",
-            If((delay_min == 0) |
-               (delay_max == (taps - 1)) |
-               ((delay_max - delay_min) < taps//16),
+            self.debug.eq(6),
+            If((delay_max - delay_min) < taps//16,
                NextValue(delay_min_found, 0),
                NextValue(delay_max_found, 0),
                NextState("WAIT_STABLE")
@@ -126,6 +132,7 @@ class _SerdesMasterInit(Module):
             serdes.tx_comma.eq(1)
         )
         fsm.act("CONFIGURE_SAMPLING_WINDOW",
+            self.debug.eq(7),
             If(delay == (delay_min + (delay_max - delay_min)[1:]),
                 NextState("READY")
             ).Else(
@@ -137,6 +144,7 @@ class _SerdesMasterInit(Module):
             serdes.tx_comma.eq(1)
         )
         fsm.act("WAIT_SAMPLING_WINDOW",
+            self.debug.eq(8),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
@@ -145,17 +153,21 @@ class _SerdesMasterInit(Module):
             serdes.tx_comma.eq(1)
         )
         fsm.act("READY",
+            self.debug.eq(9),
             self.ready.eq(1)
         )
         fsm.act("ERROR",
+            self.debug.eq(10),
             self.error.eq(1)
         )
 
 
 class _SerdesSlaveInit(Module, AutoCSR):
-    def __init__(self, serdes, taps, timeout=4096):
+    def __init__(self, serdes, taps, timeout=2**16):
         self.ready = Signal()
         self.error = Signal()
+        self.link_reset = Signal()
+        self.debug = Signal(8)
 
         # # #
 
@@ -169,11 +181,13 @@ class _SerdesSlaveInit(Module, AutoCSR):
         timer = WaitTimer(timeout)
         self.submodules += timer
 
+        self.comb += self.link_reset.eq(serdes.rx_idle)
+
         self.comb += serdes.rx_delay_inc.eq(1)
 
-        self.submodules.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
-        self.comb += fsm.reset.eq(serdes.rx_idle)
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
+            self.debug.eq(0),
             NextValue(delay, 0),
             NextValue(delay_min, 0),
             NextValue(delay_min_found, 0),
@@ -181,10 +195,15 @@ class _SerdesSlaveInit(Module, AutoCSR):
             NextValue(delay_max_found, 0),
             serdes.rx_delay_rst.eq(1),
             NextValue(bitslip, 0),
-            NextState("WAIT_STABLE"),
+            timer.wait.eq(1),
+            If(timer.done,
+                timer.wait.eq(0),
+                NextState("WAIT_STABLE"),
+            ),
             serdes.tx_idle.eq(1)
         )
         fsm.act("WAIT_STABLE",
+            self.debug.eq(1),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
@@ -193,6 +212,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
             serdes.tx_idle.eq(1)
         )
         fsm.act("CHECK_PATTERN",
+            self.debug.eq(2),
             If(~delay_min_found,
                 If(serdes.rx_comma,
                     timer.wait.eq(1),
@@ -217,6 +237,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
         )
         self.comb += serdes.rx_bitslip_value.eq(bitslip)
         fsm.act("INC_DELAY_BITSLIP",
+            self.debug.eq(3),
             NextState("WAIT_STABLE"),
             If(delay == (taps - 1),
                 If(bitslip == (40 - 1),
@@ -234,9 +255,8 @@ class _SerdesSlaveInit(Module, AutoCSR):
             serdes.tx_idle.eq(1)
         )
         fsm.act("CHECK_SAMPLING_WINDOW",
-            If((delay_min == 0) |
-               (delay_max == (taps - 1)) |
-               ((delay_max - delay_min) < taps//16),
+            self.debug.eq(4),
+            If((delay_max - delay_min) < taps//16,
                NextValue(delay_min_found, 0),
                NextValue(delay_max_found, 0),
                NextState("WAIT_STABLE")
@@ -246,6 +266,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
             serdes.tx_idle.eq(1)
         )
         fsm.act("CONFIGURE_SAMPLING_WINDOW",
+            self.debug.eq(5),
             If(delay == (delay_min + (delay_max - delay_min)[1:]),
                 NextState("SEND_PATTERN")
             ).Else(
@@ -256,6 +277,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
             )
         )
         fsm.act("WAIT_SAMPLING_WINDOW",
+            self.debug.eq(6),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
@@ -263,6 +285,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
             )
         )
         fsm.act("SEND_PATTERN",
+            self.debug.eq(7),
             timer.wait.eq(1),
             If(timer.done,
                 If(~serdes.rx_comma,
@@ -272,9 +295,11 @@ class _SerdesSlaveInit(Module, AutoCSR):
             serdes.tx_comma.eq(1)
         )
         fsm.act("READY",
+            self.debug.eq(8),
             self.ready.eq(1)
         )
         fsm.act("ERROR",
+            self.debug.eq(9),
             self.error.eq(1)
         )
 
@@ -296,7 +321,7 @@ class _SerdesControl(Module, AutoCSR):
         # # #
 
         if mode == "master":
-            self.comb += init.reset.eq(self.reset.re)
+            self.comb += init.reset_link.eq(self.reset.re)
         self.comb += [
             self.ready.status.eq(init.ready),
             self.error.status.eq(init.error),
@@ -310,8 +335,7 @@ class _SerdesControl(Module, AutoCSR):
 
 
 class SERWBPHY(Module, AutoCSR):
-    cd = "sys0p2x"
-    def __init__(self, device, pads, mode="master", init_timeout=4096):
+    def __init__(self, device, pads, mode="master"):
         assert mode in ["master", "slave"]
         if device[:4] == "xcku":
             taps = 512
@@ -322,7 +346,8 @@ class SERWBPHY(Module, AutoCSR):
         else:
             raise NotImplementedError
         if mode == "master":
-            self.submodules.init = _SerdesMasterInit(self.serdes, taps, init_timeout)
+            self.submodules.init = _SerdesMasterInit(self.serdes, taps)
         else:
-            self.submodules.init = _SerdesSlaveInit(self.serdes, taps, init_timeout)
+            self.submodules.init = ResetInserter()(_SerdesSlaveInit(self.serdes, taps))
+            self.comb += self.init.reset.eq(self.init.link_reset)
         self.submodules.control = _SerdesControl(self.init, mode)

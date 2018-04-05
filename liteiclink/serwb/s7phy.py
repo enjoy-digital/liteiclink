@@ -6,7 +6,6 @@ from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 
 class S7Serdes(Module):
-    tx_ready_latency = 2 # Encoder
     rx_valid_latency = 1 + 1 + 2 # Decoder + Sync + Bitslip
     def __init__(self, pads, mode="master"):
         if mode == "slave":
@@ -31,7 +30,7 @@ class S7Serdes(Module):
 
         # # #
 
-        self.submodules.encoder = CEInserter()(Encoder(4, True))
+        self.submodules.encoder = Encoder(4, True)
         self.decoders = [Decoder(True) for _ in range(4)]
         self.submodules += self.decoders
 
@@ -78,9 +77,12 @@ class S7Serdes(Module):
 
         # tx datapath
         # tx_data -> encoders -> converter -> serdes
-        tx_ready_sr = Signal(self.tx_ready_latency)
         self.submodules.tx_converter = stream.Converter(40, 8)
-        self.comb += self.tx_converter.source.ready.eq(1)
+        self.comb += [
+        	self.tx_converter.sink.valid.eq(1),
+        	self.tx_ready.eq(self.tx_converter.sink.ready),
+        	self.tx_converter.source.ready.eq(1)
+        ]
         self.comb += [
             If(self.tx_comma,
                 self.encoder.k[0].eq(1),
@@ -96,17 +98,12 @@ class S7Serdes(Module):
                 self.encoder.d[3].eq(self.tx_d[24:32])
             )
         ]
-        self.comb += [
-            self.encoder.ce.eq(self.tx_converter.sink.ready),
-            self.tx_converter.sink.valid.eq(1),
+       	self.sync += \
              If(self.tx_idle,
                 self.tx_converter.sink.data.eq(0)
-            ).Else(
+            ).Elif(self.tx_converter.sink.valid & self.tx_converter.sink.ready,
                 self.tx_converter.sink.data.eq(Cat(*[self.encoder.output[i] for i in range(4)]))
             )
-        ]
-        self.sync += tx_ready_sr.eq(Cat(self.tx_converter.sink.ready, tx_ready_sr))
-        self.comb += self.tx_ready.eq(tx_ready_sr[-1])
 
         serdes_o = Signal()
         self.specials += [
@@ -202,27 +199,22 @@ class S7Serdes(Module):
                 o_Q2=serdes_q[6], o_Q1=serdes_q[7]
             )
         ]
-        self.sync += [
-            rx_valid_sr.eq(Cat(self.rx_converter.source.valid, rx_valid_sr)),
-            If(self.rx_converter.source.valid,
-                self.rx_bitslip.i.eq(self.rx_converter.source.data)
-            )
-        ]
+        self.sync += rx_valid_sr.eq(Cat(self.rx_converter.source.valid, rx_valid_sr))
         self.comb += [
             self.rx_converter.sink.valid.eq(1),
             self.rx_converter.sink.data.eq(serdes_q),
             self.rx_bitslip.value.eq(self.rx_bitslip_value),
+            self.rx_bitslip.i.eq(self.rx_converter.source.data),
             self.decoders[0].input.eq(self.rx_bitslip.o[0:10]),
             self.decoders[1].input.eq(self.rx_bitslip.o[10:20]),
             self.decoders[2].input.eq(self.rx_bitslip.o[20:30]),
             self.decoders[3].input.eq(self.rx_bitslip.o[30:40]),
             self.rx_valid.eq(rx_valid_sr[-1]),
             self.rx_k.eq(Cat(*[self.decoders[i].k for i in range(4)])),
-            self.rx_d.eq(Cat(*[self.decoders[i].d for i in range(4)])),
-            self.rx_idle.eq(self.rx_bitslip.o == 0),
-            self.rx_comma.eq(((self.decoders[0].d == 0xbc) & (self.decoders[0].k == 1)) &
-                             ((self.decoders[1].d == 0x00) & (self.decoders[1].k == 0)) &
-                             ((self.decoders[2].d == 0x00) & (self.decoders[2].k == 0)) &
-                             ((self.decoders[3].d == 0x00) & (self.decoders[3].k == 0)))
-
+            self.rx_d.eq(Cat(*[self.decoders[i].d for i in range(4)]))
         ]
+        self.sync += \
+            If(self.rx_valid,
+                self.rx_idle.eq(self.rx_bitslip.o == 0),
+                self.rx_comma.eq((self.rx_d == 0x000000bc) & (self.rx_k == 0b0001))
+            )
