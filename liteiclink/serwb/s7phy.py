@@ -83,19 +83,27 @@ class S7Serdes(Module):
         	self.tx_ready.eq(self.tx_converter.sink.ready),
         	self.tx_converter.source.ready.eq(1)
         ]
+        tx_d = Signal(32)
+        tx_k = Signal(4)
+        self.sync += [
+            If(self.tx_converter.sink.ready,
+                tx_d.eq(self.tx_d),
+                tx_k.eq(self.tx_k)
+            )
+        ]
         self.comb += [
             If(self.tx_comma,
                 self.encoder.k[0].eq(1),
                 self.encoder.d[0].eq(0xbc)
             ).Else(
-                self.encoder.k[0].eq(self.tx_k[0]),
-                self.encoder.k[1].eq(self.tx_k[1]),
-                self.encoder.k[2].eq(self.tx_k[2]),
-                self.encoder.k[3].eq(self.tx_k[3]),
-                self.encoder.d[0].eq(self.tx_d[0:8]),
-                self.encoder.d[1].eq(self.tx_d[8:16]),
-                self.encoder.d[2].eq(self.tx_d[16:24]),
-                self.encoder.d[3].eq(self.tx_d[24:32])
+                self.encoder.k[0].eq(tx_k[0]),
+                self.encoder.k[1].eq(tx_k[1]),
+                self.encoder.k[2].eq(tx_k[2]),
+                self.encoder.k[3].eq(tx_k[3]),
+                self.encoder.d[0].eq(tx_d[0:8]),
+                self.encoder.d[1].eq(tx_d[8:16]),
+                self.encoder.d[2].eq(tx_d[16:24]),
+                self.encoder.d[3].eq(tx_d[24:32])
             )
         ]
        	self.sync += \
