@@ -151,8 +151,13 @@ class SERDESTestSoC(BaseSoC):
         "analyzer":         23
     }
     csr_map.update(BaseSoC.csr_map)
+
+    mem_map = {
+        "serwb": 0x30000000,
+    }
+    mem_map.update(BaseSoC.mem_map)
     
-    def __init__(self, platform, with_core=True, with_analyzer=True):
+    def __init__(self, platform, with_core=True, with_serwb_test=False, with_analyzer=True):
         BaseSoC.__init__(self, platform)
 
         # serwb enable
@@ -195,8 +200,11 @@ class SERDESTestSoC(BaseSoC):
                 serwb_slave_core.etherbone.wishbone.bus.dat_r.eq(0xdeadbeef)
             ]
 
-            # serwb test
-            self.submodules.serwb_test = SERWBTest(serwb_master_core.etherbone.wishbone.bus)
+            if with_serwb_test:
+                # serwb test
+                self.submodules.serwb_test = SERWBTest(serwb_master_core.etherbone.wishbone.bus)
+            else:
+                self.register_mem("serwb", self.mem_map["serwb"], serwb_master_core.etherbone.wishbone.bus, 8192)
 
             # analyzer
             if with_analyzer:
