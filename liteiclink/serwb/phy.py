@@ -300,7 +300,10 @@ class _SerdesControl(Module, AutoCSR):
             # In Slave mode, reset is coming from link,
             # Master reset the Slave by putting the link
             # in idle.
-            self.comb += init.reset.eq(serdes.rx_idle)
+            self.comb += [
+                init.reset.eq(serdes.rx_idle),
+                serdes.reset.eq(serdes.rx_idle)
+            ]
         self.comb += [
             self.ready.status.eq(init.ready),
             self.error.status.eq(init.error),

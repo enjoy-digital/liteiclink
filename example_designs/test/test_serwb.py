@@ -83,6 +83,7 @@ elif sys.argv[1] == "wishbone":
 elif sys.argv[1] == "analyzer":
     analyzer = LiteScopeAnalyzerDriver(wb.regs, "analyzer", debug=True)
     analyzer.configure_trigger(cond={"serwb_master_core_wishbone_bus_cyc" : 1})
+    #analyzer.configure_trigger(cond={"serwb_slave_phy_serdes_rx_d" : 0xfd})    
     analyzer.run(offset=32, length=256)
 
     # test write

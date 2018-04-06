@@ -107,7 +107,7 @@ class BaseSoC(SoCCore):
         )
         self.submodules.crg = _CRG(platform)
         self.add_cpu_or_bridge(UARTWishboneBridge(platform.request("serial"),
-                                                  clk_freq, baudrate=115200))
+                                                  clk_freq, baudrate=3e6))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
 
@@ -219,40 +219,20 @@ class SERDESTestSoC(BaseSoC):
             if with_analyzer:
                 analyzer_signals = [
                     serwb_master_core.etherbone.wishbone.bus,
-                    self.serwb_master_phy.serdes.decoders[0].d,
-                    self.serwb_master_phy.serdes.decoders[0].k,
-                    self.serwb_master_phy.serdes.decoders[1].d,
-                    self.serwb_master_phy.serdes.decoders[1].k,
-                    self.serwb_master_phy.serdes.decoders[2].d,
-                    self.serwb_master_phy.serdes.decoders[2].k,
-                    self.serwb_master_phy.serdes.decoders[3].d,
-                    self.serwb_master_phy.serdes.decoders[3].k,
-                    self.serwb_master_phy.serdes.encoder.k[0],
-                    self.serwb_master_phy.serdes.encoder.d[0],
-                    self.serwb_master_phy.serdes.encoder.k[1],
-                    self.serwb_master_phy.serdes.encoder.d[1],
-                    self.serwb_master_phy.serdes.encoder.k[2],
-                    self.serwb_master_phy.serdes.encoder.d[2],
-                    self.serwb_master_phy.serdes.encoder.k[3],
-                    self.serwb_master_phy.serdes.encoder.d[3],
+                    #self.serwb_master_phy.serdes.tx_d,
+                    #self.serwb_master_phy.serdes.tx_k,
+                    #self.serwb_master_phy.serdes.tx_ce,
+                    #self.serwb_master_phy.serdes.rx_d,
+                    #self.serwb_master_phy.serdes.rx_k,
+                    #self.serwb_master_phy.serdes.rx_ce,
 
                     serwb_slave_core.etherbone.wishbone.bus,
-                    self.serwb_slave_phy.serdes.decoders[0].d,
-                    self.serwb_slave_phy.serdes.decoders[0].k,
-                    self.serwb_slave_phy.serdes.decoders[1].d,
-                    self.serwb_slave_phy.serdes.decoders[1].k,
-                    self.serwb_slave_phy.serdes.decoders[2].d,
-                    self.serwb_slave_phy.serdes.decoders[2].k,
-                    self.serwb_slave_phy.serdes.decoders[3].d,
-                    self.serwb_slave_phy.serdes.decoders[3].k,
-                    self.serwb_slave_phy.serdes.encoder.k[0],
-                    self.serwb_slave_phy.serdes.encoder.d[0],
-                    self.serwb_slave_phy.serdes.encoder.k[1],
-                    self.serwb_slave_phy.serdes.encoder.d[1],
-                    self.serwb_slave_phy.serdes.encoder.k[2],
-                    self.serwb_slave_phy.serdes.encoder.d[2],
-                    self.serwb_slave_phy.serdes.encoder.k[3],
-                    self.serwb_slave_phy.serdes.encoder.d[3]
+                    self.serwb_slave_phy.serdes.tx_d,
+                    self.serwb_slave_phy.serdes.tx_k,
+                    self.serwb_slave_phy.serdes.tx_ce,
+                    self.serwb_slave_phy.serdes.rx_d,
+                    self.serwb_slave_phy.serdes.rx_k,
+                    self.serwb_slave_phy.serdes.rx_ce,
                 ]
                 self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256)
 

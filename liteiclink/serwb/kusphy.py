@@ -1,10 +1,16 @@
 from migen import *
 from migen.genlib.misc import BitSlip
+from migen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import stream
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 
+def K(x, y):
+    return (y << 5) | x
+
+
+@ResetInserter()
 class KUSSerdes(Module):
     def __init__(self, pads, mode="master"):
         if mode == "slave":
@@ -32,7 +38,8 @@ class KUSSerdes(Module):
 
         self.submodules.encoder = encoder = CEInserter()(Encoder(4, True))
         self.comb += encoder.ce.eq(self.tx_ce)
-        self.submodules.decoders = decoders = [Decoder(True) for _ in range(4)]
+        self.submodules.decoders = decoders = [CEInserter()(Decoder(True)) for _ in range(4)]
+        self.comb += [decoders[i].ce.eq(self.rx_ce) for i in range(4)]
 
         # clocking:
 
@@ -84,7 +91,7 @@ class KUSSerdes(Module):
             ),
             If(self.tx_comma,
                 encoder.k[0].eq(1),
-                encoder.d[0].eq(0xbc)
+                encoder.d[0].eq(K(28,5)),
             ).Else(
                 encoder.k[0].eq(self.tx_k[0]),
                 encoder.k[1].eq(self.tx_k[1]),
@@ -139,10 +146,13 @@ class KUSSerdes(Module):
 
         # rx datapath
         # serdes -> converter -> bitslip -> decoders -> rx_data
-        rx_valid_sr = Signal(4)
         self.submodules.rx_converter = rx_converter = stream.Converter(8, 40)
-        self.comb += rx_converter.source.ready.eq(1)
-        self.submodules.rx_bitslip = rx_bitslip = BitSlip(40)
+        self.comb += [
+            self.rx_ce.eq(rx_converter.source.valid),
+            rx_converter.source.ready.eq(1)
+        ]
+        self.submodules.rx_bitslip = rx_bitslip = CEInserter()(BitSlip(40))
+        self.comb += rx_bitslip.ce.eq(self.rx_ce)
 
         serdes_i_nodelay = Signal()
         self.specials += [
@@ -183,7 +193,7 @@ class KUSSerdes(Module):
                 o_Q=serdes_q
             )
         ]
-        self.sync += rx_valid_sr.eq(Cat(rx_converter.source.valid, rx_valid_sr))
+
         self.comb += [
             rx_converter.sink.valid.eq(1),
             rx_converter.sink.data.eq(serdes_q),
@@ -193,13 +203,12 @@ class KUSSerdes(Module):
             decoders[1].input.eq(rx_bitslip.o[10:20]),
             decoders[2].input.eq(rx_bitslip.o[20:30]),
             decoders[3].input.eq(rx_bitslip.o[30:40]),
-            self.rx_ce.eq(rx_valid_sr[-1]),
             self.rx_k.eq(Cat(*[decoders[i].k for i in range(4)])),
-            self.rx_d.eq(Cat(*[decoders[i].d for i in range(4)]))
-        ]
-        self.sync += \
-            If(self.rx_ce,
-                self.rx_idle.eq(rx_bitslip.o == 0),
-                self.rx_comma.eq(
-                	(self.rx_k == 0b0001) & (self.rx_d == 0x000000bc))
-            )
+            self.rx_d.eq(Cat(*[decoders[i].d for i in range(4)])),
+            self.rx_comma.eq((decoders[0].k == 1) & (decoders[0].d == K(28,5)))
+        ] 
+
+        idle_timer = WaitTimer(32)
+        self.submodules += idle_timer
+        self.comb += idle_timer.wait.eq(1)
+        self.sync += self.rx_idle.eq(idle_timer.done & (rx_bitslip.o == 0))
