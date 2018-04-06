@@ -2,6 +2,7 @@
 import sys
 
 from migen import *
+from migen.genlib.misc import WaitTimer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
@@ -109,6 +110,7 @@ class BaseSoC(SoCCore):
                                                   clk_freq, baudrate=115200))
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
+
 class SERWBTest(Module, AutoCSR):
     def __init__(self, bus):
         self.do_write = CSR()
@@ -116,7 +118,9 @@ class SERWBTest(Module, AutoCSR):
 
         # # #
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.submodules.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
+        self.submodules.timeout = timeout = WaitTimer(2**16)
+        self.comb += fsm.reset.eq(self.timeout.done)
         fsm.act("IDLE",
             If(self.do_write.re,
                 NextState("WRITE")
@@ -125,6 +129,7 @@ class SERWBTest(Module, AutoCSR):
             )
         )
         fsm.act("WRITE",
+            timeout.wait.eq(1),
             bus.stb.eq(1),
             bus.cyc.eq(1),
             bus.we.eq(1),
@@ -135,6 +140,7 @@ class SERWBTest(Module, AutoCSR):
             )
         )
         fsm.act("READ",
+            timeout.wait.eq(1),
             bus.stb.eq(1),
             bus.cyc.eq(1),
             bus.adr.eq(0x89abcdef),
@@ -157,7 +163,7 @@ class SERDESTestSoC(BaseSoC):
         "serwb": 0x30000000,
     }
     mem_map.update(BaseSoC.mem_map)
-    
+
     def __init__(self, platform, with_core=True, with_serwb_test=False, with_analyzer=False):
         BaseSoC.__init__(self, platform)
 
