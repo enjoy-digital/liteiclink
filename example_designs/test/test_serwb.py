@@ -76,8 +76,8 @@ if sys.argv[1] == "init":
     print("error: {:d}".format(wb.regs.serwb_slave_phy_control_error.read()))
 
 elif sys.argv[1] == "wishbone":
-    write_pattern(1024)
-    errors = check_pattern(1024, debug=True)
+    write_pattern(128)
+    errors = check_pattern(128, debug=False)
     print("errors: {:d}".format(errors))
 
 elif sys.argv[1] == "analyzer":

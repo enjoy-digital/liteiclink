@@ -9,6 +9,7 @@ from litex.soc.interconnect.csr import *
 from litex.build.generic_platform import *
 from litex.boards.platforms import nexys_video as nexys
 
+from litex.soc.interconnect import wishbone
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.uart import UARTWishboneBridge
@@ -157,7 +158,7 @@ class SERDESTestSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
     
-    def __init__(self, platform, with_core=True, with_serwb_test=False, with_analyzer=True):
+    def __init__(self, platform, with_core=True, with_serwb_test=False, with_analyzer=False):
         BaseSoC.__init__(self, platform)
 
         # serwb enable
@@ -205,6 +206,8 @@ class SERDESTestSoC(BaseSoC):
                 self.submodules.serwb_test = SERWBTest(serwb_master_core.etherbone.wishbone.bus)
             else:
                 self.register_mem("serwb", self.mem_map["serwb"], serwb_master_core.etherbone.wishbone.bus, 8192)
+                self.submodules.serwb_sram = wishbone.SRAM(8192, init=[i for i in range(8192//4)])
+                self.comb += serwb_slave_core.etherbone.wishbone.bus.connect(self.serwb_sram.bus)
 
             # analyzer
             if with_analyzer:

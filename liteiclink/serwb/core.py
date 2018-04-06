@@ -36,12 +36,12 @@ class SERWBCore(Module):
                     phy.serdes.tx_k.eq(scrambler.source.k),
                     phy.serdes.tx_d.eq(scrambler.source.d)
                 ),
-                scrambler.source.ready.eq(phy.serdes.tx_ready)
+                scrambler.source.ready.eq(phy.serdes.tx_ce)
             ),
 
             # phy --> core
             If(phy.init.ready,
-                descrambler.sink.valid.eq(phy.serdes.rx_valid),
+                descrambler.sink.valid.eq(phy.serdes.rx_ce),
                 descrambler.sink.k.eq(phy.serdes.rx_k),
                 descrambler.sink.d.eq(phy.serdes.rx_d)
             ),
