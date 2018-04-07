@@ -19,10 +19,10 @@ class FakeInit(Module):
 
 class FakeSerdes(Module):
     def __init__(self):
-        self.tx_ready = Signal()
+        self.tx_ce = Signal()
         self.tx_k = Signal(4)
         self.tx_d = Signal(32)
-        self.rx_valid = Signal()
+        self.rx_ce = Signal()
         self.rx_k = Signal(4)
         self.rx_d = Signal(32)
 
@@ -32,8 +32,8 @@ class FakeSerdes(Module):
         self.sync += data_ce.eq(Cat(data_ce[1:], data_ce[0]))
 
         self.comb += [
-            self.tx_ready.eq(data_ce[0]),
-            self.rx_valid.eq(data_ce[0])
+            self.tx_ce.eq(data_ce[0]),
+            self.rx_ce.eq(data_ce[0])
         ]
 
 class FakePHY(Module):
@@ -63,11 +63,11 @@ class DUTCore(Module):
 
         # connect phy
         self.comb += [
-            phy_master.serdes.rx_valid.eq(phy_slave.serdes.tx_ready),
+            phy_master.serdes.rx_ce.eq(phy_slave.serdes.tx_ce),
             phy_master.serdes.rx_k.eq(phy_slave.serdes.tx_k),
             phy_master.serdes.rx_d.eq(phy_slave.serdes.tx_d),
             
-            phy_slave.serdes.rx_valid.eq(phy_master.serdes.tx_ready),
+            phy_slave.serdes.rx_ce.eq(phy_master.serdes.tx_ce),
             phy_slave.serdes.rx_k.eq(phy_master.serdes.tx_k),
             phy_slave.serdes.rx_d.eq(phy_master.serdes.tx_d)
         ]
@@ -90,7 +90,7 @@ class TestSERWBCore(unittest.TestCase):
             # test loop
             while i != 256:
                 # stim
-                yield dut.scrambler.sink.valid.eq(prng.randrange(2))
+                yield dut.scrambler.sink.valid.eq(1)
                 if (yield dut.scrambler.sink.valid) & (yield dut.scrambler.sink.ready):
                     i += 1
                 yield dut.scrambler.sink.data.eq(i)
@@ -108,7 +108,7 @@ class TestSERWBCore(unittest.TestCase):
 
         dut = DUTScrambler()
         dut.errors = 0
-        run_simulation(dut, generator(dut), vcd_name="sim.vcd")
+        run_simulation(dut, generator(dut))
         self.assertEqual(dut.errors, 0)
 
     def test_serwb(self):
@@ -142,5 +142,5 @@ class TestSERWBCore(unittest.TestCase):
         # scrambling on
         dut = DUTCore(with_scrambling=True)
         dut.errors = 0
-        run_simulation(dut, generator(dut), vcd_name="sim.vcd")
+        run_simulation(dut, generator(dut))
         self.assertEqual(dut.errors, 0)
