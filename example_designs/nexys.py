@@ -179,37 +179,37 @@ class SERDESTestSoC(BaseSoC):
         if not with_core:
             # data
             self.sync += [
-                If(self.serwb_master_phy.init.ready & self.serwb_master_phy.serdes.tx_ready,
+                If(self.serwb_master_phy.init.ready & self.serwb_master_phy.serdes.tx_ce,
                     self.serwb_master_phy.serdes.tx_d.eq(self.serwb_master_phy.serdes.tx_d + 1)
                 ),
-                If(self.serwb_slave_phy.init.ready & self.serwb_slave_phy.serdes.tx_ready,
+                If(self.serwb_slave_phy.init.ready & self.serwb_slave_phy.serdes.tx_ce,
                     self.serwb_slave_phy.serdes.tx_d.eq(self.serwb_slave_phy.serdes.tx_d + 1)
                 ),
-                If(self.serwb_master_phy.serdes.rx_valid,
+                If(self.serwb_master_phy.serdes.rx_ce,
                     platform.request("user_led", 0).eq(self.serwb_master_phy.serdes.rx_d[24]),
                     platform.request("user_led", 1).eq(self.serwb_master_phy.serdes.rx_d[25])
                 ),
-                If(self.serwb_slave_phy.serdes.rx_valid,
+                If(self.serwb_slave_phy.serdes.rx_ce,
                     platform.request("user_led", 2).eq(self.serwb_slave_phy.serdes.rx_d[24]),
                     platform.request("user_led", 3).eq(self.serwb_slave_phy.serdes.rx_d[25])
                 ),
             ]
         else:
             # wishbone slave
-            serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave", with_scrambling=False)
+            serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave", with_scrambling=True)
             self.submodules += serwb_master_core
 
             # wishbone master
-            serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master", with_scrambling=False)
+            serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master", with_scrambling=True)
             self.submodules += serwb_slave_core
-            self.comb += [
-                serwb_slave_core.etherbone.wishbone.bus.ack.eq(1),
-                serwb_slave_core.etherbone.wishbone.bus.dat_r.eq(0xdeadbeef)
-            ]
-
+   
             if with_serwb_test:
                 # serwb test
                 self.submodules.serwb_test = SERWBTest(serwb_master_core.etherbone.wishbone.bus)
+                self.comb += [
+                    serwb_slave_core.etherbone.wishbone.bus.ack.eq(1),
+                    serwb_slave_core.etherbone.wishbone.bus.dat_r.eq(0xdeadbeef)
+                ]
             else:
                 self.register_mem("serwb", self.mem_map["serwb"], serwb_master_core.etherbone.wishbone.bus, 8192)
                 self.submodules.serwb_sram = wishbone.SRAM(8192, init=[i for i in range(8192//4)])
