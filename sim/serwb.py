@@ -89,18 +89,19 @@ class CRG(Module):
 
 
 class SERWBSim(Module):
-    def __init__(self, platform):
+    def __init__(self, platform, phy_width=8):
         clk_freq = 125e6
         self.submodules.crg = CRG(platform.request("clk125"))
 
         # amc
-        self.submodules.serwb_phy_amc = SERWBPHY("xcku040", platform.request("serwb_amc"), mode="master", init_timeout=4)
+        self.submodules.serwb_phy_amc = SERWBPHY("xcku040", platform.request("serwb_amc"), mode="master", init_timeout=4, phy_width=phy_width)
         self.sync += \
-            If(self.serwb_phy_amc.init.ready & self.serwb_phy_amc.serdes.tx_ready, 
+            If(self.serwb_phy_amc.init.ready & self.serwb_phy_amc.serdes.tx_ce, 
                 self.serwb_phy_amc.serdes.tx_d.eq(self.serwb_phy_amc.serdes.tx_d + 1))
 
         # rtm
-        self.submodules.serwb_phy_rtm = SERWBPHY("xc7a15t", platform.request("serwb_rtm"), mode="slave", init_timeout=4)
+        self.submodules.serwb_phy_rtm = SERWBPHY("xc7a15t", platform.request("serwb_rtm"), mode="slave", init_timeout=32, phy_width=phy_width)
+
 
 def generate_top():
     platform = Platform()
