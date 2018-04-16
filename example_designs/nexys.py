@@ -51,7 +51,7 @@ class _CRG(Module):
         self.clock_domains.cd_clk200 = ClockDomain()
 
         clk100 = platform.request("clk100")
-        reset = Signal()
+        reset = ~platform.request("cpu_reset")
 
         pll_locked = Signal()
         pll_fb = Signal()
@@ -164,7 +164,7 @@ class SERDESTestSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, with_core=False, with_serwb_test=False, with_analyzer=False, phy_width=8):
+    def __init__(self, platform, with_core=True, with_serwb_test=False, with_analyzer=False, phy_width=4):
         BaseSoC.__init__(self, platform)
 
         # serwb enable
@@ -175,6 +175,14 @@ class SERDESTestSoC(BaseSoC):
 
         # serwb slave
         self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), "slave", phy_width)
+
+        # leds
+        self.comb += [
+            platform.request("user_led", 4).eq(self.serwb_master_phy.init.ready),
+            platform.request("user_led", 5).eq(self.serwb_master_phy.init.error),
+            platform.request("user_led", 6).eq(self.serwb_slave_phy.init.ready),
+            platform.request("user_led", 7).eq(self.serwb_slave_phy.init.error),
+        ]
 
         if not with_core:
             # data
