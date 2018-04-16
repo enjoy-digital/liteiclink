@@ -164,17 +164,17 @@ class SERDESTestSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, with_core=True, with_serwb_test=False, with_analyzer=False):
+    def __init__(self, platform, with_core=False, with_serwb_test=False, with_analyzer=False, phy_width=8):
         BaseSoC.__init__(self, platform)
 
         # serwb enable
         self.comb += platform.request("serwb_enable").eq(1)
 
         # serwb master
-        self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), mode="master")
+        self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), "master", phy_width)
 
         # serwb slave
-        self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave")
+        self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), "slave", phy_width)
 
         if not with_core:
             # data
@@ -202,7 +202,7 @@ class SERDESTestSoC(BaseSoC):
             # wishbone master
             serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master", with_scrambling=True)
             self.submodules += serwb_slave_core
-   
+
             if with_serwb_test:
                 # serwb test
                 self.submodules.serwb_test = SERWBTest(serwb_master_core.etherbone.wishbone.bus)
