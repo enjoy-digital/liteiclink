@@ -31,20 +31,10 @@ class SERWBCore(Module):
             # core --> phy
             packetizer.source.connect(tx_fifo.sink),
             tx_fifo.source.connect(scrambler.sink),
-            If(phy.init.ready,
-                If(scrambler.source.valid,
-                    phy.serdes.tx_k.eq(scrambler.source.k),
-                    phy.serdes.tx_d.eq(scrambler.source.d)
-                ),
-                scrambler.source.ready.eq(phy.serdes.tx_ce)
-            ),
+            scrambler.source.connect(phy.sink),
 
             # phy --> core
-            If(phy.init.ready,
-                descrambler.sink.valid.eq(phy.serdes.rx_ce),
-                descrambler.sink.k.eq(phy.serdes.rx_k),
-                descrambler.sink.d.eq(phy.serdes.rx_d)
-            ),
+            phy.source.connect(descrambler.sink),
 			descrambler.source.connect(rx_fifo.sink),
             rx_fifo.source.connect(depacketizer.sink),
 
