@@ -225,15 +225,15 @@ class S7Serdes(Module):
         self.comb += rx_converter.sink.valid.eq(1)
         if phy_width == 2:
             self.comb += [
-                rx_converter.sink.data[0].eq(serdes_q[3]),
-                rx_converter.sink.data[1].eq(serdes_q[7])
+                rx_converter.sink.data[0].eq(serdes_q[0]),
+                rx_converter.sink.data[1].eq(serdes_q[4])
             ]
         elif phy_width == 4:
             self.comb += [
-                rx_converter.sink.data[0].eq(serdes_q[1]),
-                rx_converter.sink.data[1].eq(serdes_q[3]),
-                rx_converter.sink.data[2].eq(serdes_q[5]),
-                rx_converter.sink.data[3].eq(serdes_q[7]),
+                rx_converter.sink.data[0].eq(serdes_q[0]),
+                rx_converter.sink.data[1].eq(serdes_q[2]),
+                rx_converter.sink.data[2].eq(serdes_q[4]),
+                rx_converter.sink.data[3].eq(serdes_q[6]),
             ]
         else:
             self.comb += rx_converter.sink.data.eq(serdes_q)

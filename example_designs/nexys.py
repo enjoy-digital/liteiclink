@@ -164,7 +164,7 @@ class SERDESTestSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, with_core=True, with_serwb_test=False, with_analyzer=False, phy_width=4):
+    def __init__(self, platform, with_core=True, with_serwb_test=False, with_analyzer=False, phy_width=8):
         BaseSoC.__init__(self, platform)
 
         # serwb enable

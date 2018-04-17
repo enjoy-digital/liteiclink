@@ -5,7 +5,6 @@ from migen.genlib.misc import WaitTimer
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
-from liteiclink.prbs import PRBSTX, PRBSRX
 from liteiclink.serwb.kusphy import KUSSerdes
 from liteiclink.serwb.s7phy import S7Serdes
 
@@ -278,7 +277,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
 
 
 class _SerdesControl(Module, AutoCSR):
-    def __init__(self, serdes, init, prbs_tx, prbs_rx, mode="master"):
+    def __init__(self, serdes, init, mode="master"):
         if mode == "master":
             self.reset = CSR()
         self.ready = CSRStatus()
@@ -290,10 +289,6 @@ class _SerdesControl(Module, AutoCSR):
         self.delay_max_found = CSRStatus()
         self.delay_max = CSRStatus(9)
         self.bitslip = CSRStatus(6)
-
-        self.prbs_tx_config = CSRStorage(2)
-        self.prbs_rx_config = CSRStorage(2)
-        self.prbs_rx_errors = CSRStatus(32)
 
         # # #
 
@@ -320,11 +315,6 @@ class _SerdesControl(Module, AutoCSR):
             self.delay_max.status.eq(init.delay_max),
             self.bitslip.status.eq(init.bitslip)
         ]
-        self.comb += [
-            prbs_tx.config.eq(self.prbs_tx_config.storage),
-            prbs_rx.config.eq(self.prbs_rx_config.storage),
-            self.prbs_rx_errors.status.eq(prbs_rx.errors)
-        ]
 
 
 class SERWBPHY(Module, AutoCSR):
@@ -340,42 +330,27 @@ class SERWBPHY(Module, AutoCSR):
             self.submodules.serdes = S7Serdes(pads, mode, phy_width)
         else:
             raise NotImplementedError
-        prbs_tx = PRBSTX(32)
-        prbs_rx = PRBSRX(32)
-        self.submodules += prbs_tx, prbs_rx
         if mode == "master":
             self.submodules.init = _SerdesMasterInit(self.serdes, taps, init_timeout)
         else:
             self.submodules.init = _SerdesSlaveInit(self.serdes, taps, init_timeout)
-        self.submodules.control = _SerdesControl(self.serdes, self.init, prbs_tx, prbs_rx, mode)
+        self.submodules.control = _SerdesControl(self.serdes, self.init, mode)
 
         # tx dataflow
-        self.comb += [
+        self.comb += \
             If(self.init.ready,
-                prbs_tx.ce.eq(self.serdes.tx_ce),
-                If(prbs_tx.config == 0,
-                    sink.ready.eq(self.serdes.tx_ce),
-                    If(sink.valid,
-                        self.serdes.tx_d.eq(sink.d),
-                        self.serdes.tx_k.eq(sink.k)
-                    )
-                ).Else(
-                    self.serdes.tx_d.eq(prbs_tx.o)
+                sink.ready.eq(self.serdes.tx_ce),
+                If(sink.valid,
+                    self.serdes.tx_d.eq(sink.d),
+                    self.serdes.tx_k.eq(sink.k)
                 )
             )
-        ]
 
         # rx dataflow
-        self.comb += [
+        self.comb += \
             If(self.init.ready,
-                prbs_rx.ce.eq(self.serdes.rx_ce),
-                If(prbs_rx.config == 0,
-                    source.valid.eq(self.serdes.rx_ce),
-                    source.d.eq(self.serdes.rx_d),
-                    source.k.eq(self.serdes.rx_k)
-                ).Else(
-                    prbs_rx.i.eq(self.serdes.rx_d)
-                )
+                source.valid.eq(self.serdes.rx_ce),
+                source.d.eq(self.serdes.rx_d),
+                source.k.eq(self.serdes.rx_k)
             )
-        ]
 
