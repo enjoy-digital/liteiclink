@@ -112,7 +112,9 @@ class _SerdesMasterInit(Module):
             serdes.tx_comma.eq(1)
         )
         fsm.act("CHECK_SAMPLING_WINDOW",
-            If((delay_max - delay_min) < taps//16,
+            If((delay_min == 0) |
+               (delay_max == (taps - 1)) |
+               ((delay_max - delay_min) < taps//16),
                NextValue(delay_min_found, 0),
                NextValue(delay_max_found, 0),
                NextState("WAIT_STABLE")
@@ -233,7 +235,9 @@ class _SerdesSlaveInit(Module, AutoCSR):
             serdes.tx_idle.eq(1)
         )
         fsm.act("CHECK_SAMPLING_WINDOW",
-            If((delay_max - delay_min) < taps//16,
+            If((delay_min == 0) |
+               (delay_max == (taps - 1)) |
+               ((delay_max - delay_min) < taps//16),
                NextValue(delay_min_found, 0),
                NextValue(delay_max_found, 0),
                NextState("WAIT_STABLE")
@@ -291,6 +295,8 @@ class _SerdesControl(Module, AutoCSR):
         self.delay_max = CSRStatus(9)
         self.bitslip = CSRStatus(6)
 
+        self.scrambling_enable = CSRStorage()
+
         self.prbs_error = Signal()
         self.prbs_start = CSR()
         self.prbs_cycles = CSRStorage(32)
@@ -302,12 +308,12 @@ class _SerdesControl(Module, AutoCSR):
             # In Master mode, reset is coming from CSR,
             # it resets the Master that will also reset
             # the Slave by putting the link in idle.
-            self.comb += init.reset.eq(self.reset.re)
+            self.sync += init.reset.eq(self.reset.re)
         else:
             # In Slave mode, reset is coming from link,
             # Master reset the Slave by putting the link
             # in idle.
-            self.comb += [
+            self.sync += [
                 init.reset.eq(serdes.rx_idle),
                 serdes.reset.eq(serdes.rx_idle)
             ]
@@ -346,7 +352,7 @@ class _SerdesControl(Module, AutoCSR):
 
 
 class SERWBPHY(Module, AutoCSR):
-    def __init__(self, device, pads, mode="master", init_timeout=2**14, with_scrambling=True):
+    def __init__(self, device, pads, mode="master", init_timeout=2**14):
         self.sink = sink = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
@@ -365,9 +371,13 @@ class SERWBPHY(Module, AutoCSR):
         self.submodules.control = _SerdesControl(self.serdes, self.init, mode)
 
         # scrambling
-        scrambler =  Scrambler(enable=with_scrambling)
-        descrambler = Descrambler(enable=with_scrambling)
+        scrambler =  Scrambler()
+        descrambler = Descrambler()
         self.submodules += scrambler, descrambler
+        self.comb += [
+            scrambler.enable.eq(self.control.scrambling_enable.storage),
+            descrambler.enable.eq(self.control.scrambling_enable.storage)
+        ]
 
         # tx dataflow
         self.comb += \

@@ -171,10 +171,10 @@ class SERDESTestSoC(BaseSoC):
         self.comb += platform.request("serwb_enable").eq(1)
 
         # serwb master
-        self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), mode="master", with_scrambling=True)
+        self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), mode="master")
 
         # serwb slave
-        self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave", with_scrambling=True)
+        self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave")
 
         # leds
         self.comb += [

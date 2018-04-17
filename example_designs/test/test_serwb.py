@@ -90,6 +90,16 @@ elif sys.argv[1] == "prbs":
     time.sleep(1)
     print("errors : %d" %wb.regs.serwb_slave_phy_control_prbs_errors.read())
 
+elif sys.argv[1] == "scrambling":
+    if wb.regs.serwb_master_phy_control_scrambling_enable.read():
+        print("Disabling scrambling")
+        wb.regs.serwb_master_phy_control_scrambling_enable.write(0)
+        wb.regs.serwb_slave_phy_control_scrambling_enable.write(0)
+    else:
+        print("Enabling scrambling")
+        wb.regs.serwb_master_phy_control_scrambling_enable.write(1)
+        wb.regs.serwb_slave_phy_control_scrambling_enable.write(1)
+
 elif sys.argv[1] == "wishbone":
     write_pattern(128)
     errors = check_pattern(128, debug=False)
