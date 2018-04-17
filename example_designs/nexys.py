@@ -164,17 +164,17 @@ class SERDESTestSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, with_core=True, with_serwb_test=False, with_analyzer=False, phy_width=8):
+    def __init__(self, platform, with_core=True, with_serwb_test=False, with_analyzer=False):
         BaseSoC.__init__(self, platform)
 
         # serwb enable
         self.comb += platform.request("serwb_enable").eq(1)
 
         # serwb master
-        self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), "master", phy_width)
+        self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), mode="master")
 
         # serwb slave
-        self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), "slave", phy_width)
+        self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave")
 
         # leds
         self.comb += [
