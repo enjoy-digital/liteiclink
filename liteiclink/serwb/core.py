@@ -1,13 +1,13 @@
 from migen import *
 
 from litex.soc.interconnect import stream
-from liteiclink.serwb.scrambler import Scrambler, Descrambler
+
 from liteiclink.serwb.packet import Packetizer, Depacketizer
 from liteiclink.serwb.etherbone import Etherbone
 
 
 class SERWBCore(Module):
-    def __init__(self, phy, clk_freq, mode, with_scrambling=True):
+    def __init__(self, phy, clk_freq, mode):
         # etherbone
         self.submodules.etherbone = etherbone = Etherbone(mode)
 
@@ -21,21 +21,14 @@ class SERWBCore(Module):
         rx_fifo = stream.SyncFIFO([("data", 32)], 16)
         self.submodules += tx_fifo, rx_fifo
 
-        # scrambling
-        scrambler =  Scrambler(enable=with_scrambling)
-        descrambler = Descrambler(enable=with_scrambling)
-        self.submodules += scrambler, descrambler
-
         # modules connection
         self.comb += [
             # core --> phy
             packetizer.source.connect(tx_fifo.sink),
-            tx_fifo.source.connect(scrambler.sink),
-            scrambler.source.connect(phy.sink),
+            tx_fifo.source.connect(phy.sink),
 
             # phy --> core
-            phy.source.connect(descrambler.sink),
-			descrambler.source.connect(rx_fifo.sink),
+            phy.source.connect(rx_fifo.sink),
             rx_fifo.source.connect(depacketizer.sink),
 
             # etherbone <--> core

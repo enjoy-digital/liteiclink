@@ -171,10 +171,10 @@ class SERDESTestSoC(BaseSoC):
         self.comb += platform.request("serwb_enable").eq(1)
 
         # serwb master
-        self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), mode="master")
+        self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), mode="master", with_scrambling=True)
 
         # serwb slave
-        self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave")
+        self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave", with_scrambling=True)
 
         # leds
         self.comb += [
@@ -204,11 +204,11 @@ class SERDESTestSoC(BaseSoC):
             ]
         else:
             # wishbone slave
-            serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave", with_scrambling=True)
+            serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave")
             self.submodules += serwb_master_core
 
             # wishbone master
-            serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master", with_scrambling=True)
+            serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master")
             self.submodules += serwb_slave_core
 
             if with_serwb_test:

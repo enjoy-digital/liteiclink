@@ -5,6 +5,7 @@ from migen.genlib.misc import WaitTimer
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
+from liteiclink.serwb.scrambler import Scrambler, Descrambler
 from liteiclink.serwb.kusphy import KUSSerdes
 from liteiclink.serwb.s7phy import S7Serdes
 
@@ -290,6 +291,11 @@ class _SerdesControl(Module, AutoCSR):
         self.delay_max = CSRStatus(9)
         self.bitslip = CSRStatus(6)
 
+        self.prbs_error = Signal()
+        self.prbs_start = CSR()
+        self.prbs_cycles = CSRStorage(32)
+        self.prbs_errors = CSRStatus(32)
+
         # # #
 
         if mode == "master":
@@ -316,11 +322,33 @@ class _SerdesControl(Module, AutoCSR):
             self.bitslip.status.eq(init.bitslip)
         ]
 
+        # prbs
+        prbs_cycles = Signal(32)
+        prbs_errors = self.prbs_errors.status
+        prbs_fsm = FSM(reset_state="IDLE")
+        self.submodules += prbs_fsm
+        prbs_fsm.act("IDLE",
+            NextValue(prbs_cycles, 0),
+            If(self.prbs_start.re,
+                NextValue(prbs_errors, 0),
+                NextState("CHECK")
+            )
+        )
+        prbs_fsm.act("CHECK",
+            NextValue(prbs_cycles, prbs_cycles + 1),
+            If(self.prbs_error,
+                NextValue(prbs_errors, prbs_errors + 1),
+            ),
+            If(prbs_cycles == self.prbs_cycles.storage,
+                NextState("IDLE")
+            )
+        )
+
 
 class SERWBPHY(Module, AutoCSR):
-    def __init__(self, device, pads, mode="master", init_timeout=2**14):
-        self.sink = sink = stream.Endpoint([("d", 32), ("k", 4)])
-        self.source = source = stream.Endpoint([("d", 32), ("k", 4)])
+    def __init__(self, device, pads, mode="master", init_timeout=2**14, with_scrambling=True):
+        self.sink = sink = stream.Endpoint([("data", 32)])
+        self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
         if device[:4] == "xcku":
             taps = 512
@@ -336,21 +364,35 @@ class SERWBPHY(Module, AutoCSR):
             self.submodules.init = _SerdesSlaveInit(self.serdes, taps, init_timeout)
         self.submodules.control = _SerdesControl(self.serdes, self.init, mode)
 
+        # scrambling
+        scrambler =  Scrambler(enable=with_scrambling)
+        descrambler = Descrambler(enable=with_scrambling)
+        self.submodules += scrambler, descrambler
+
         # tx dataflow
         self.comb += \
             If(self.init.ready,
-                sink.ready.eq(self.serdes.tx_ce),
-                If(sink.valid,
-                    self.serdes.tx_d.eq(sink.d),
-                    self.serdes.tx_k.eq(sink.k)
+                sink.connect(scrambler.sink),
+                scrambler.source.ready.eq(self.serdes.tx_ce),
+                If(scrambler.source.valid,
+                    self.serdes.tx_d.eq(scrambler.source.d),
+                    self.serdes.tx_k.eq(scrambler.source.k)
                 )
             )
 
         # rx dataflow
-        self.comb += \
+        self.comb += [
             If(self.init.ready,
-                source.valid.eq(self.serdes.rx_ce),
-                source.d.eq(self.serdes.rx_d),
-                source.k.eq(self.serdes.rx_k)
-            )
-
+                descrambler.sink.valid.eq(self.serdes.rx_ce),
+                descrambler.sink.d.eq(self.serdes.rx_d),
+                descrambler.sink.k.eq(self.serdes.rx_k),
+                descrambler.source.connect(source)
+            ),
+            # For PRBS test we are using the scrambler/descrambler as PRBS,
+            # sending 0 to the scrambler and checking that descrambler
+            # output is always 0.
+            self.control.prbs_error.eq(
+                descrambler.source.valid &
+                descrambler.source.ready &
+                (descrambler.source.data != 0))
+        ]

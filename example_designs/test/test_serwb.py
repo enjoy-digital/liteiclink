@@ -75,6 +75,21 @@ if sys.argv[1] == "init":
     print("ready: {:d}".format(wb.regs.serwb_slave_phy_control_ready.read()))
     print("error: {:d}".format(wb.regs.serwb_slave_phy_control_error.read()))
 
+elif sys.argv[1] == "prbs":
+    print("PRBS Slave to Master test:")
+    wb.regs.serwb_master_phy_control_prbs_cycles.write(int(1e6))
+    wb.regs.serwb_master_phy_control_prbs_start.write(1)
+    #check_pattern(1, debug=False) # error injecton
+    time.sleep(1)
+    print("errors : %d" %wb.regs.serwb_master_phy_control_prbs_errors.read())
+
+    print("PRBS Master to Slave test:")
+    wb.regs.serwb_slave_phy_control_prbs_cycles.write(int(1e6))
+    wb.regs.serwb_slave_phy_control_prbs_start.write(1)
+    #check_pattern(1, debug=False) # error injecton
+    time.sleep(1)
+    print("errors : %d" %wb.regs.serwb_slave_phy_control_prbs_errors.read())
+
 elif sys.argv[1] == "wishbone":
     write_pattern(128)
     errors = check_pattern(128, debug=False)
