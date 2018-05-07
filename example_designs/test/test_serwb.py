@@ -37,7 +37,7 @@ def check_pattern(length, debug=False):
     return errors
 
 if len(sys.argv) < 2:
-    print("missing test (init, prbs, wishbone, analyzer)")
+    print("missing test (init, prbs, scrambling, wishbone, analyzer)")
     wb.close()
     exit()
 
