@@ -21,7 +21,7 @@ from liteiclink.serwb.s7phy import S7Serdes
 
 @ResetInserter()
 class _SerdesMasterInit(Module):
-    def __init__(self, serdes, taps, timeout=2**14):
+    def __init__(self, serdes, taps, timeout=2**15):
         self.ready = Signal()
         self.error = Signal()
 
@@ -104,6 +104,9 @@ class _SerdesMasterInit(Module):
                     NextState("ERROR")
                 ).Else(
                     NextValue(delay_min_found, 0),
+                    NextValue(delay_min, 0),
+                    NextValue(delay_max_found, 0),
+                    NextValue(delay_max, 0),
                     NextValue(bitslip, bitslip + 1)
                 ),
                 NextValue(delay, 0),
@@ -122,6 +125,8 @@ class _SerdesMasterInit(Module):
                NextValue(delay_max_found, 0),
                NextState("WAIT_STABLE")
             ).Else(
+                NextValue(delay, 0),
+                serdes.rx_delay_rst.eq(1),
                 NextState("CONFIGURE_SAMPLING_WINDOW")
             ),
             serdes.tx_comma.eq(1)
@@ -131,24 +136,13 @@ class _SerdesMasterInit(Module):
                 NextState("READY")
             ).Else(
                 NextValue(delay, delay + 1),
-                serdes.rx_delay_inc.eq(1),
-                NextState("WAIT_SAMPLING_WINDOW")
-            ),
-            serdes.tx_comma.eq(1)
-        )
-        fsm.act("WAIT_SAMPLING_WINDOW",
-            timer.wait.eq(1),
-            If(timer.done,
-                timer.wait.eq(0),
-                NextState("CONFIGURE_SAMPLING_WINDOW")
+                serdes.rx_delay_inc.eq(1)
             ),
             serdes.tx_comma.eq(1)
         )
         fsm.act("READY",
             self.ready.eq(1)
         )
-        if hasattr(serdes, "rx_delay_en_vtc"):
-            self.comb += serdes.rx_delay_en_vtc.eq(self.ready)
         fsm.act("ERROR",
             self.error.eq(1)
         )
@@ -156,7 +150,7 @@ class _SerdesMasterInit(Module):
 
 @ResetInserter()
 class _SerdesSlaveInit(Module, AutoCSR):
-    def __init__(self, serdes, taps, timeout=2**14):
+    def __init__(self, serdes, taps, timeout=2**15):
         self.ready = Signal()
         self.error = Signal()
 
@@ -227,6 +221,9 @@ class _SerdesSlaveInit(Module, AutoCSR):
                     NextState("ERROR")
                 ).Else(
                     NextValue(delay_min_found, 0),
+                    NextValue(delay_min, 0),
+                    NextValue(delay_max_found, 0),
+                    NextValue(delay_max, 0),
                     NextValue(bitslip, bitslip + 1)
                 ),
                 NextValue(delay, 0),
@@ -245,6 +242,8 @@ class _SerdesSlaveInit(Module, AutoCSR):
                NextValue(delay_max_found, 0),
                NextState("WAIT_STABLE")
             ).Else(
+                NextValue(delay, 0),
+                serdes.rx_delay_rst.eq(1),
                 NextState("CONFIGURE_SAMPLING_WINDOW")
             ),
             serdes.tx_idle.eq(1)
@@ -255,15 +254,8 @@ class _SerdesSlaveInit(Module, AutoCSR):
             ).Else(
                 NextValue(delay, delay + 1),
                 serdes.rx_delay_inc.eq(1),
-                NextState("WAIT_SAMPLING_WINDOW")
-            )
-        )
-        fsm.act("WAIT_SAMPLING_WINDOW",
-            timer.wait.eq(1),
-            If(timer.done,
-                timer.wait.eq(0),
-                NextState("CONFIGURE_SAMPLING_WINDOW")
-            )
+            ),
+            serdes.tx_idle.eq(1)
         )
         fsm.act("SEND_PATTERN",
             timer.wait.eq(1),
@@ -277,8 +269,6 @@ class _SerdesSlaveInit(Module, AutoCSR):
         fsm.act("READY",
             self.ready.eq(1)
         )
-        if hasattr(serdes, "rx_delay_en_vtc"):
-            self.comb += serdes.rx_delay_en_vtc.eq(self.ready)
         fsm.act("ERROR",
             self.error.eq(1)
         )
@@ -355,7 +345,7 @@ class _SerdesControl(Module, AutoCSR):
 
 
 class SERWBPHY(Module, AutoCSR):
-    def __init__(self, device, pads, mode="master", init_timeout=2**14):
+    def __init__(self, device, pads, mode="master", init_timeout=2**15):
         self.sink = sink = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]

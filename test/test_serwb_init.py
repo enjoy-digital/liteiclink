@@ -3,6 +3,8 @@ import unittest
 
 from migen import *
 
+from litex.gen.sim import *
+
 from liteiclink.serwb import scrambler
 from liteiclink.serwb.phy import _SerdesMasterInit, _SerdesSlaveInit
 
@@ -132,7 +134,7 @@ class TestSERWBInit(unittest.TestCase):
         dut = DUTSlave()
         valid_bitslip = 2
         valid_delays = 0b10001111100000111110000011111000
-        run_simulation(dut, generator(self, dut, valid_bitslip, valid_delays, True))
+        run_simulation(dut, generator(self, dut, valid_bitslip, valid_delays, True), vcd_name="sim.vcd")
 
     def test_slave_init_failure(self):
         # too small window

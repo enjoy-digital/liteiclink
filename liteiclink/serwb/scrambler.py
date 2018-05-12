@@ -32,7 +32,7 @@ class _Scrambler(Module):
 
 class Scrambler(Module):
     def __init__(self, sync_interval=1024):
-        self.enable = Signal(reset=1)
+        self.enable = Signal()
         self.sink = sink = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("d", 32), ("k", 4)])
 
@@ -79,7 +79,7 @@ class Scrambler(Module):
 
 class Descrambler(Module):
     def __init__(self):
-        self.enable = Signal(reset=1)
+        self.enable = Signal()
         self.sink = sink = stream.Endpoint([("d", 32), ("k", 4)])
         self.source = source = stream.Endpoint([("data", 32)])
 
