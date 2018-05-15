@@ -16,6 +16,7 @@ from litex.soc.integration.builder import *
 from litex.soc.cores.uart import UARTWishboneBridge
 
 from liteiclink.serwb.phy import SERWBPHY
+from liteiclink.serwb.genphy import SERWBPHY as SERWBLowSpeedPHY
 from liteiclink.serwb.core import SERWBCore
 
 from litescope import LiteScopeAnalyzer
@@ -159,17 +160,22 @@ class SERDESTestSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, with_core=True, with_serwb_test=False, with_analyzer=False):
+    def __init__(self, platform, low_speed=True, with_core=True, with_serwb_test=False, with_analyzer=False):
         BaseSoC.__init__(self, platform)
 
         # serwb enable
         self.comb += platform.request("serwb_enable").eq(1)
 
-        # serwb master
-        self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), mode="master")
-
-        # serwb slave
-        self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave")
+        if low_speed:
+            # serwb master
+            self.submodules.serwb_master_phy = SERWBLowSpeedPHY(platform.request("serwb_master"), mode="master")
+            # serwb slave
+            self.submodules.serwb_slave_phy = SERWBLowSpeedPHY(platform.request("serwb_slave"), mode="slave")
+        else:
+            # serwb master
+            self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), mode="master")
+            # serwb slave
+            self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave")
 
         # leds
         self.comb += [

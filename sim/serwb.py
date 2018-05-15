@@ -16,7 +16,7 @@ from liteiclink.serwb.core import SERWBCore
 
 _io = [
     ("clk125", 0, Pins("X")),
-    ("serwb_amc", 0,
+    ("serwb_master", 0,
         Subsignal("clk_p", Pins("X")),
         Subsignal("clk_n", Pins("X")),
         Subsignal("tx_p", Pins("X")),
@@ -24,7 +24,7 @@ _io = [
         Subsignal("rx_p", Pins("X")),
         Subsignal("rx_n", Pins("X")),
     ),
-    ("serwb_rtm", 0,
+    ("serwb_slave", 0,
         Subsignal("clk_p", Pins("X")),
         Subsignal("clk_n", Pins("X")),
         Subsignal("tx_p", Pins("X")),
@@ -94,10 +94,10 @@ class SERWBSim(Module):
         self.submodules.crg = CRG(platform.request("clk125"))
 
         # amc
-        self.submodules.serwb_phy_amc = SERWBPHY("xcku040", platform.request("serwb_amc"), mode="master", init_timeout=4, with_scrambling=False)
+        self.submodules.serwb_phy_amc = SERWBPHY(platform.request("serwb_master"), mode="master", init_timeout=4)
 
         # rtm
-        self.submodules.serwb_phy_rtm = SERWBPHY("xc7a15t", platform.request("serwb_rtm"), mode="slave", init_timeout=32, with_scrambling=False)
+        self.submodules.serwb_phy_rtm = SERWBPHY(platform.request("serwb_slave"), mode="slave", init_timeout=4)
 
 
 def generate_top():
