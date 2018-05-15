@@ -5,7 +5,7 @@ from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
 from liteiclink.serwb.scrambler import Scrambler, Descrambler
-from liteiclink.serwb.kuserdes import KUSSerdes
+from liteiclink.serwb.kuserdes import KUSerdes
 from liteiclink.serwb.s7serdes import S7Serdes
 
 
