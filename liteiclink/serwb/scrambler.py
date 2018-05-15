@@ -64,10 +64,11 @@ class Scrambler(Module):
         )
         fsm.act("DATA",
             scrambler.i.eq(sink.data),
-            sink.ready.eq(source.ready),
-            source.valid.eq(1),
+
+            source.valid.eq(sink.valid),
             source.d.eq(scrambler.o),
             If(source.valid & source.ready,
+                sink.ready.eq(1),
                 scrambler.ce.eq(1),
                 NextValue(count, count + 1),
                 If(count == (sync_interval - 1),
