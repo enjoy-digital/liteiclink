@@ -107,45 +107,6 @@ class BaseSoC(SoCCore):
         self.add_wb_master(self.cpu_or_bridge.wishbone)
 
 
-class SERWBTest(Module, AutoCSR):
-    def __init__(self, bus):
-        self.do_write = CSR()
-        self.do_read = CSR()
-
-        # # #
-
-        self.submodules.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
-        self.submodules.timeout = timeout = WaitTimer(2**16)
-        self.comb += fsm.reset.eq(self.timeout.done)
-        fsm.act("IDLE",
-            If(self.do_write.re,
-                NextState("WRITE")
-            ).Elif(self.do_read.re,
-                NextState("READ")
-            )
-        )
-        fsm.act("WRITE",
-            timeout.wait.eq(1),
-            bus.stb.eq(1),
-            bus.cyc.eq(1),
-            bus.we.eq(1),
-            bus.adr.eq(0x12345678),
-            bus.dat_w.eq(0xdeadbeef),
-            If(bus.ack,
-                NextState("IDLE")
-            )
-        )
-        fsm.act("READ",
-            timeout.wait.eq(1),
-            bus.stb.eq(1),
-            bus.cyc.eq(1),
-            bus.adr.eq(0x89abcdef),
-            If(bus.ack,
-                NextState("IDLE")
-            )
-        )
-
-
 class SERDESTestSoC(BaseSoC):
     csr_map = {
         "serwb_master_phy": 20,
@@ -160,22 +121,21 @@ class SERDESTestSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, low_speed=True, with_core=True, with_serwb_test=False, with_analyzer=True):
+    def __init__(self, platform, low_speed=False, with_analyzer=True):
         BaseSoC.__init__(self, platform)
 
         # serwb enable
         self.comb += platform.request("serwb_enable").eq(1)
 
         if low_speed:
-            # serwb master
-            self.submodules.serwb_master_phy = SERWBLowSpeedPHY(platform.request("serwb_master"), mode="master")
-            # serwb slave
-            self.submodules.serwb_slave_phy = SERWBLowSpeedPHY(platform.request("serwb_slave"), mode="slave")
+            phy_cls = SERWBLowSpeedPHY
         else:
-            # serwb master
-            self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), mode="master")
-            # serwb slave
-            self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave")
+            phy_cls = SERWBPHY
+
+        # serwb master
+        self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), mode="master")
+        # serwb slave
+        self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave")
 
         # leds
         self.comb += [
@@ -185,55 +145,29 @@ class SERDESTestSoC(BaseSoC):
             platform.request("user_led", 7).eq(self.serwb_slave_phy.init.error),
         ]
 
-        if not with_core:
-            # data
-            self.sync += [
-                If(self.serwb_master_phy.init.ready & self.serwb_master_phy.serdes.tx_ce,
-                    self.serwb_master_phy.serdes.tx_d.eq(self.serwb_master_phy.serdes.tx_d + 1)
-                ),
-                If(self.serwb_slave_phy.init.ready & self.serwb_slave_phy.serdes.tx_ce,
-                    self.serwb_slave_phy.serdes.tx_d.eq(self.serwb_slave_phy.serdes.tx_d + 1)
-                ),
-                If(self.serwb_master_phy.serdes.rx_ce,
-                    platform.request("user_led", 0).eq(self.serwb_master_phy.serdes.rx_d[24]),
-                    platform.request("user_led", 1).eq(self.serwb_master_phy.serdes.rx_d[25])
-                ),
-                If(self.serwb_slave_phy.serdes.rx_ce,
-                    platform.request("user_led", 2).eq(self.serwb_slave_phy.serdes.rx_d[24]),
-                    platform.request("user_led", 3).eq(self.serwb_slave_phy.serdes.rx_d[25])
-                ),
+        # wishbone slave
+        serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave")
+        self.submodules += serwb_master_core
+
+        # wishbone master
+        serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master")
+        self.submodules += serwb_slave_core
+
+        # wishbone test memory
+        self.register_mem("serwb", self.mem_map["serwb"], serwb_master_core.etherbone.wishbone.bus, 8192)
+        self.submodules.serwb_sram = wishbone.SRAM(8192, init=[i for i in range(8192//4)])
+        self.comb += serwb_slave_core.etherbone.wishbone.bus.connect(self.serwb_sram.bus)
+        
+        # analyzer
+        if with_analyzer:
+            analyzer_signals = [
+                self.serwb_master_phy.scrambler.sink,
+                self.serwb_master_phy.scrambler.source,
+                self.serwb_slave_phy.descrambler.sink,
+                self.serwb_slave_phy.descrambler.source,
+                self.serwb_slave_phy.control.prbs_error
             ]
-        else:
-            # wishbone slave
-            serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave")
-            self.submodules += serwb_master_core
-
-            # wishbone master
-            serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master")
-            self.submodules += serwb_slave_core
-
-            if with_serwb_test:
-                # serwb test
-                self.submodules.serwb_test = SERWBTest(serwb_master_core.etherbone.wishbone.bus)
-                self.comb += [
-                    serwb_slave_core.etherbone.wishbone.bus.ack.eq(1),
-                    serwb_slave_core.etherbone.wishbone.bus.dat_r.eq(0xdeadbeef)
-                ]
-            else:
-                self.register_mem("serwb", self.mem_map["serwb"], serwb_master_core.etherbone.wishbone.bus, 8192)
-                self.submodules.serwb_sram = wishbone.SRAM(8192, init=[i for i in range(8192//4)])
-                self.comb += serwb_slave_core.etherbone.wishbone.bus.connect(self.serwb_sram.bus)
-
-            # analyzer
-            if with_analyzer:
-                analyzer_signals = [
-                    self.serwb_master_phy.scrambler.sink,
-                    self.serwb_master_phy.scrambler.source,
-                    self.serwb_slave_phy.descrambler.sink,
-                    self.serwb_slave_phy.descrambler.source,
-                    self.serwb_slave_phy.control.prbs_error
-                ]
-                self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256)
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256)
 
     def do_exit(self, vns):
         if hasattr(self, "analyzer"):
