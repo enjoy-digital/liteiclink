@@ -1,6 +1,5 @@
 from migen import *
 from migen.genlib.io import *
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.misc import BitSlip, WaitTimer
 
 from litex.soc.interconnect import stream
@@ -14,116 +13,149 @@ def K(x, y):
     return (y << 5) | x
 
 
-@ResetInserter()
-class _Serdes(Module):
+class _SerdesClocking(Module):
     def __init__(self, pads, mode="master"):
-        if mode == "slave":
-            self.refclk = Signal()
-
-        self.tx_ce = Signal()
-        self.tx_k = Signal(4)
-        self.tx_d = Signal(32)
-
-        self.rx_ce = Signal()
-        self.rx_k = Signal(4)
-        self.rx_d = Signal(32)
-
-        self.tx_idle = Signal()
-        self.tx_comma = Signal()
-        self.rx_idle = Signal()
-        self.rx_comma = Signal()
-
-        self.rx_bitslip_value = Signal(6)
+        self.refclk = Signal()
 
         # # #
 
-        self.submodules.encoder = encoder = CEInserter()(Encoder(4, True))
-        self.comb += encoder.ce.eq(self.tx_ce)
-        self.submodules.decoders = decoders = [CEInserter()(Decoder(True)) for _ in range(4)]
-        self.comb += [decoders[i].ce.eq(self.rx_ce) for i in range(4)]
-
-        # tx clock
+        # In Master mode, generate the clock with 180° phase shift so that Slave
+        # can use this clock to sample data
         if mode == "master":
-            clk_o = Signal()
-            self.specials += [
-                DDROutput(0, 1, clk_o),
-                DifferentialOutput(clk_o, pads.clk_p, pads.clk_n)
-           ]
+            self.specials += DDROutput(0, 1, self.refclk)
+            self.specials += DifferentialOutput(self.refclk, pads.clk_p, pads.clk_n)
+        # In Slave mode, use the clock provided by Master
+        elif mode == "slave":
+            self.specials += DifferentialInput(pads.clk_p, pads.clk_n, self.refclk)
 
-        # tx datapath
-        # tx_data -> encoders -> converter -> serdes
-        self.submodules.tx_converter = tx_converter = stream.Converter(40, 1)
+
+class _SerdesTX(Module):
+    def __init__(self, pads, mode="master"):
+        # Control
+        self.idle = idle = Signal()
+        self.comma = comma = Signal()
+
+        # Datapath
+        self.ce = ce = Signal()
+        self.k = k = Signal(4)
+        self.d = d = Signal(32)
+
+        # # #
+
+        # 8b10b encoder
+        self.submodules.encoder = encoder = CEInserter()(Encoder(4, True))
+        self.comb += encoder.ce.eq(ce)
+
+        # 40 --> 1 converter
+        converter = stream.Converter(40, 1)
+        self.submodules += converter
         self.comb += [
-            tx_converter.sink.valid.eq(1),
-            self.tx_ce.eq(tx_converter.sink.ready),
-            tx_converter.source.ready.eq(1),
-            If(self.tx_idle,
-                tx_converter.sink.data.eq(0)
-            ).Else(
-                tx_converter.sink.data.eq(
-                    Cat(*[encoder.output[i] for i in range(4)]))
+            converter.sink.valid.eq(1),
+            converter.source.ready.eq(1),
+            # Enable pipeline when converter accepts the 40 bits
+            ce.eq(converter.sink.ready),
+            # If not idle, connect encoder to converter
+            If(~idle,
+                converter.sink.data.eq(Cat(*[encoder.output[i] for i in range(4)]))
             ),
-            If(self.tx_comma,
+            # If comma, send K28.5
+            If(comma,
                 encoder.k[0].eq(1),
                 encoder.d[0].eq(K(28,5)),
+            # Else connect TX to encoder
             ).Else(
-                encoder.k[0].eq(self.tx_k[0]),
-                encoder.k[1].eq(self.tx_k[1]),
-                encoder.k[2].eq(self.tx_k[2]),
-                encoder.k[3].eq(self.tx_k[3]),
-                encoder.d[0].eq(self.tx_d[0:8]),
-                encoder.d[1].eq(self.tx_d[8:16]),
-                encoder.d[2].eq(self.tx_d[16:24]),
-                encoder.d[3].eq(self.tx_d[24:32])
+                encoder.k[0].eq(k[0]),
+                encoder.k[1].eq(k[1]),
+                encoder.k[2].eq(k[2]),
+                encoder.k[3].eq(k[3]),
+                encoder.d[0].eq(d[0:8]),
+                encoder.d[1].eq(d[8:16]),
+                encoder.d[2].eq(d[16:24]),
+                encoder.d[3].eq(d[24:32])
             )
         ]
 
-        serdes_o = Signal()
-        self.sync += serdes_o.eq(tx_converter.source.data)
-        self.specials += DifferentialOutput(serdes_o, pads.tx_p, pads.tx_n)
+        # Data output (on rising edge of sys_clk)
+        data = Signal()
+        self.sync += data.eq(converter.source.data)
+        self.specials += DifferentialOutput(data, pads.tx_p, pads.tx_n)
 
-        # rx clock
-        if mode == "slave":
-            self.specials += DifferentialInput(pads.clk_p, pads.clk_n, self.refclk)
 
-        # rx datapath
-        # serdes -> converter -> bitslip -> decoders -> rx_data
-        self.submodules.rx_converter = rx_converter = stream.Converter(1, 40)
+class _SerdesRX(Module):
+    def __init__(self, pads, mode="master"):
+        # Control
+        self.bitslip_value = bitslip_value = Signal(6)
+
+        # Status
+        self.idle = idle = Signal()
+        self.comma = comma = Signal()
+
+        # Datapath
+        self.ce = ce = Signal()
+        self.k = k = Signal(4)
+        self.d = d = Signal(32)
+
+        # # #
+
+        # Input data (on rising edge of sys_clk)
+        data = Signal()
+        data_d = Signal()
+        self.specials += DifferentialInput(pads.rx_p, pads.rx_n, data)
+        self.sync += data_d.eq(data)
+
+        # 1 --> 40 converter and bitslip
+        converter = stream.Converter(1, 40)
+        self.submodules += converter
+        bitslip = CEInserter()(BitSlip(40))
+        self.submodules += bitslip
         self.comb += [
-            self.rx_ce.eq(rx_converter.source.valid),
-            rx_converter.source.ready.eq(1)
+            converter.sink.valid.eq(1),
+            converter.source.ready.eq(1),
+            # Enable pipeline when converter outputs the 40 bits
+            ce.eq(converter.source.valid),
+            # Connect input data to converter
+            converter.sink.data.eq(data),
+            # Connect converter to bitslip
+            bitslip.ce.eq(ce),
+            bitslip.value.eq(bitslip_value),
+            bitslip.i.eq(converter.source.data)
         ]
-        self.submodules.rx_bitslip = rx_bitslip = CEInserter()(BitSlip(40))
-        self.comb += rx_bitslip.ce.eq(self.rx_ce)
 
-        serdes_i = Signal()
-        serdes_q = Signal()
-        self.specials += DifferentialInput(pads.rx_p, pads.rx_n, serdes_i)
-        self.sync += serdes_q.eq(serdes_i)
-
+        # 8b10b decoder
+        self.submodules.decoders = decoders = [CEInserter()(Decoder(True)) for _ in range(4)]
+        self.comb += [decoders[i].ce.eq(ce) for i in range(4)]
         self.comb += [
-            rx_converter.sink.valid.eq(1),
-            rx_converter.sink.data.eq(serdes_q),
-            rx_bitslip.value.eq(self.rx_bitslip_value),
-            rx_bitslip.i.eq(rx_converter.source.data),
-            decoders[0].input.eq(rx_bitslip.o[0:10]),
-            decoders[1].input.eq(rx_bitslip.o[10:20]),
-            decoders[2].input.eq(rx_bitslip.o[20:30]),
-            decoders[3].input.eq(rx_bitslip.o[30:40]),
-            self.rx_k.eq(Cat(*[decoders[i].k for i in range(4)])),
-            self.rx_d.eq(Cat(*[decoders[i].d for i in range(4)])),
-            self.rx_comma.eq(
+            # Connect bitslip to decoder
+            decoders[0].input.eq(bitslip.o[0:10]),
+            decoders[1].input.eq(bitslip.o[10:20]),
+            decoders[2].input.eq(bitslip.o[20:30]),
+            decoders[3].input.eq(bitslip.o[30:40]),
+            # Connect decoder to output
+            self.k.eq(Cat(*[decoders[i].k for i in range(4)])),
+            self.d.eq(Cat(*[decoders[i].d for i in range(4)])),
+        ]
+
+        # Status
+        idle_timer = WaitTimer(256)
+        self.submodules += idle_timer
+        self.comb += [
+            idle_timer.wait.eq(1),
+            self.idle.eq(idle_timer.done &
+                 ((bitslip.o == 0) | (bitslip.o == (2**40-1)))),
+            self.comma.eq(
                 (decoders[0].k == 1) & (decoders[0].d == K(28,5)) &
                 (decoders[1].k == 0) & (decoders[1].d == 0) &
                 (decoders[2].k == 0) & (decoders[2].d == 0) &
                 (decoders[3].k == 0) & (decoders[3].d == 0))
         ]
 
-        idle_timer = WaitTimer(256)
-        self.submodules += idle_timer
-        self.comb += idle_timer.wait.eq(1)
-        self.sync += self.rx_idle.eq(idle_timer.done &
-            ((rx_bitslip.o == 0) | (rx_bitslip.o == (2**40-1))))
+
+@ResetInserter()
+class _Serdes(Module):
+    def __init__(self, pads, mode="master"):
+        self.submodules.clocking = _SerdesClocking(pads, mode)
+        self.submodules.tx = _SerdesTX(pads, mode)
+        self.submodules.rx = _SerdesRX(pads, mode)
 
 
 # SERWB Master <--> Slave physical synchronization process:
@@ -151,7 +183,7 @@ class _SerdesMasterInit(Module):
         fsm.act("IDLE",
             NextValue(bitslip, 0),
             NextState("RESET_SLAVE"),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("RESET_SLAVE",
             timer.wait.eq(1),
@@ -159,16 +191,16 @@ class _SerdesMasterInit(Module):
                 timer.wait.eq(0),
                 NextState("SEND_PATTERN")
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("SEND_PATTERN",
-            If(~serdes.rx_idle,
+            If(~serdes.rx.idle,
                 timer.wait.eq(1),
                 If(timer.done,
                     NextState("CHECK_PATTERN")
                 )
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
         fsm.act("WAIT_STABLE",
             timer.wait.eq(1),
@@ -176,10 +208,10 @@ class _SerdesMasterInit(Module):
                 timer.wait.eq(0),
                 NextState("CHECK_PATTERN")
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
         fsm.act("CHECK_PATTERN",
-            If(serdes.rx_comma,
+            If(serdes.rx.comma,
                 timer.wait.eq(1),
                 If(timer.done,
                     NextState("READY")
@@ -187,9 +219,9 @@ class _SerdesMasterInit(Module):
             ).Else(
                 NextState("INC_BITSLIP")
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
-        self.comb += serdes.rx_bitslip_value.eq(bitslip)
+        self.comb += serdes.rx.bitslip_value.eq(bitslip)
         fsm.act("INC_BITSLIP",
             NextState("WAIT_STABLE"),
             If(bitslip == (40 - 1),
@@ -197,7 +229,7 @@ class _SerdesMasterInit(Module):
             ).Else(
                 NextValue(bitslip, bitslip + 1)
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
         fsm.act("READY",
             self.ready.eq(1)
@@ -228,7 +260,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
                 timer.wait.eq(0),
                 NextState("WAIT_STABLE"),
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("WAIT_STABLE",
             timer.wait.eq(1),
@@ -236,10 +268,10 @@ class _SerdesSlaveInit(Module, AutoCSR):
                 timer.wait.eq(0),
                 NextState("CHECK_PATTERN")
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("CHECK_PATTERN",
-            If(serdes.rx_comma,
+            If(serdes.rx.comma,
                 timer.wait.eq(1),
                 If(timer.done,
                     NextState("SEND_PATTERN")
@@ -247,9 +279,9 @@ class _SerdesSlaveInit(Module, AutoCSR):
             ).Else(
                 NextState("INC_BITSLIP")
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
-        self.comb += serdes.rx_bitslip_value.eq(bitslip)
+        self.comb += serdes.rx.bitslip_value.eq(bitslip)
         fsm.act("INC_BITSLIP",
             NextState("WAIT_STABLE"),
             If(bitslip == (40 - 1),
@@ -257,16 +289,16 @@ class _SerdesSlaveInit(Module, AutoCSR):
             ).Else(
                 NextValue(bitslip, bitslip + 1)
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("SEND_PATTERN",
             timer.wait.eq(1),
             If(timer.done,
-                If(~serdes.rx_comma,
+                If(~serdes.rx.comma,
                     NextState("READY")
                 )
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
         fsm.act("READY",
             self.ready.eq(1)
@@ -304,8 +336,8 @@ class _SerdesControl(Module, AutoCSR):
             # Master reset the Slave by putting the link
             # in idle.
             self.sync += [
-                init.reset.eq(serdes.rx_idle),
-                serdes.reset.eq(serdes.rx_idle)
+                init.reset.eq(serdes.rx.idle),
+                serdes.reset.eq(serdes.rx.idle)
             ]
         self.comb += [
             self.ready.status.eq(init.ready),
@@ -361,19 +393,19 @@ class SERWBPHY(Module, AutoCSR):
         self.comb += \
             If(self.init.ready,
                 sink.connect(scrambler.sink),
-                scrambler.source.ready.eq(self.serdes.tx_ce),
+                scrambler.source.ready.eq(self.serdes.tx.ce),
                 If(scrambler.source.valid,
-                    self.serdes.tx_d.eq(scrambler.source.d),
-                    self.serdes.tx_k.eq(scrambler.source.k)
+                    self.serdes.tx.d.eq(scrambler.source.d),
+                    self.serdes.tx.k.eq(scrambler.source.k)
                 )
             )
 
         # rx dataflow
         self.comb += [
             If(self.init.ready,
-                descrambler.sink.valid.eq(self.serdes.rx_ce),
-                descrambler.sink.d.eq(self.serdes.rx_d),
-                descrambler.sink.k.eq(self.serdes.rx_k),
+                descrambler.sink.valid.eq(self.serdes.rx.ce),
+                descrambler.sink.d.eq(self.serdes.rx.d),
+                descrambler.sink.k.eq(self.serdes.rx.k),
                 descrambler.source.connect(source)
             ),
             # For PRBS test we are using the scrambler/descrambler as PRBS,
