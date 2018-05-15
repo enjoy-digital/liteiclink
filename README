@@ -32,7 +32,8 @@ design flow by generating the verilog rtl that you will use as a standard core.
 -----------
 SERWB:
   - Wishbone over 3 LVDS pairs.
-  - Artix7, Kintex7, Kintex Ultrascale support.
+  - Artix7, Kintex7, Kintex Ultrascale high-speed PHYs.
+  - Vendor agnostic low-speed PHY.
   - 8B/10B, integrated gearbox.
   - Up to 1.25Gbps linerate / 32 bits @ 31.25Mhz user interface.
   - Automatic sampling window adjustement at startup.
@@ -41,7 +42,7 @@ SERWB:
 [> FPGA Proven
 ---------------
 LiteICLink is already used in commercial and open-source designs:
-- HDMI2USB: http://hdmi2usb.tv/home/
+- ARTIQ: https://m-labs.hk/artiq/
 - and others commercial designs...
 
 [> Possible improvements
