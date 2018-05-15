@@ -160,7 +160,7 @@ class SERDESTestSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, low_speed=True, with_core=True, with_serwb_test=False, with_analyzer=False):
+    def __init__(self, platform, low_speed=True, with_core=True, with_serwb_test=False, with_analyzer=True):
         BaseSoC.__init__(self, platform)
 
         # serwb enable
@@ -227,21 +227,11 @@ class SERDESTestSoC(BaseSoC):
             # analyzer
             if with_analyzer:
                 analyzer_signals = [
-                    serwb_master_core.etherbone.wishbone.bus,
-                    #self.serwb_master_phy.serdes.tx_d,
-                    #self.serwb_master_phy.serdes.tx_k,
-                    #self.serwb_master_phy.serdes.tx_ce,
-                    #self.serwb_master_phy.serdes.rx_d,
-                    #self.serwb_master_phy.serdes.rx_k,
-                    #self.serwb_master_phy.serdes.rx_ce,
-
-                    serwb_slave_core.etherbone.wishbone.bus,
-                    self.serwb_slave_phy.serdes.tx_d,
-                    self.serwb_slave_phy.serdes.tx_k,
-                    self.serwb_slave_phy.serdes.tx_ce,
-                    self.serwb_slave_phy.serdes.rx_d,
-                    self.serwb_slave_phy.serdes.rx_k,
-                    self.serwb_slave_phy.serdes.rx_ce,
+                    self.serwb_master_phy.scrambler.sink,
+                    self.serwb_master_phy.scrambler.source,
+                    self.serwb_slave_phy.descrambler.sink,
+                    self.serwb_slave_phy.descrambler.source,
+                    self.serwb_slave_phy.control.prbs_error
                 ]
                 self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256)
 
