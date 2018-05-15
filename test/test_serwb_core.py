@@ -105,23 +105,21 @@ class DUTCore(Module):
 
 class TestSERWBCore(unittest.TestCase):
     def test_scrambler(self):
-        def generator(dut, random_level=50):
+        def generator(dut, rand_level=50):
             # prepare test
             prng = random.Random(42)
             i = 0
             last_data = -1
-            yield dut.scrambler.enable.eq(1)
-            yield dut.descrambler.enable.eq(1)
             # test loop
             while i != 256:
                 # stim
-                yield dut.scrambler.sink.valid.eq(prng.randrange(100) > random_level)
+                yield dut.scrambler.sink.valid.eq(1)
                 if (yield dut.scrambler.sink.valid) & (yield dut.scrambler.sink.ready):
                     i += 1
                 yield dut.scrambler.sink.data.eq(i)
 
                 # check
-                yield dut.descrambler.source.ready.eq(prng.randrange(100) > random_level)
+                yield dut.descrambler.source.ready.eq(prng.randrange(100) > rand_level)
                 if (yield dut.descrambler.source.valid) & (yield dut.descrambler.source.ready):
                     current_data = (yield dut.descrambler.source.data)
                     if (current_data != (last_data + 1)):
