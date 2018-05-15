@@ -98,16 +98,17 @@ class Descrambler(Module):
             NextState("SYNC_DATA")
         )
         fsm.act("SYNC_DATA",
-            If((sink.k[0] == 1) &
-               (sink.d[:8] == K(29,7)),
-                sink.ready.eq(1),
-                descrambler.reset.eq(1)
-            ).Else(
-                sink.ready.eq(source.ready),
-                source.valid.eq(sink.valid),
-                source.data.eq(descrambler.o),
-                If(source.valid & source.ready,
-                    descrambler.ce.eq(1)
+            If(sink.valid,
+                If((sink.k == 1) & (sink.d == K(29,7)),
+                    sink.ready.eq(1),
+                    descrambler.reset.eq(1)
+                ).Else(
+                    source.valid.eq(1),
+                    source.data.eq(descrambler.o),
+                    If(source.ready,
+                        sink.ready.eq(1),
+                        descrambler.ce.eq(1)
+                    )
                 )
             )
         )
