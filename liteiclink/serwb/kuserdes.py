@@ -45,7 +45,7 @@ class _KUSerdesClocking(Module):
 
 
 class _KUSerdesTX(Module):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads):
         # Control
         self.idle = idle = Signal()
         self.comma = comma = Signal()
@@ -107,7 +107,7 @@ class _KUSerdesTX(Module):
 
 
 class _KUSerdesRX(Module):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads):
         # Control
         self.delay_rst = Signal()
         self.delay_inc = Signal()
@@ -209,5 +209,5 @@ class _KUSerdesRX(Module):
 class KUSerdes(Module):
     def __init__(self, pads, mode="master"):
         self.submodules.clocking = _KUSerdesClocking(pads, mode)
-        self.submodules.tx = _KUSerdesTX(pads, mode)
-        self.submodules.rx = _KUSerdesRX(pads, mode)
+        self.submodules.tx = _KUSerdesTX(pads)
+        self.submodules.rx = _KUSerdesRX(pads)

@@ -30,7 +30,7 @@ class _SerdesClocking(Module):
 
 
 class _SerdesTX(Module):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads):
         # Control
         self.idle = idle = Signal()
         self.comma = comma = Signal()
@@ -82,7 +82,7 @@ class _SerdesTX(Module):
 
 
 class _SerdesRX(Module):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads):
         # Control
         self.bitslip_value = bitslip_value = Signal(6)
 
@@ -154,8 +154,8 @@ class _SerdesRX(Module):
 class _Serdes(Module):
     def __init__(self, pads, mode="master"):
         self.submodules.clocking = _SerdesClocking(pads, mode)
-        self.submodules.tx = _SerdesTX(pads, mode)
-        self.submodules.rx = _SerdesRX(pads, mode)
+        self.submodules.tx = _SerdesTX(pads)
+        self.submodules.rx = _SerdesRX(pads)
 
 
 # SERWB Master <--> Slave physical synchronization process:

@@ -49,7 +49,7 @@ class _S7SerdesClocking(Module):
 
 
 class _S7SerdesTX(Module):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads):
         # Control
         self.idle = idle = Signal()
         self.comma = comma = Signal()
@@ -116,7 +116,7 @@ class _S7SerdesTX(Module):
 
 
 class _S7SerdesRX(Module):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads):
         # Control
         self.delay_rst = Signal()
         self.delay_inc = Signal()
@@ -221,5 +221,5 @@ class _S7SerdesRX(Module):
 class S7Serdes(Module):
     def __init__(self, pads, mode="master"):
         self.submodules.clocking = _S7SerdesClocking(pads, mode)
-        self.submodules.tx = _S7SerdesTX(pads, mode)
-        self.submodules.rx = _S7SerdesRX(pads, mode)
+        self.submodules.tx = _S7SerdesTX(pads)
+        self.submodules.rx = _S7SerdesRX(pads)
