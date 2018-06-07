@@ -121,7 +121,7 @@ class SERDESTestSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, low_speed=False, with_analyzer=True):
+    def __init__(self, platform, low_speed=True, with_analyzer=True):
         BaseSoC.__init__(self, platform)
 
         # serwb enable
@@ -133,9 +133,9 @@ class SERDESTestSoC(BaseSoC):
             phy_cls = SERWBPHY
 
         # serwb master
-        self.submodules.serwb_master_phy = SERWBPHY(platform.device, platform.request("serwb_master"), mode="master")
+        self.submodules.serwb_master_phy = phy_cls(platform.device, platform.request("serwb_master"), mode="master")
         # serwb slave
-        self.submodules.serwb_slave_phy = SERWBPHY(platform.device, platform.request("serwb_slave"), mode="slave")
+        self.submodules.serwb_slave_phy = phy_cls(platform.device, platform.request("serwb_slave"), mode="slave")
 
         # leds
         self.comb += [
@@ -160,13 +160,48 @@ class SERDESTestSoC(BaseSoC):
         
         # analyzer
         if with_analyzer:
-            analyzer_signals = [
-                self.serwb_master_phy.scrambler.sink,
-                self.serwb_master_phy.scrambler.source,
-                self.serwb_slave_phy.descrambler.sink,
-                self.serwb_slave_phy.descrambler.source,
-                self.serwb_slave_phy.control.prbs_error
+            converter_group = [
+                self.serwb_master_phy.serdes.tx.datapath.converter.sink,
+                self.serwb_master_phy.serdes.tx.datapath.converter.source,
+                self.serwb_slave_phy.serdes.tx.datapath.converter.sink,
+                self.serwb_slave_phy.serdes.tx.datapath.converter.source,
+
+                self.serwb_master_phy.serdes.rx.datapath.converter.sink,
+                self.serwb_master_phy.serdes.rx.datapath.converter.source,
+                self.serwb_slave_phy.serdes.rx.datapath.converter.sink,
+                self.serwb_slave_phy.serdes.rx.datapath.converter.source
             ]
+            encoder_group = [
+                self.serwb_master_phy.serdes.tx.datapath.encoder.sink,
+                self.serwb_master_phy.serdes.tx.datapath.encoder.source,
+                self.serwb_slave_phy.serdes.tx.datapath.encoder.sink,
+                self.serwb_slave_phy.serdes.tx.datapath.encoder.source,
+
+                self.serwb_master_phy.serdes.rx.datapath.decoder.sink,
+                self.serwb_master_phy.serdes.rx.datapath.decoder.source,
+                self.serwb_slave_phy.serdes.rx.datapath.decoder.sink,
+                self.serwb_slave_phy.serdes.rx.datapath.decoder.source
+            ]
+            fsm_group = [
+                self.serwb_master_phy.serdes.reset,
+                self.serwb_master_phy.init.state,
+                self.serwb_master_phy.serdes.tx.idle,
+                self.serwb_master_phy.serdes.tx.comma,
+                self.serwb_master_phy.serdes.rx.idle,
+                self.serwb_master_phy.serdes.rx.comma,
+                self.serwb_slave_phy.serdes.reset,
+                self.serwb_slave_phy.init.state,
+                self.serwb_slave_phy.serdes.tx.idle,
+                self.serwb_slave_phy.serdes.tx.comma,
+                self.serwb_slave_phy.serdes.rx.idle,
+                self.serwb_slave_phy.serdes.rx.comma,
+            ]
+
+            analyzer_signals = {
+                0 : converter_group,
+                1 : encoder_group,
+                2 : fsm_group
+            }
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256)
 
     def do_exit(self, vns):

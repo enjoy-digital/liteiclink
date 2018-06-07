@@ -6,10 +6,6 @@ from litex.soc.interconnect import stream
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 
-def K(x, y):
-    return (y << 5) | x
-
-
 class _KUSerdesClocking(Module):
     def __init__(self, pads, mode="master"):
         self.refclk = Signal()
