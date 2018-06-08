@@ -5,7 +5,6 @@ from migen.genlib.misc import WaitTimer
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
-from liteiclink.serwb.scrambler import Scrambler, Descrambler
 from liteiclink.serwb.datapath import TXDatapath, RXDatapath
 
 
@@ -109,21 +108,17 @@ class _SerdesMasterInit(Module):
 
         # # #
 
-        self.state = state = Signal(8)
-
         self.bitslip = bitslip = Signal(max=40)
 
         self.submodules.timer = timer = WaitTimer(timeout)
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-            state.eq(0),
             NextValue(bitslip, 0),
             NextState("RESET_SLAVE"),
             serdes.tx.idle.eq(1)
         )
         fsm.act("RESET_SLAVE",
-            state.eq(1),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
@@ -132,7 +127,6 @@ class _SerdesMasterInit(Module):
             serdes.tx.idle.eq(1)
         )
         fsm.act("SEND_PATTERN",
-            state.eq(2),
             If(~serdes.rx.idle,
                 timer.wait.eq(1),
                 If(timer.done,
@@ -142,7 +136,6 @@ class _SerdesMasterInit(Module):
             serdes.tx.comma.eq(1)
         )
         fsm.act("WAIT_STABLE",
-            state.eq(3),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
@@ -151,7 +144,6 @@ class _SerdesMasterInit(Module):
             serdes.tx.comma.eq(1)
         )
         fsm.act("CHECK_PATTERN",
-            state.eq(4),
             If(serdes.rx.comma,
                 timer.wait.eq(1),
                 If(timer.done,
@@ -164,7 +156,6 @@ class _SerdesMasterInit(Module):
         )
         self.comb += serdes.rx.bitslip_value.eq(bitslip)
         fsm.act("INC_BITSLIP",
-            state.eq(5),
             NextState("WAIT_STABLE"),
             If(bitslip == (40 - 1),
                 NextState("ERROR")
@@ -174,11 +165,9 @@ class _SerdesMasterInit(Module):
             serdes.tx.comma.eq(1)
         )
         fsm.act("READY",
-            state.eq(6),
             self.ready.eq(1)
         )
         fsm.act("ERROR",
-            state.eq(7),
             self.error.eq(1)
         )
 
@@ -191,8 +180,6 @@ class _SerdesSlaveInit(Module, AutoCSR):
 
         # # #
 
-        self.state = state = Signal(8)
-
         self.bitslip = bitslip = Signal(max=40)
 
         self.submodules.timer = timer = WaitTimer(timeout)
@@ -200,7 +187,6 @@ class _SerdesSlaveInit(Module, AutoCSR):
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         # reset
         fsm.act("IDLE",
-            state.eq(0),
             NextValue(bitslip, 0),
             timer.wait.eq(1),
             If(timer.done,
@@ -210,7 +196,6 @@ class _SerdesSlaveInit(Module, AutoCSR):
             serdes.tx.idle.eq(1)
         )
         fsm.act("WAIT_STABLE",
-            state.eq(1),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
@@ -219,7 +204,6 @@ class _SerdesSlaveInit(Module, AutoCSR):
             serdes.tx.idle.eq(1)
         )
         fsm.act("CHECK_PATTERN",
-            state.eq(2),
             If(serdes.rx.comma,
                 timer.wait.eq(1),
                 If(timer.done,
@@ -232,7 +216,6 @@ class _SerdesSlaveInit(Module, AutoCSR):
         )
         self.comb += serdes.rx.bitslip_value.eq(bitslip)
         fsm.act("INC_BITSLIP",
-            state.eq(3),
             NextState("WAIT_STABLE"),
             If(bitslip == (40 - 1),
                 NextState("ERROR")
@@ -242,7 +225,6 @@ class _SerdesSlaveInit(Module, AutoCSR):
             serdes.tx.idle.eq(1)
         )
         fsm.act("SEND_PATTERN",
-            state.eq(4),
             timer.wait.eq(1),
             If(timer.done,
                 If(~serdes.rx.comma,
@@ -252,11 +234,9 @@ class _SerdesSlaveInit(Module, AutoCSR):
             serdes.tx.comma.eq(1)
         )
         fsm.act("READY",
-            state.eq(5),
             self.ready.eq(1)
         )
         fsm.act("ERROR",
-            state.eq(6),
             self.error.eq(1)
         )
 

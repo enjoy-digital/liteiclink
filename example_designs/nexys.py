@@ -121,7 +121,7 @@ class SERDESTestSoC(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, platform, low_speed=True, with_analyzer=True):
+    def __init__(self, platform, low_speed=False, with_analyzer=True):
         BaseSoC.__init__(self, platform)
 
         # serwb enable
@@ -184,14 +184,12 @@ class SERDESTestSoC(BaseSoC):
             ]
             control_group = [
                 self.serwb_master_phy.serdes.reset,
-                self.serwb_master_phy.init.state,
                 self.serwb_master_phy.serdes.tx.idle,
                 self.serwb_master_phy.serdes.tx.comma,
                 self.serwb_master_phy.serdes.rx.idle,
                 self.serwb_master_phy.serdes.rx.comma,
 
                 self.serwb_slave_phy.serdes.reset,
-                self.serwb_slave_phy.init.state,
                 self.serwb_slave_phy.serdes.tx.idle,
                 self.serwb_slave_phy.serdes.tx.comma,
                 self.serwb_slave_phy.serdes.rx.idle,

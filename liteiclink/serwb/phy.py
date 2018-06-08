@@ -4,7 +4,6 @@ from migen.genlib.misc import WaitTimer
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
-from liteiclink.serwb.scrambler import Scrambler, Descrambler
 from liteiclink.serwb.kuserdes import KUSerdes
 from liteiclink.serwb.s7serdes import S7Serdes
 
@@ -360,34 +359,21 @@ class SERWBPHY(Module, AutoCSR):
             self.submodules.init = _SerdesSlaveInit(self.serdes, taps, init_timeout)
         self.submodules.control = _SerdesControl(self.serdes, self.init, mode)
 
-        # scrambling
-        self.submodules.scrambler = scrambler = Scrambler()
-        self.submodules.descrambler = descrambler = Descrambler()
-
-        # tx dataflow
-        self.comb += \
-            If(self.init.ready,
-                sink.connect(scrambler.sink),
-                scrambler.source.ready.eq(self.serdes.tx.ce),
-                If(scrambler.source.valid,
-                    self.serdes.tx.d.eq(scrambler.source.d),
-                    self.serdes.tx.k.eq(scrambler.source.k)
-                )
-            )
-
-        # rx dataflow
+        # tx/rx dataflow
         self.comb += [
             If(self.init.ready,
-                descrambler.sink.valid.eq(self.serdes.rx.ce),
-                descrambler.sink.d.eq(self.serdes.rx.d),
-                descrambler.sink.k.eq(self.serdes.rx.k),
-                descrambler.source.connect(source)
+                sink.connect(self.serdes.tx.sink),
+                self.serdes.rx.source.connect(source)
+            ).Else(
+                self.serdes.rx.source.ready.eq(1)
             ),
-            # For PRBS test we are using the scrambler/descrambler as PRBS,
-            # sending 0 to the scrambler and checking that descrambler
-            # output is always 0.
-            self.control.prbs_error.eq(
-                descrambler.source.valid &
-                descrambler.source.ready &
-                (descrambler.source.data != 0))
+            self.serdes.tx.sink.valid.eq(1) # always transmitting
         ]
+
+        # For PRBS test we are using the scrambler/descrambler as PRBS,
+        # sending 0 to the scrambler and checking that descrambler
+        # output is always 0.
+        self.comb += self.control.prbs_error.eq(
+                source.valid &
+                source.ready &
+                (source.data != 0))
