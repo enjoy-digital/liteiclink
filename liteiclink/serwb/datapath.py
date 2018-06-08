@@ -91,7 +91,7 @@ class _Bitslip(Module):
 
 
 class TXDatapath(Module):
-    def __init__(self, phy_dw, with_scrambling=False):
+    def __init__(self, phy_dw, with_scrambling=True):
         self.idle = idle = Signal()
         self.comma = comma = Signal()
         self.sink = sink = stream.Endpoint([("data", 32)])
@@ -144,7 +144,7 @@ class TXDatapath(Module):
 
 
 class RXDatapath(Module):
-    def __init__(self, phy_dw, with_scrambling=False):
+    def __init__(self, phy_dw, with_scrambling=True):
         self.bitslip_value = bitslip_value = Signal(6)
         self.sink = sink = stream.Endpoint([("data", phy_dw)])
         self.source = source = stream.Endpoint([("data", 32)])

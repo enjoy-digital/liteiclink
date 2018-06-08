@@ -5,7 +5,7 @@ from migen.genlib.misc import WaitTimer
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
-from liteiclink.serwb.datapath import TXDatapath, RXDatapath
+from artiq.gateware.serwb.datapath import TXDatapath, RXDatapath
 
 
 class _SerdesClocking(Module):
@@ -22,7 +22,6 @@ class _SerdesClocking(Module):
         # In Slave mode, use the clock provided by Master
         elif mode == "slave":
             self.specials += DifferentialInput(pads.clk_p, pads.clk_n, self.refclk)
-
 
 
 class _SerdesTX(Module):
