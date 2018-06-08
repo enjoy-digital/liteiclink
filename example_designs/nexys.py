@@ -182,13 +182,14 @@ class SERDESTestSoC(BaseSoC):
                 self.serwb_slave_phy.serdes.rx.datapath.decoder.sink,
                 self.serwb_slave_phy.serdes.rx.datapath.decoder.source
             ]
-            fsm_group = [
+            control_group = [
                 self.serwb_master_phy.serdes.reset,
                 self.serwb_master_phy.init.state,
                 self.serwb_master_phy.serdes.tx.idle,
                 self.serwb_master_phy.serdes.tx.comma,
                 self.serwb_master_phy.serdes.rx.idle,
                 self.serwb_master_phy.serdes.rx.comma,
+
                 self.serwb_slave_phy.serdes.reset,
                 self.serwb_slave_phy.init.state,
                 self.serwb_slave_phy.serdes.tx.idle,
@@ -200,7 +201,7 @@ class SERDESTestSoC(BaseSoC):
             analyzer_signals = {
                 0 : converter_group,
                 1 : encoder_group,
-                2 : fsm_group
+                2 : control_group
             }
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256)
 

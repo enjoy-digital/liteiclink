@@ -160,7 +160,7 @@ class RXDatapath(Module):
         self.submodules.bitslip = bitslip = _Bitslip()
         self.comb += bitslip.value.eq(bitslip_value)
 
-        # line decoding
+        # line coding
         self.submodules.decoder = decoder = _8b10bDecoder()
 
         # descrambler
