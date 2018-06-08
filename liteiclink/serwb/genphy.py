@@ -332,11 +332,15 @@ class SERWBPHY(Module, AutoCSR):
         self.submodules.control = _SerdesControl(self.serdes, self.init, mode)
 
         # tx/rx dataflow
-        self.comb += \
+        self.comb += [
             If(self.init.ready,
                 sink.connect(self.serdes.tx.sink),
                 self.serdes.rx.source.connect(source)
-            )
+            ).Else(
+                self.serdes.rx.source.ready.eq(1)
+            ),
+            self.serdes.tx.sink.valid.eq(1) # always transmitting
+        ]
 
         # For PRBS test we are using the scrambler/descrambler as PRBS,
         # sending 0 to the scrambler and checking that descrambler

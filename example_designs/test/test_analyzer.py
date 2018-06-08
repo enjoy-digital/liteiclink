@@ -14,7 +14,7 @@ def help():
     print("Supported triggers:")
     print(" - converter")
     print(" - encoder")
-    print(" - fsm")
+    print(" - control")
     print(" ")
     print(" - continous")
     exit()
@@ -45,7 +45,7 @@ elif group == "encoder":
     analyzer.configure_group(groups["encoder"])
     analyzer.configure_trigger(cond={})
 elif group == "control":
-    analyzer.configure_group(groups["fsm"])
+    analyzer.configure_group(groups["control"])
     analyzer.configure_trigger(cond={})
 elif group == "continuous":
     continuous_items = [

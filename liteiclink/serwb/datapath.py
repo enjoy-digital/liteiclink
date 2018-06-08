@@ -60,7 +60,7 @@ class _8b10bDecoder(Module):
             self.comb += [
                 decoders[i].input.eq(sink.data[10*i:10*(i+1)]),
                 source.k[i].eq(decoders[i].k),
-                source.d[i].eq(decoders[i].d),
+                source.d[8*i:8*(i+1)].eq(decoders[i].d)
             ]
 
 
@@ -184,13 +184,15 @@ class RXDatapath(Module):
                 source.data.eq(decoder.source.d)
             ]
 
-        # idle / comma decoding
+        # idle decoding
         idle_timer = WaitTimer(256)
         self.submodules += idle_timer
         self.comb += [
             idle_timer.wait.eq(1),
-            idle.eq(idle_timer.done & ((converter.source.data == 0) | (converter.source.data == (2**40-1)))),
-            comma.eq(decoder.source.valid & 
-                    (decoder.source.k == 1) &
-                    (decoder.source.d == K(28, 5)))
+            idle.eq(idle_timer.done & ((converter.source.data == 0) | (converter.source.data == (2**40-1))))
         ]
+        # comma decoding
+        self.sync += \
+            If(decoder.source.valid,
+                comma.eq((decoder.source.k == 1) & (decoder.source.d == K(28, 5)))
+            )
