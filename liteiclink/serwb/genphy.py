@@ -5,7 +5,7 @@ from migen.genlib.misc import WaitTimer
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
 
-from artiq.gateware.serwb.datapath import TXDatapath, RXDatapath
+from liteiclink.serwb.datapath import TXDatapath, RXDatapath
 
 
 class _SerdesClocking(Module):
