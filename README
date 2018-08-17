@@ -1,7 +1,7 @@
-         __   _ __      ___________   _      __  
+         __   _ __      ___________   _      __
         / /  (_) /____ /  _/ ___/ /  (_)__  / /__
        / /__/ / __/ -_)/ // /__/ /__/ / _ \/  '_/
-      /____/_/\__/\__/___/\___/____/_/_//_/_/\_\ 
+      /____/_/\__/\__/___/\___/____/_/_//_/_/\_\
 
           Copyright 2017-2018 / EnjoyDigital
 
@@ -31,7 +31,7 @@ design flow by generating the verilog rtl that you will use as a standard core.
 [> Features
 -----------
 SERWB:
-  - Wishbone over 3 LVDS pairs.
+  - Wishbone over 3 LVDS I/Os (high speed) or 3 Single-Ended I/Os (low speed).
   - Artix7, Kintex7, Kintex Ultrascale high-speed PHYs.
   - Vendor agnostic low-speed PHY.
   - 8B/10B, integrated gearbox.
