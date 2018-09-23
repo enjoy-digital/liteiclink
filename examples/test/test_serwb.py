@@ -2,7 +2,7 @@
 import sys
 import time
 
-from litex.soc.tools.remote import RemoteClient
+from litex import RemoteClient
 
 from litescope import LiteScopeAnalyzerDriver
 
@@ -59,7 +59,7 @@ if sys.argv[1] == "init":
         print("delay_min_found: {:d}".format(wb.regs.serwb_master_phy_control_delay_min_found.read()))
         print("delay_min: {:d}".format(wb.regs.serwb_master_phy_control_delay_min.read()))
         print("delay_max_found: {:d}".format(wb.regs.serwb_master_phy_control_delay_max_found.read()))
-        print("delay_max: {:d}".format(wb.regs.serwb_master_phy_control_delay_max.read()))    
+        print("delay_max: {:d}".format(wb.regs.serwb_master_phy_control_delay_max.read()))
         print("delay: {:d}".format(wb.regs.serwb_master_phy_control_delay.read()))
     print("bitslip: {:d}".format(wb.regs.serwb_master_phy_control_bitslip.read()))
     print("ready: {:d}".format(wb.regs.serwb_master_phy_control_ready.read()))
@@ -71,7 +71,7 @@ if sys.argv[1] == "init":
         print("delay_min_found: {:d}".format(wb.regs.serwb_slave_phy_control_delay_min_found.read()))
         print("delay_min: {:d}".format(wb.regs.serwb_slave_phy_control_delay_min.read()))
         print("delay_max_found: {:d}".format(wb.regs.serwb_slave_phy_control_delay_max_found.read()))
-        print("delay_max: {:d}".format(wb.regs.serwb_slave_phy_control_delay_max.read()))    
+        print("delay_max: {:d}".format(wb.regs.serwb_slave_phy_control_delay_max.read()))
         print("delay: {:d}".format(wb.regs.serwb_slave_phy_control_delay.read()))
     print("bitslip: {:d}".format(wb.regs.serwb_slave_phy_control_bitslip.read()))
     print("ready: {:d}".format(wb.regs.serwb_slave_phy_control_ready.read()))
@@ -109,7 +109,7 @@ elif sys.argv[1] == "wishbone":
 
 elif sys.argv[1] == "analyzer":
     analyzer = LiteScopeAnalyzerDriver(wb.regs, "analyzer", debug=True)
-    analyzer.configure_trigger(cond={}) 
+    analyzer.configure_trigger(cond={})
     analyzer.run(offset=32, length=256)
 
     analyzer.wait_done()
