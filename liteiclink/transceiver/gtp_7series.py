@@ -4,7 +4,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
-from liteiclink.transceiver.gtp_7series_init import GTPInit
+from liteiclink.transceiver.gtp_7series_init import GTPRXInit, GTPTXInit
 from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
 
 from liteiclink.transceiver.prbs import *
@@ -148,10 +148,10 @@ class GTP(Module, AutoCSR):
         # # #
 
         # TX generates RTIO clock, init must be in system domain
-        tx_init = GTPInit(sys_clk_freq, False)
+        tx_init = GTPTXInit(sys_clk_freq)
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("tx")(
-            GTPInit(self.tx_clk_freq, True))
+            GTPRXInit(self.tx_clk_freq))
         self.submodules += tx_init, rx_init
         # debug
         self.tx_init = tx_init
@@ -172,11 +172,21 @@ class GTP(Module, AutoCSR):
 
         txdata = Signal(20)
         rxdata = Signal(20)
+        rxphaligndone = Signal()
         self.specials += \
             Instance("GTPE2_CHANNEL",
                 i_GTRESETSEL=0,
                 i_RESETOVRD=0,
                 p_SIM_RESET_SPEEDUP="FALSE",
+
+                # DRP
+                i_DRPADDR=rx_init.drpaddr,
+                i_DRPCLK=ClockSignal("tx"),
+                i_DRPDI=rx_init.drpdi,
+                o_DRPDO=rx_init.drpdo,
+                i_DRPEN=rx_init.drpen,
+                o_DRPRDY=rx_init.drprdy,
+                i_DRPWE=rx_init.drpwe,
 
                 # PMA Attributes
                 p_PMA_RSV=0x333,
@@ -210,18 +220,19 @@ class GTP(Module, AutoCSR):
                 i_TXOUTCLKSEL=0b11,
 
                 # TX Startup/Reset
-                i_GTTXRESET=tx_init.gtXxreset,
-                o_TXRESETDONE=tx_init.Xxresetdone,
+                i_GTTXRESET=tx_init.gttxreset,
+                i_RXPD=Cat(rx_init.gtrxpd, rx_init.gtrxpd),
+                o_TXRESETDONE=tx_init.txresetdone,
                 p_TXSYNC_OVRD=1,
-                i_TXDLYSRESET=tx_init.Xxdlysreset,
-                o_TXDLYSRESETDONE=tx_init.Xxdlysresetdone,
-                i_TXPHINIT=tx_init.Xxphinit,
-                o_TXPHINITDONE=tx_init.Xxphinitdone,
+                i_TXDLYSRESET=tx_init.txdlysreset,
+                o_TXDLYSRESETDONE=tx_init.txdlysresetdone,
+                i_TXPHINIT=tx_init.txphinit,
+                o_TXPHINITDONE=tx_init.txphinitdone,
                 i_TXPHALIGNEN=1,
-                i_TXPHALIGN=tx_init.Xxphalign,
-                o_TXPHALIGNDONE=tx_init.Xxphaligndone,
-                i_TXDLYEN=tx_init.Xxdlyen,
-                i_TXUSERRDY=tx_init.Xxuserrdy,
+                i_TXPHALIGN=tx_init.txphalign,
+                o_TXPHALIGNDONE=tx_init.txphaligndone,
+                i_TXDLYEN=tx_init.txdlyen,
+                i_TXUSERRDY=tx_init.txuserrdy,
 
                 # TX data
                 p_TX_DATA_WIDTH=20,
@@ -239,16 +250,20 @@ class GTP(Module, AutoCSR):
                 i_LOOPBACK=0b010 if internal_loopback else 0b000,
 
                 # RX Startup/Reset
-                i_GTRXRESET=rx_init.gtXxreset,
-                o_RXRESETDONE=rx_init.Xxresetdone,
-                i_RXDLYSRESET=rx_init.Xxdlysreset,
-                o_RXDLYSRESETDONE=rx_init.Xxdlysresetdone,
-                o_RXPHALIGNDONE=rx_init.Xxphaligndone,
-                i_RXSYNCALLIN=rx_init.Xxphaligndone,
-                i_RXUSERRDY=rx_init.Xxuserrdy,
+                i_GTRXRESET=rx_init.gtrxreset,
+                o_RXRESETDONE=rx_init.rxresetdone,
+                i_RXDLYSRESET=rx_init.rxdlysreset,
+                o_RXDLYSRESETDONE=rx_init.rxdlysresetdone,
+                o_RXPHALIGNDONE=rxphaligndone,
+                i_RXSYNCALLIN=rxphaligndone,
+                i_RXUSERRDY=rx_init.rxuserrdy,
                 i_RXSYNCIN=0,
-                i_RXSYNCMODE=0,
-                o_RXSYNCDONE=rx_init.Xxsyncdone,
+                i_RXSYNCMODE=1,
+                p_RXSYNC_MULTILANE=0,
+                p_RXSYNC_OVRD=0,
+                o_RXSYNCDONE=rx_init.rxsyncdone,
+                p_RXPMARESET_TIME=0b11,
+                o_RXPMARESETDONE=rx_init.rxpmaresetdone,
 
                 # RX clock
                 p_RX_CLK25_DIV=5,
@@ -275,8 +290,8 @@ class GTP(Module, AutoCSR):
                 p_RXPH_CFG=0xc00002,
                 p_RX_DATA_WIDTH=20,
                 i_RXCOMMADETEN=1,
-                i_RXDLYBYPASS=1,
-                i_RXDDIEN=0,
+                i_RXDLYBYPASS=0,
+                i_RXDDIEN=1,
                 o_RXDISPERR=Cat(rxdata[9], rxdata[19]),
                 o_RXCHARISK=Cat(rxdata[8], rxdata[18]),
                 o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
@@ -347,7 +362,7 @@ class GTP(Module, AutoCSR):
 
         # clock alignment
         if clock_aligner:
-            clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq)
+            clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq, check_period=10e-3)
             self.submodules += clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
