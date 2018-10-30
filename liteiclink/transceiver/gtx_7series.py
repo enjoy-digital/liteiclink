@@ -186,8 +186,10 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
 
 class GTX(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq,
-                 clock_aligner=True, internal_loopback=False,
+                 data_width=20, clock_aligner=True,
+                 internal_loopback=False,
                  tx_polarity=0, rx_polarity=0):
+        assert (data_width == 20) or (data_width == 40)
         self.tx_produce_square_wave = CSRStorage()
         self.tx_prbs_config = CSRStorage(2)
 
@@ -196,10 +198,11 @@ class GTX(Module, AutoCSR):
 
         # # #
 
+        nwords = data_width//10
         self.submodules.encoder = ClockDomainsRenamer("tx")(
-            Encoder(2, True))
+            Encoder(nwords, True))
         self.decoders = [ClockDomainsRenamer("rx")(
-            Decoder(True)) for _ in range(2)]
+            Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
 
         self.rx_ready = Signal()
@@ -246,8 +249,9 @@ class GTX(Module, AutoCSR):
             pll.reset.eq(tx_init.pllreset)
         ]
 
-        txdata = Signal(20)
-        rxdata = Signal(20)
+        txdata = Signal(data_width)
+        rxdata = Signal(data_width)
+
         gtx_params = dict(
             # Simulation-Only Attributes
             p_SIM_RECEIVER_DETECT_PASS   ="TRUE",
@@ -279,8 +283,8 @@ class GTX(Module, AutoCSR):
             p_CBCC_DATA_SOURCE_SEL                   ="ENCODED",
             p_CLK_COR_SEQ_2_USE                      ="FALSE",
             p_CLK_COR_KEEP_IDLE                      ="FALSE",
-            p_CLK_COR_MAX_LAT                        =9,
-            p_CLK_COR_MIN_LAT                        =7,
+            p_CLK_COR_MAX_LAT                        =9 if data_width == 16 else 19,
+            p_CLK_COR_MIN_LAT                        =7 if data_width == 20 else 15,
             p_CLK_COR_PRECEDENCE                     ="TRUE",
             p_CLK_COR_REPEAT_WAIT                    =0,
             p_CLK_COR_SEQ_LEN                        =1,
@@ -328,7 +332,7 @@ class GTX(Module, AutoCSR):
             p_ES_VERT_OFFSET                         =0b000000000,
 
             # FPGA RX Interface Attributes
-            p_RX_DATA_WIDTH                          =20,
+            p_RX_DATA_WIDTH                          =data_width,
 
             # PMA Attributes
             p_OUTREFCLK_SEL_INV                      =0b11,
@@ -436,7 +440,7 @@ class GTX(Module, AutoCSR):
             p_TX_XCLK_SEL                            ="TXUSR",
 
             # FPGA TX Interface Attributes
-            p_TX_DATA_WIDTH                          =20,
+            p_TX_DATA_WIDTH                          =data_width,
 
             # TX Configurable Driver Attributes
             p_TX_DEEMPH0                             =0b00000,
@@ -501,10 +505,10 @@ class GTX(Module, AutoCSR):
             p_TX_CLKMUX_PD                           =0b1,
 
             # FPGA RX Interface Attribute
-            p_RX_INT_DATAWIDTH                       =0,
+            p_RX_INT_DATAWIDTH                       =data_width == 40,
 
             # FPGA TX Interface Attribute
-            p_TX_INT_DATAWIDTH                       =0,
+            p_TX_INT_DATAWIDTH                       =data_width == 40,
 
             # TX Configurable Driver Attributes
             p_TX_QPI_STATUS_EN                       =0b0,
@@ -611,7 +615,7 @@ class GTX(Module, AutoCSR):
             i_RXUSRCLK2                      =ClockSignal("rx"),
 
             # Receive Ports - FPGA RX interface Ports
-            o_RXDATA                         =Cat(rxdata[:8], rxdata[10:18]),
+            o_RXDATA                         =Cat(*[rxdata[10*i:10*i+8] for i in range(nwords)]),
 
             # Receive Ports - Pattern Checker Ports
             #o_RXPRBSERR                      =,
@@ -626,7 +630,7 @@ class GTX(Module, AutoCSR):
             i_RXDFEXYDOVRDEN                 =0,
 
             # Receive Ports - RX 8B/10B Decoder Ports
-            i_RXDISPERR                      =Cat(rxdata[9], rxdata[19]),
+            i_RXDISPERR                      =Cat(*[rxdata[10*i+9] for i in range(nwords)]),
             #o_RXNOTINTABLE                   =,
 
             # Receive Ports - RX AFE
@@ -750,7 +754,7 @@ class GTX(Module, AutoCSR):
 
             # Receive Ports - RX8B/10B Decoder Ports
             #o_RXCHARISCOMMA                  =,
-            o_RXCHARISK                      =Cat(rxdata[8], rxdata[18]),
+            o_RXCHARISK                      =Cat(*[rxdata[10*i+8] for i in range(nwords)]),
 
             # Receive Ports - Rx Channel Bonding Ports
             i_RXCHBONDI                      =0b00000,
@@ -786,8 +790,8 @@ class GTX(Module, AutoCSR):
             i_RESETOVRD                      =0,
 
             # Transmit Ports - 8b10b Encoder Control Ports
-            i_TXCHARDISPMODE                 =Cat(txdata[9], txdata[19]),
-            i_TXCHARDISPVAL                  =Cat(txdata[8], txdata[18]),
+            i_TXCHARDISPMODE                 =Cat(*[txdata[10*i+9] for i in range(nwords)]),
+            i_TXCHARDISPVAL                  =Cat(*[txdata[10*i+8] for i in range(nwords)]),
 
             # Transmit Ports - FPGA TX Interface Ports
             i_TXUSRCLK                       =ClockSignal("tx"),
@@ -832,7 +836,7 @@ class GTX(Module, AutoCSR):
             i_TXPISOPD                       =0,
 
             # Transmit Ports - TX Data Path interface
-            i_TXDATA                         =Cat(txdata[:8], txdata[10:18]),
+            i_TXDATA                         =Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
 
             # Transmit Ports - TX Driver and OOB signaling
             o_GTXTXN                         =tx_pads.n,
