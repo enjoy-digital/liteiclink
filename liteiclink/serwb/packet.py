@@ -3,12 +3,9 @@ from math import ceil
 from migen import *
 from migen.genlib.misc import WaitTimer
 
+from litex.gen import *
+
 from litex.soc.interconnect import stream
-
-
-def reverse_bytes(signal):
-    n = ceil(len(signal)/8)
-    return Cat(iter([signal[i*8:(i+1)*8] for i in reversed(range(n))]))
 
 
 class HeaderField:
