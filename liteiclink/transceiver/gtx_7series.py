@@ -72,8 +72,120 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
         return r
 
 
+class GTXQuadPLL(Module):
+    def __init__(self, refclk, refclk_freq, linerate):
+        self.clk = Signal()
+        self.refclk = Signal()
+        self.reset = Signal()
+        self.lock = Signal()
+        self.config = self.compute_config(refclk_freq, linerate)
+
+        # # #
+
+        fbdiv_ratios = {
+            16:  1,
+            20:  1,
+            32:  1,
+            40:  1,
+            64:  1,
+            66:  0,
+            80:  1,
+            100: 1
+        }
+        fbdivs = {
+            16:  0b0000100000,
+            20:  0b0000110000,
+            32:  0b0001100000,
+            40:  0b0010000000,
+            64:  0b0011100000,
+            66:  0b0101000000,
+            80:  0b0100100000,
+            100: 0b0101110000
+        }
+
+        self.specials += \
+            Instance("GTXE2_COMMON",
+                p_QPLL_CFG=0x0680181 if self.config["vco_band"] == "upper" else
+                           0x06801c1,
+                p_QPLL_FBDIV=fbdivs[self.config["n"]],
+                p_QPLL_FBDIV_RATIO=fbdiv_ratios[self.config["n"]],
+                p_QPLL_REFCLK_DIV=self.config["m"],
+                i_GTREFCLK0=refclk,
+                i_QPLLRESET=self.reset,
+
+                o_QPLLOUTCLK=self.clk,
+                o_QPLLOUTREFCLK=self.refclk,
+                i_QPLLLOCKEN=1,
+                o_QPLLLOCK=self.lock,
+                i_QPLLREFCLKSEL=0b001
+            )
+
+    @staticmethod
+    def compute_config(refclk_freq, linerate):
+        for n in 16, 20, 32, 40, 64, 66, 80, 100:
+            for m in 1, 2, 3, 4:
+                vco_freq = refclk_freq*n/m
+                if 5.93e9 <= vco_freq <= 8e9:
+                    vco_band = "lower"
+                elif 9.8e9 <= vco_freq <= 12.5e9:
+                    vco_band = "upper"
+                else:
+                    vco_band = None
+                if vco_band is not None:
+                    for d in [1, 2, 4, 8, 16]:
+                        current_linerate = (vco_freq/2)*2/d
+                        if current_linerate == linerate:
+                            return {"n": n, "m": m, "d": d,
+                                    "vco_freq": vco_freq,
+                                    "vco_band": vco_band,
+                                    "clkin": refclk_freq,
+                                    "clkout": vco_freq/2,
+                                    "linerate": linerate}
+        msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
+        raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
+
+    def __repr__(self):
+        r = """
+GTXQuadPLL
+===========
+  overview:
+  ---------
+       +-------------------------------------------------------------++
+       |                                          +------------+      |
+       |   +-----+  +---------------------------+ | Upper Band | +--+ |
+       |   |     |  | Phase Frequency Detector  +->    VCO     | |  | |
+CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
+       |   |     |  |       Loop Filter         +-> Lower Band | |  | |
+       |   +-----+  +---------------------------+ |    VCO     | +--+ |
+       |              ^                           +-----+------+      |
+       |              |        +-------+                |             |
+       |              +--------+  /N   <----------------+             |
+       |                       +-------+                              |
+       +--------------------------------------------------------------+
+                               +-------+
+                      CLKOUT +->  2/D  +-> LINERATE
+                               +-------+
+  config:
+  -------
+    CLKIN    = {clkin}MHz
+    CLKOUT   = CLKIN x N / (2 x M) = {clkin}MHz x {n} / (2 x {m})
+             = {clkout}GHz
+    VCO      = {vco_freq}GHz ({vco_band})
+    LINERATE = CLKOUT x 2 / D = {clkout}GHz x 2 / {d}
+             = {linerate}GHz
+""".format(clkin=self.config["clkin"]/1e6,
+           n=self.config["n"],
+           m=self.config["m"],
+           clkout=self.config["clkout"]/1e9,
+           vco_freq=self.config["vco_freq"]/1e9,
+           vco_band=self.config["vco_band"],
+           d=self.config["d"],
+           linerate=self.config["linerate"]/1e9)
+        return r
+
+
 class GTX(Module, AutoCSR):
-    def __init__(self, cpll, tx_pads, rx_pads, sys_clk_freq,
+    def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq,
                  clock_aligner=True, internal_loopback=False,
                  tx_polarity=0, rx_polarity=0):
         self.tx_produce_square_wave = CSRStorage()
@@ -97,7 +209,7 @@ class GTX(Module, AutoCSR):
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
-        self.tx_clk_freq = cpll.config["linerate"]/20
+        self.tx_clk_freq = pll.config["linerate"]/20
 
         # control/status cdc
         tx_produce_square_wave = Signal()
@@ -119,19 +231,21 @@ class GTX(Module, AutoCSR):
 
         # # #
 
-        # TX generates RTIO clock, init must be in system domain
+        use_cpll = isinstance(pll, GTXChannelPLL)
+        use_qpll = isinstance(pll, GTXQuadPLL)
+
+        # TX generates TX clock, init must be in system domain
         tx_init = GTXInit(sys_clk_freq, False)
-        # RX receives restart commands from RTIO domain
+        # RX receives restart commands from TX domain
         rx_init = ClockDomainsRenamer("tx")(
             GTXInit(self.tx_clk_freq, True))
         self.submodules += tx_init, rx_init
         self.comb += [
-            tx_init.plllock.eq(cpll.lock),
-            rx_init.plllock.eq(cpll.lock),
-            cpll.reset.eq(tx_init.pllreset)
+            tx_init.plllock.eq(pll.lock),
+            rx_init.plllock.eq(pll.lock),
+            pll.reset.eq(tx_init.pllreset)
         ]
 
-        assert cpll.config["linerate"] < 6.6e9
         rxcdr_cfgs = {
             1 : 0x03000023ff10400020,
             2 : 0x03000023ff10200020,
@@ -161,22 +275,27 @@ class GTX(Module, AutoCSR):
 
                 # CPLL
                 p_CPLL_CFG=0xBC07DC,
-                p_CPLL_FBDIV=cpll.config["n2"],
-                p_CPLL_FBDIV_45=cpll.config["n1"],
-                p_CPLL_REFCLK_DIV=cpll.config["m"],
-                p_RXOUT_DIV=cpll.config["d"],
-                p_TXOUT_DIV=cpll.config["d"],
-                o_CPLLLOCK=cpll.lock,
+                p_CPLL_FBDIV=1 if use_qpll else pll.config["n2"],
+                p_CPLL_FBDIV_45=4 if use_qpll else pll.config["n1"],
+                p_CPLL_REFCLK_DIV=1 if use_qpll else pll.config["m"],
+                p_RXOUT_DIV=pll.config["d"],
+                p_TXOUT_DIV=pll.config["d"],
+                i_CPLLRESET=0 if use_qpll else pll.reset,
+                o_CPLLLOCK=Signal() if use_qpll else pll.lock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
                 i_TSTIN=2**20-1,
-                i_GTREFCLK0=cpll.refclk,
+                i_GTREFCLK0=0 if use_qpll else pll.refclk,
+
+                # QPLL
+                i_QPLLCLK=0 if use_cpll else pll.clk,
+                i_QPLLREFCLK=0 if use_cpll else pll.refclk,
 
                 # TX clock
                 p_TXBUF_EN="FALSE",
                 p_TX_XCLK_SEL="TXUSR",
                 o_TXOUTCLK=self.txoutclk,
-                i_TXSYSCLKSEL=0b00,
+                i_TXSYSCLKSEL=0b11 if use_qpll else 0b00,
                 i_TXOUTCLKSEL=0b11,
 
                 # TX Startup/Reset
@@ -235,7 +354,7 @@ class GTX(Module, AutoCSR):
                 o_RXOUTCLK=self.rxoutclk,
                 i_RXUSRCLK=ClockSignal("rx"),
                 i_RXUSRCLK2=ClockSignal("rx"),
-                p_RXCDR_CFG=rxcdr_cfgs[cpll.config["d"]],
+                p_RXCDR_CFG=rxcdr_cfgs[pll.config["d"]],
 
                 # RX Clock Correction Attributes
                 p_CLK_CORRECT_USE="FALSE",
@@ -269,7 +388,7 @@ class GTX(Module, AutoCSR):
         self.clock_domains.cd_tx = ClockDomain()
         txoutclk_bufg = Signal()
         txoutclk_bufr = Signal()
-        tx_bufr_div = cpll.config["clkin"]/self.tx_clk_freq
+        tx_bufr_div = pll.config["clkin"]/self.tx_clk_freq
         assert tx_bufr_div == int(tx_bufr_div)
         self.specials += [
             Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),
