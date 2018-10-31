@@ -95,9 +95,7 @@ class GTHTestSoC(SoCCore):
         platform.add_period_constraint(gth.cd_rx.clk, 1e9/gth.tx_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            gth.cd_tx.clk)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
+            gth.cd_tx.clk,
             gth.cd_rx.clk)
 
         tx_counter = Signal(32)

@@ -79,9 +79,7 @@ class GTXTestSoC(SoCCore):
         platform.add_period_constraint(gtx.cd_rx.clk, 1e9/gtx.tx_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            gtx.cd_tx.clk)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
+            gtx.cd_tx.clk,
             gtx.cd_rx.clk)
 
 
