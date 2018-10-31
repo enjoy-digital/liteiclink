@@ -199,6 +199,7 @@ class GTX(Module, AutoCSR):
         # # #
 
         nwords = data_width//10
+
         self.submodules.encoder = ClockDomainsRenamer("tx")(
             Encoder(nwords, True))
         self.decoders = [ClockDomainsRenamer("rx")(
@@ -212,7 +213,7 @@ class GTX(Module, AutoCSR):
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
-        self.tx_clk_freq = pll.config["linerate"]/20
+        self.tx_clk_freq = pll.config["linerate"]/data_width
 
         # control/status cdc
         tx_produce_square_wave = Signal()
@@ -220,7 +221,6 @@ class GTX(Module, AutoCSR):
 
         rx_prbs_config = Signal(2)
         rx_prbs_errors = Signal(32)
-
 
         self.specials += [
             MultiReg(self.tx_produce_square_wave.storage, tx_produce_square_wave, "tx"),
@@ -915,29 +915,27 @@ class GTX(Module, AutoCSR):
         ]
 
         # tx data and prbs
-        self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(20, True))
+        self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, True))
         self.comb += self.tx_prbs.config.eq(tx_prbs_config)
         self.comb += [
-            self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(2)])),
+            self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
             If(tx_produce_square_wave,
-                # square wave @ linerate/20 for scope observation
-                txdata.eq(0b11111111110000000000)
+                # square wave @ linerate/data_width for scope observation
+                txdata.eq(Signal(data_width, reset=1<<(data_width/2)-1))
             ).Else(
                 txdata.eq(self.tx_prbs.o)
             )
         ]
 
         # rx data and prbs
-        self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(20, True))
+        self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
             rx_prbs_errors.eq(self.rx_prbs.errors)
         ]
-        self.comb += [
-            self.decoders[0].input.eq(rxdata[:10]),
-            self.decoders[1].input.eq(rxdata[10:]),
-            self.rx_prbs.i.eq(rxdata)
-        ]
+        for i in range(nwords):
+            self.comb += decoders[i].input.eq(rxdata[10*i:10*(i+1)])
+        self.comb += self.rx_prbs.i.eq(rxdata)
 
         # clock alignment
         if clock_aligner:
