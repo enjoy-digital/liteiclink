@@ -249,6 +249,14 @@ class GTX(Module, AutoCSR):
             pll.reset.eq(tx_init.pllreset)
         ]
 
+        assert pll.config["linerate"] < 6.6e9
+        rxcdr_cfgs = {
+            1 : 0x03000023ff10400020,
+            2 : 0x03000023ff10200020,
+            4 : 0x03000023ff10100020,
+            8 : 0x03000023ff10080020
+        }
+
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
 
@@ -384,7 +392,7 @@ class GTX(Module, AutoCSR):
             p_RX_DEFER_RESET_BUF_EN                  ="TRUE",
 
             # CDR Attributes
-            p_RXCDR_CFG                              =0x03000023ff40100020,
+            p_RXCDR_CFG                              =rxcdr_cfgs[pll.config["d"]],
             p_RXCDR_FR_RESET_ON_EIDLE                =0b0,
             p_RXCDR_HOLD_DURING_EIDLE                =0b0,
             p_RXCDR_PH_RESET_ON_EIDLE                =0b0,
