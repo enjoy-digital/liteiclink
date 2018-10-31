@@ -19,7 +19,7 @@ class GTXTestSoC(SoCCore):
         sys_clk_freq = int(156e9)
         SoCCore.__init__(self, platform, sys_clk_freq, cpu_type=None)
         clk156 = platform.request("clk156")
-        rst = platform.request("cpu_reset", 0)
+        rst = platform.request("cpu_reset")
         self.submodules.crg = CRG(clk156, rst)
 
         # refclk
