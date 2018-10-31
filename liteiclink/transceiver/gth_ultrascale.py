@@ -666,103 +666,103 @@ class GTH(Module, AutoCSR):
             p_WB_MODE                        =0b00,
         )
         gth_params.update(
-                # Reset modes
-                i_GTRESETSEL=0,
-                i_RESETOVRD=0,
+            # Reset modes
+            i_GTRESETSEL=0,
+            i_RESETOVRD=0,
 
-                # CPLL
-                i_CPLLRESET=0,
-                i_CPLLPD=0 if (use_qpll0 | use_qpll1) else pll.reset,
-                o_CPLLLOCK=Signal() if (use_qpll0 | use_qpll1) else pll.lock,
-                i_CPLLLOCKEN=1,
-                i_CPLLREFCLKSEL=0b001,
-                i_TSTIN=2**20-1,
-                i_GTREFCLK0=0 if (use_qpll0 | use_qpll1) else pll.refclk,
+            # CPLL
+            i_CPLLRESET=0,
+            i_CPLLPD=0 if (use_qpll0 | use_qpll1) else pll.reset,
+            o_CPLLLOCK=Signal() if (use_qpll0 | use_qpll1) else pll.lock,
+            i_CPLLLOCKEN=1,
+            i_CPLLREFCLKSEL=0b001,
+            i_TSTIN=2**20-1,
+            i_GTREFCLK0=0 if (use_qpll0 | use_qpll1) else pll.refclk,
 
-                # QPLL
-                i_QPLL0CLK=0 if (use_cpll | use_qpll1) else pll.clk,
-                i_QPLL0REFCLK=0 if (use_cpll | use_qpll1) else pll.refclk,
-                i_QPLL1CLK=0 if (use_cpll | use_qpll0) else pll.clk,
-                i_QPLL1REFCLK=0 if (use_cpll | use_qpll0) else pll.refclk,
+            # QPLL
+            i_QPLL0CLK=0 if (use_cpll | use_qpll1) else pll.clk,
+            i_QPLL0REFCLK=0 if (use_cpll | use_qpll1) else pll.refclk,
+            i_QPLL1CLK=0 if (use_cpll | use_qpll0) else pll.clk,
+            i_QPLL1REFCLK=0 if (use_cpll | use_qpll0) else pll.refclk,
 
-                # TX clock
-                o_TXOUTCLK=self.txoutclk,
-                i_TXSYSCLKSEL=0b00 if use_cpll else 0b10 if use_qpll0 else 0b11,
-                i_TXPLLCLKSEL=0b00 if use_cpll else 0b11 if use_qpll0 else 0b10,
-                i_TXOUTCLKSEL=0b11,
+            # TX clock
+            o_TXOUTCLK=self.txoutclk,
+            i_TXSYSCLKSEL=0b00 if use_cpll else 0b10 if use_qpll0 else 0b11,
+            i_TXPLLCLKSEL=0b00 if use_cpll else 0b11 if use_qpll0 else 0b10,
+            i_TXOUTCLKSEL=0b11,
 
-                # TX Startup/Reset
-                i_GTTXRESET=tx_init.gtXxreset,
-                o_TXRESETDONE=tx_init.Xxresetdone,
-                i_TXDLYSRESET=tx_init.Xxdlysreset,
-                o_TXDLYSRESETDONE=tx_init.Xxdlysresetdone,
-                o_TXPHALIGNDONE=tx_init.Xxphaligndone,
-                i_TXUSERRDY=tx_init.Xxuserrdy,
-                i_TXSYNCMODE=1,
+            # TX Startup/Reset
+            i_GTTXRESET=tx_init.gtXxreset,
+            o_TXRESETDONE=tx_init.Xxresetdone,
+            i_TXDLYSRESET=tx_init.Xxdlysreset,
+            o_TXDLYSRESETDONE=tx_init.Xxdlysresetdone,
+            o_TXPHALIGNDONE=tx_init.Xxphaligndone,
+            i_TXUSERRDY=tx_init.Xxuserrdy,
+            i_TXSYNCMODE=1,
 
-                # TX data
-                i_TXCTRL0=Cat(txdata[8], txdata[18]),
-                i_TXCTRL1=Cat(txdata[9], txdata[19]),
-                i_TXDATA=Cat(txdata[:8], txdata[10:18]),
-                i_TXUSRCLK=ClockSignal("tx"),
-                i_TXUSRCLK2=ClockSignal("tx"),
+            # TX data
+            i_TXCTRL0=Cat(txdata[8], txdata[18]),
+            i_TXCTRL1=Cat(txdata[9], txdata[19]),
+            i_TXDATA=Cat(txdata[:8], txdata[10:18]),
+            i_TXUSRCLK=ClockSignal("tx"),
+            i_TXUSRCLK2=ClockSignal("tx"),
 
-                # TX electrical
-                i_TXPD=0b00,
-                i_TXBUFDIFFCTRL=0b000,
-                i_TXDIFFCTRL=0b1100,
+            # TX electrical
+            i_TXPD=0b00,
+            i_TXBUFDIFFCTRL=0b000,
+            i_TXDIFFCTRL=0b1100,
 
-                # Internal Loopback
-                i_LOOPBACK=0b010 if internal_loopback else 0b000,
+            # Internal Loopback
+            i_LOOPBACK=0b010 if internal_loopback else 0b000,
 
-                # RX Startup/Reset
-                i_GTRXRESET=rx_init.gtXxreset,
-                o_RXRESETDONE=rx_init.Xxresetdone,
-                i_RXDLYSRESET=rx_init.Xxdlysreset,
-                o_RXPHALIGNDONE=rxphaligndone,
-                i_RXSYNCALLIN=rxphaligndone,
-                i_RXUSERRDY=rx_init.Xxuserrdy,
-                i_RXSYNCIN=0,
-                i_RXSYNCMODE=1,
-                o_RXSYNCDONE=rx_init.Xxsyncdone,
+            # RX Startup/Reset
+            i_GTRXRESET=rx_init.gtXxreset,
+            o_RXRESETDONE=rx_init.Xxresetdone,
+            i_RXDLYSRESET=rx_init.Xxdlysreset,
+            o_RXPHALIGNDONE=rxphaligndone,
+            i_RXSYNCALLIN=rxphaligndone,
+            i_RXUSERRDY=rx_init.Xxuserrdy,
+            i_RXSYNCIN=0,
+            i_RXSYNCMODE=1,
+            o_RXSYNCDONE=rx_init.Xxsyncdone,
 
-                # RX AFE
-                i_RXDFEAGCCTRL=1,
-                i_RXDFEXYDEN=1,
-                i_RXLPMEN=1,
-                i_RXOSINTCFG=0xd,
-                i_RXOSINTEN=1,
+            # RX AFE
+            i_RXDFEAGCCTRL=1,
+            i_RXDFEXYDEN=1,
+            i_RXLPMEN=1,
+            i_RXOSINTCFG=0xd,
+            i_RXOSINTEN=1,
 
-                # RX clock
-                i_RXRATE=0,
-                i_RXDLYBYPASS=0,
-                i_RXSYSCLKSEL=0b00,
-                i_RXOUTCLKSEL=0b010,
-                i_RXPLLCLKSEL=0b00,
-                o_RXOUTCLK=self.rxoutclk,
-                i_RXUSRCLK=ClockSignal("rx"),
-                i_RXUSRCLK2=ClockSignal("rx"),
+            # RX clock
+            i_RXRATE=0,
+            i_RXDLYBYPASS=0,
+            i_RXSYSCLKSEL=0b00,
+            i_RXOUTCLKSEL=0b010,
+            i_RXPLLCLKSEL=0b00,
+            o_RXOUTCLK=self.rxoutclk,
+            i_RXUSRCLK=ClockSignal("rx"),
+            i_RXUSRCLK2=ClockSignal("rx"),
 
-                # RX data
-                o_RXCTRL0=Cat(rxdata[8], rxdata[18]),
-                o_RXCTRL1=Cat(rxdata[9], rxdata[19]),
-                o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
+            # RX data
+            o_RXCTRL0=Cat(rxdata[8], rxdata[18]),
+            o_RXCTRL1=Cat(rxdata[9], rxdata[19]),
+            o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
 
-                # RX electrical
-                i_RXPD=0b00,
-                i_RXELECIDLEMODE=0b11,
+            # RX electrical
+            i_RXPD=0b00,
+            i_RXELECIDLEMODE=0b11,
 
-                # Polarity
-                i_TXPOLARITY=tx_polarity,
-                i_RXPOLARITY=rx_polarity,
+            # Polarity
+            i_TXPOLARITY=tx_polarity,
+            i_RXPOLARITY=rx_polarity,
 
-                # Pads
-                i_GTHRXP=rx_pads.p,
-                i_GTHRXN=rx_pads.n,
-                o_GTHTXP=tx_pads.p,
-                o_GTHTXN=tx_pads.n
-            )
-        self.specials += Instance("GTHE3_CHANNEL", *gth_params)
+            # Pads
+            i_GTHRXP=rx_pads.p,
+            i_GTHRXN=rx_pads.n,
+            o_GTHTXP=tx_pads.p,
+            o_GTHTXN=tx_pads.n
+        )
+        self.specials += Instance("GTHE3_CHANNEL", **gth_params)
 
         # tx clocking
         tx_reset_deglitched = Signal()
