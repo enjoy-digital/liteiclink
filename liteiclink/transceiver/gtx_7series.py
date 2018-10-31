@@ -921,7 +921,7 @@ class GTX(Module, AutoCSR):
             self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
             If(tx_produce_square_wave,
                 # square wave @ linerate/data_width for scope observation
-                txdata.eq(Signal(data_width, reset=1<<(data_width/2)-1))
+                txdata.eq(Signal(data_width, reset=1<<(data_width//2)-1))
             ).Else(
                 txdata.eq(self.tx_prbs.o)
             )
@@ -934,7 +934,7 @@ class GTX(Module, AutoCSR):
             rx_prbs_errors.eq(self.rx_prbs.errors)
         ]
         for i in range(nwords):
-            self.comb += decoders[i].input.eq(rxdata[10*i:10*(i+1)])
+            self.comb += self.decoders[i].input.eq(rxdata[10*i:10*(i+1)])
         self.comb += self.rx_prbs.i.eq(rxdata)
 
         # clock alignment
