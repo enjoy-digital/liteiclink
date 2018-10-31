@@ -65,27 +65,27 @@ class GTPTestSoC(SoCCore):
         self.submodules.crg = CRG(clk100, rst)
 
         # refclk
-        refclk150 = Signal()
-        refclk150_bufg = Signal()
+        refclk125 = Signal()
+        refclk125_bufg = Signal()
         pll_fb = Signal()
         self.specials += [
             Instance("PLLE2_BASE",
                 p_STARTUP_WAIT="FALSE", #o_LOCKED=,
 
-                # VCO @ 1.2GHz
+                # VCO @ 1GHz
                 p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                p_CLKFBOUT_MULT=12, p_DIVCLK_DIVIDE=1,
+                p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
                 i_CLKIN1=ClockSignal(), i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
-                # 150MHz
-                p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk150
+                # 125MHz
+                p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
             ),
-            Instance("BUFG", i_I=refclk150, o_O=refclk150_bufg)
+            Instance("BUFG", i_I=refclk125, o_O=refclk125_bufg)
         ]
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
         # pll
-        qpll = GTPQuadPLL(refclk150_bufg, 150e6, 3.0e9)
+        qpll = GTPQuadPLL(refclk125_bufg, 125e6, 1.25e9)
         print(qpll)
         self.submodules += qpll
 
