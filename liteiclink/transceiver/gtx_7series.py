@@ -581,7 +581,7 @@ class GTX(Module, AutoCSR):
             #o_RXVALID                        =,
 
             # Power-Down Ports
-            i_RXPD                           =0b00,
+            i_RXPD                           =Cat(rx_init.gtXxpd, rx_init.gtXxpd),
             i_TXPD                           =0b00,
 
             # RX 8B/10B Decoder Ports

@@ -14,6 +14,7 @@ class GTXInit(Module):
         self.plllock = Signal()
         self.pllreset = Signal()
         self.gtXxreset = Signal()
+        self.gtXxpd = Signal()
         self.Xxresetdone = Signal()
         self.Xxdlysreset = Signal()
         self.Xxdlysresetdone = Signal()
@@ -36,10 +37,12 @@ class GTXInit(Module):
 
         # Deglitch FSM outputs driving transceiver asynch inputs
         gtXxreset = Signal()
+        gtXxpd = Signal()
         Xxdlysreset = Signal()
         Xxuserrdy = Signal()
         self.sync += [
             self.gtXxreset.eq(gtXxreset),
+            self.gtXxpd.eq(gtXxpd),
             self.Xxdlysreset.eq(Xxdlysreset),
             self.Xxuserrdy.eq(Xxuserrdy)
         ]
@@ -50,7 +53,7 @@ class GTXInit(Module):
         startup_timer = WaitTimer(startup_cycles)
         self.submodules += startup_timer
 
-        startup_fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
+        startup_fsm = ResetInserter()(FSM(reset_state="GTP_PD"))
         self.submodules += startup_fsm
 
         ready_timer = WaitTimer(int(sys_clk_freq/1000))
@@ -69,6 +72,13 @@ class GTXInit(Module):
         self.sync += Xxphaligndone_r.eq(Xxphaligndone)
         self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
 
+        startup_fsm.act("GTP_PD",
+            gtXxreset.eq(1),
+            gtXxpd.eq(1),
+            self.pllreset.eq(1),
+            startup_timer.wait.eq(1),
+            NextState("RESET_ALL")
+        )
         startup_fsm.act("RESET_ALL",
             gtXxreset.eq(1),
             self.pllreset.eq(1),
@@ -120,5 +130,5 @@ class GTXInit(Module):
         startup_fsm.act("READY",
             Xxuserrdy.eq(1),
             self.done.eq(1),
-            If(self.restart, NextState("RESET_ALL"))
+            If(self.restart, NextState("GTP_PD"))
         )
