@@ -2,11 +2,12 @@
 import sys
 
 from migen import *
-from migen.genlib.io import CRG
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
 
+from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
@@ -55,6 +56,20 @@ class Platform(XilinxPlatform):
     def __init__(self):
         XilinxPlatform.__init__(self, "xc7a50t-fgg484-2", _io, toolchain="vivado")
 
+class _CRG(Module):
+    def __init__(self, clk, rst):
+        self.clock_domains.cd_sys = ClockDomain()
+        self.clock_domains.cd_clk125 = ClockDomain()
+
+        # # #
+
+        self.comb += self.cd_sys.clk.eq(clk)
+        self.specials += AsyncResetSynchronizer(self.cd_sys, rst)
+
+        self.submodules.pll = pll = S7PLL()
+        pll.register_clkin(clk, 100e6)
+        pll.create_clkout(self.cd_clk125, 125e6)
+
 
 class GTPTestSoC(SoCCore):
     def __init__(self, platform, medium="sfp0"):
@@ -62,30 +77,15 @@ class GTPTestSoC(SoCCore):
         SoCCore.__init__(self, platform, sys_clk_freq, cpu_type=None)
         clk100 = platform.request("clk100")
         rst = ~platform.request("user_btn", 0)
-        self.submodules.crg = CRG(clk100, rst)
+        self.submodules.crg = _CRG(clk100, rst)
 
         # refclk
-        refclk125 = Signal()
-        refclk125_bufg = Signal()
-        pll_fb = Signal()
-        self.specials += [
-            Instance("PLLE2_BASE",
-                p_STARTUP_WAIT="FALSE", #o_LOCKED=,
-
-                # VCO @ 1GHz
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=ClockSignal(), i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
-
-                # 125MHz
-                p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
-            ),
-            Instance("BUFG", i_I=refclk125, o_O=refclk125_bufg)
-        ]
+        refclk = Signal()
+        self.comb += refclk.eq(ClockSignal("clk125"))
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
         # pll
-        qpll = GTPQuadPLL(refclk125_bufg, 125e6, 1.25e9)
+        qpll = GTPQuadPLL(refclk, 125e6, 1.25e9)
         print(qpll)
         self.submodules += qpll
 
