@@ -351,7 +351,7 @@ class GTX(Module, AutoCSR):
             p_TST_RSV                                =0x00000000,
             p_RX_CLK25_DIV                           =5,
             p_TX_CLK25_DIV                           =5,
-            p_UCODEER_CLR                            =0xb0,
+            p_UCODEER_CLR                            =0b0,
 
             # PCI Express Attributes
             p_PCS_PCIE_EN                            ="FALSE",
