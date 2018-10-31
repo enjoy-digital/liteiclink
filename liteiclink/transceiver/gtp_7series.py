@@ -103,8 +103,10 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 class GTP(Module, AutoCSR):
     def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq,
-                 clock_aligner=True, internal_loopback=False,
+                 data_width=20, clock_aligner=True,
+                 internal_loopback=False,
                  tx_polarity=0, rx_polarity=0):
+        assert (data_width == 20) or (data_width == 40)
         self.tx_produce_square_wave = CSRStorage()
         self.tx_prbs_config = CSRStorage(2)
 
@@ -113,10 +115,12 @@ class GTP(Module, AutoCSR):
 
         # # #
 
+        nwords = data_width//10
+
         self.submodules.encoder = ClockDomainsRenamer("tx")(
-            Encoder(2, True))
+            Encoder(nwords, True))
         self.decoders = [ClockDomainsRenamer("rx")(
-            Decoder(True)) for _ in range(2)]
+            Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
 
         self.rx_ready = Signal()
@@ -126,7 +130,7 @@ class GTP(Module, AutoCSR):
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
-        self.tx_clk_freq = qpll.config["linerate"]/20
+        self.tx_clk_freq = qpll.config["linerate"]/data_width
 
         # control/status cdc
         tx_produce_square_wave = Signal()
@@ -170,8 +174,8 @@ class GTP(Module, AutoCSR):
             8 : 0x0000107FE086001041010
         }
 
-        txdata = Signal(20)
-        rxdata = Signal(20)
+        txdata = Signal(data_width)
+        rxdata = Signal(data_width)
         rxphaligndone = Signal()
 
         gtp_params = dict(
@@ -204,8 +208,8 @@ class GTP(Module, AutoCSR):
             p_CBCC_DATA_SOURCE_SEL                   ="ENCODED",
             p_CLK_COR_SEQ_2_USE                      ="FALSE",
             p_CLK_COR_KEEP_IDLE                      ="FALSE",
-            p_CLK_COR_MAX_LAT                        =9,
-            p_CLK_COR_MIN_LAT                        =7,
+            p_CLK_COR_MAX_LAT                        =9 if data_width == 16 else 19,
+            p_CLK_COR_MIN_LAT                        =7 if data_width == 20 else 15,
             p_CLK_COR_PRECEDENCE                     ="TRUE",
             p_CLK_COR_REPEAT_WAIT                    =0,
             p_CLK_COR_SEQ_LEN                        =1,
@@ -253,7 +257,7 @@ class GTP(Module, AutoCSR):
             p_ES_VERT_OFFSET                         =0b000000000,
 
             # FPGA RX Interface Attributes
-            p_RX_DATA_WIDTH                          =20,
+            p_RX_DATA_WIDTH                          =data_width,
 
             # PMA Attributes
             p_OUTREFCLK_SEL_INV                      =0b11,
@@ -361,7 +365,7 @@ class GTP(Module, AutoCSR):
             p_TX_XCLK_SEL                            ="TXUSR",
 
             # FPGA TX Interface Attributes
-            p_TX_DATA_WIDTH                          =20,
+            p_TX_DATA_WIDTH                          =data_width,
 
             # TX Configurable Driver Attributes
             p_TX_DEEMPH0                             =0b000000,
@@ -574,7 +578,7 @@ class GTP(Module, AutoCSR):
             i_RX8B10BEN                      =0,
 
             # Receive Ports - FPGA RX Interface Ports
-            o_RXDATA                         =Cat(rxdata[:8], rxdata[10:18]),
+            o_RXDATA                         =Cat(*[rxdata[10*i:10*i+8] for i in range(nwords)]),
             i_RXUSRCLK                       =ClockSignal("rx"),
             i_RXUSRCLK2                      =ClockSignal("rx"),
 
@@ -587,8 +591,8 @@ class GTP(Module, AutoCSR):
 
             # Receive Ports - RX 8B/10B Decoder Ports
             #o_RXCHARISCOMMA                  =,
-            o_RXCHARISK                      =Cat(rxdata[8], rxdata[18]),
-            o_RXDISPERR                      =Cat(rxdata[9], rxdata[19]),
+            o_RXCHARISK                      =Cat(*[rxdata[10*i+8] for i in range(nwords)]),
+            o_RXDISPERR                      =Cat(*[rxdata[10*i+9] for i in range(nwords)]),
             #o_RXNOTINTABLE                   =,
 
             # Receive Ports - RX AFE Ports
@@ -740,7 +744,7 @@ class GTP(Module, AutoCSR):
             i_PMARSVDIN1                     =0b0,
 
             # Transmit Ports - FPGA TX Interface Ports
-            i_TXDATA                         =Cat(txdata[:8], txdata[10:18]),
+            i_TXDATA                         =Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
             i_TXUSRCLK                       =ClockSignal("tx"),
             i_TXUSRCLK2                      =ClockSignal("tx"),
 
@@ -755,8 +759,8 @@ class GTP(Module, AutoCSR):
 
             # Transmit Ports - TX 8B/10B Encoder Ports
             i_TX8B10BBYPASS                  =0,
-            i_TXCHARDISPMODE                 =Cat(txdata[9], txdata[19]),
-            i_TXCHARDISPVAL                  =Cat(txdata[8], txdata[18]),
+            i_TXCHARDISPMODE                 =Cat(*[txdata[10*i+9] for i in range(nwords)]),
+            i_TXCHARDISPVAL                  =Cat(*[txdata[10*i+8] for i in range(nwords)]),
             i_TXCHARISK                      =0,
 
             # Transmit Ports - TX Buffer Bypass Ports
@@ -862,29 +866,27 @@ class GTP(Module, AutoCSR):
         ]
 
         # tx data and prbs
-        self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(20, True))
+        self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, True))
         self.comb += self.tx_prbs.config.eq(tx_prbs_config)
         self.comb += [
-            self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(2)])),
+            self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
             If(tx_produce_square_wave,
-                # square wave @ linerate/20 for scope observation
-                txdata.eq(0b11111111110000000000)
+                # square wave @ linerate/data_width for scope observation
+                txdata.eq(Signal(data_width, reset=1<<(data_width/2)-1))
             ).Else(
                 txdata.eq(self.tx_prbs.o)
             )
         ]
 
         # rx data and prbs
-        self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(20, True))
+        self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
             rx_prbs_errors.eq(self.rx_prbs.errors)
         ]
-        self.comb += [
-            self.decoders[0].input.eq(rxdata[:10]),
-            self.decoders[1].input.eq(rxdata[10:]),
-            self.rx_prbs.i.eq(rxdata)
-        ]
+        for i in range(nwords):
+            self.comb += decoders[i].input.eq(rxdata[10*i:10*(i+1)])
+        self.comb += self.rx_prbs.i.eq(rxdata)
 
         # clock alignment
         if clock_aligner:
