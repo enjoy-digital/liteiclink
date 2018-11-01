@@ -209,7 +209,7 @@ class GTP(Module, AutoCSR):
             p_CBCC_DATA_SOURCE_SEL                   ="ENCODED",
             p_CLK_COR_SEQ_2_USE                      ="FALSE",
             p_CLK_COR_KEEP_IDLE                      ="FALSE",
-            p_CLK_COR_MAX_LAT                        =9 if data_width == 16 else 19,
+            p_CLK_COR_MAX_LAT                        =9 if data_width == 20 else 19,
             p_CLK_COR_MIN_LAT                        =7 if data_width == 20 else 15,
             p_CLK_COR_PRECEDENCE                     ="TRUE",
             p_CLK_COR_REPEAT_WAIT                    =0,
