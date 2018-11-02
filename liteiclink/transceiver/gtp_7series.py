@@ -12,7 +12,9 @@ from liteiclink.transceiver.prbs import *
 
 
 class GTPQuadPLL(Module):
-    def __init__(self, refclk, refclk_freq, linerate):
+    def __init__(self, refclk, refclk_freq, linerate, channel=0):
+        assert channel in [0, 1]
+        self.channel = channel
         self.clk = Signal()
         self.refclk = Signal()
         self.reset = Signal()
@@ -21,16 +23,17 @@ class GTPQuadPLL(Module):
 
         # # #
 
-        self.specials += \
-            Instance("GTPE2_COMMON",
-                # common
-                i_GTREFCLK0=refclk,
-                i_BGBYPASSB=1,
-                i_BGMONITORENB=1,
-                i_BGPDB=1,
-                i_BGRCALOVRD=0b11111,
-                i_RCALENB=1,
+        gtpe2_common_params = dict(
+            # common
+            i_GTREFCLK0=refclk,
+            i_BGBYPASSB=1,
+            i_BGMONITORENB=1,
+            i_BGPDB=1,
+            i_BGRCALOVRD=0b11111,
+            i_RCALENB=1)
 
+        if channel == 0:
+            gtpe2_common_params.update(
                 # pll0
                 p_PLL0_FBDIV=self.config["n2"],
                 p_PLL0_FBDIV_45=self.config["n1"],
@@ -45,7 +48,26 @@ class GTPQuadPLL(Module):
 
                 # pll1 (not used: power down)
                 i_PLL1PD=1,
-             )
+            )
+        else:
+            gtpe2_common_params.update(
+                # pll0 (not used: power down)
+                i_PLL0PD=1,
+
+                # pll0
+                p_PLL1_FBDIV=self.config["n2"],
+                p_PLL1_FBDIV_45=self.config["n1"],
+                p_PLL1_REFCLK_DIV=self.config["m"],
+                i_PLL1LOCKEN=1,
+                i_PLL1PD=0,
+                i_PLL1REFCLKSEL=0b001,
+                i_PLL1RESET=self.reset,
+                o_PLL1LOCK=self.lock,
+                o_PLL1OUTCLK=self.clk,
+                o_PLL1OUTREFCLK=self.refclk,
+            )
+
+        self.specials += Instance("GTPE2_COMMON", **gtpe2_common_params)
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
@@ -506,17 +528,17 @@ class GTP(Module, AutoCSR):
             i_DRPWE                          =rx_init.drpwe,
 
             # Clocking Ports
-            i_RXSYSCLKSEL                    =0b00,
-            i_TXSYSCLKSEL                    =0b00,
+            i_RXSYSCLKSEL                    =0b00 if qpll.channel == 0 else 0b11,
+            i_TXSYSCLKSEL                    =0b00 if qpll.channel == 0 else 0b11,
 
             # FPGA TX Interface Datapath Configuration
             i_TX8B10BEN                      =0,
 
             # GTPE2_CHANNEL Clocking Ports
-            i_PLL0CLK                        =qpll.clk,
-            i_PLL0REFCLK                     =qpll.refclk,
-            i_PLL1CLK                        =0,
-            i_PLL1REFCLK                     =0,
+            i_PLL0CLK                        =qpll.clk if qpll.channel == 0 else 0,
+            i_PLL0REFCLK                     =qpll.refclk if qpll.channel == 0 else 0,
+            i_PLL1CLK                        =qpll.clk if qpll.channel == 1 else 0,
+            i_PLL1REFCLK                     =qpll.refclk if qpll.channel == 1 else 0,
 
             # Loopback Ports
             i_LOOPBACK                       =0b010 if internal_loopback else 0b000,
@@ -860,7 +882,7 @@ class GTP(Module, AutoCSR):
         else:
             txoutclk_pll = S7PLL()
             self.submodules += txoutclk_pll
-            txoutclk_pll.register_clkin(txoutclk_bufg, pll.config["clkin"])
+            txoutclk_pll.register_clkin(txoutclk_bufg, qpll.config["clkin"])
             txoutclk_pll.create_clkout(self.cd_tx, self.tx_clk_freq, with_reset=False)
         self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
 
