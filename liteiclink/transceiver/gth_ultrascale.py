@@ -78,9 +78,12 @@ class GTHQuadPLL(Module):
         self.refclk = Signal()
         self.reset = Signal()
         self.lock = Signal()
-        self.config = self.compute_config(refclk_freq, linerate)
+        self.config = config = self.compute_config(refclk_freq, linerate)
 
         # # #
+
+        use_qpll0 = config["qpll"] == "qpll0"
+        use_qpll1 = config["qpll"] == "qpll1"
 
         self.specials += \
             Instance("GTHE3_COMMON",
@@ -99,36 +102,30 @@ class GTHQuadPLL(Module):
                 i_RCALENB=1,
 
                 # qpll0
-                p_QPLL0_FBDIV=self.config["n"],
-                p_QPLL0_REFCLK_DIV=self.config["m"],
+                p_QPLL0_FBDIV=config["n"],
+                p_QPLL0_REFCLK_DIV=config["m"],
                 i_QPLL0CLKRSVD0=0,
                 i_QPLL0CLKRSVD1=0,
                 i_QPLL0LOCKDETCLK=ClockSignal(),
                 i_QPLL0LOCKEN=1,
-                o_QPLL0LOCK=self.lock if self.config["qpll"] == "qpll0" else
-                            Signal(),
-                o_QPLL0OUTCLK=self.clk if self.config["qpll"] == "qpll0" else
-                              Signal(),
-                o_QPLL0OUTREFCLK=self.refclk if self.config["qpll"] == "qpll0" else
-                                 Signal(),
-                i_QPLL0PD=0 if self.config["qpll"] == "qpll0" else 1,
+                o_QPLL0LOCK=self.lock if use_qpll0 else Signal(),
+                o_QPLL0OUTCLK=self.clk if use_qpll0 else Signal(),
+                o_QPLL0OUTREFCLK=self.refclk if use_qpll0 else Signal(),
+                i_QPLL0PD=0 if use_qpll0 else 1,
                 i_QPLL0REFCLKSEL=0b001,
                 i_QPLL0RESET=self.reset,
 
                 # qpll1
-                p_QPLL1_FBDIV=self.config["n"],
-                p_QPLL1_REFCLK_DIV=self.config["m"],
+                p_QPLL1_FBDIV=config["n"],
+                p_QPLL1_REFCLK_DIV=config["m"],
                 i_QPLL1CLKRSVD0=0,
                 i_QPLL1CLKRSVD1=0,
                 i_QPLL1LOCKDETCLK=ClockSignal(),
                 i_QPLL1LOCKEN=1,
-                o_QPLL1LOCK=self.lock if self.config["qpll"] == "qpll1" else
-                            Signal(),
-                o_QPLL1OUTCLK=self.clk if self.config["qpll"] == "qpll1" else
-                              Signal(),
-                o_QPLL1OUTREFCLK=self.refclk if self.config["qpll"] == "qpll1" else
-                                 Signal(),
-                i_QPLL1PD=0 if self.config["qpll"] == "qpll1" else 1,
+                o_QPLL1LOCK=self.lock if use_qpll1 else Signal(),
+                o_QPLL1OUTCLK=self.clk if use_qpll1 else Signal(),
+                o_QPLL1OUTREFCLK=self.refclk if use_qpll1 else Signal(),
+                i_QPLL1PD=0 if use_qpll1 else 1,
                 i_QPLL1REFCLKSEL=0b001,
                 i_QPLL1RESET=self.reset,
              )
@@ -159,6 +156,7 @@ class GTHQuadPLL(Module):
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
 
     def __repr__(self):
+        config = self.config
         r = """
 GTXQuadPLL
 ===========
@@ -187,14 +185,14 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
     VCO      = {vco_freq}GHz ({qpll})
     LINERATE = CLKOUT x 2 / D = {clkout}GHz x 2 / {d}
              = {linerate}GHz
-""".format(clkin=self.config["clkin"]/1e6,
-           n=self.config["n"],
-           m=self.config["m"],
-           clkout=self.config["clkout"]/1e9,
-           vco_freq=self.config["vco_freq"]/1e9,
-           qpll=self.config["qpll"].upper(),
-           d=self.config["d"],
-           linerate=self.config["linerate"]/1e9)
+""".format(clkin=config["clkin"]/1e6,
+           n=config["n"],
+           m=config["m"],
+           clkout=config["clkout"]/1e9,
+           vco_freq=config["vco_freq"]/1e9,
+           qpll=config["qpll"].upper(),
+           d=config["d"],
+           linerate=config["linerate"]/1e9)
         return r
 
 
