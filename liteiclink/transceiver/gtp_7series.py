@@ -19,7 +19,7 @@ class GTPQuadPLL(Module):
         self.refclk = Signal()
         self.reset = Signal()
         self.lock = Signal()
-        self.config = self.compute_config(refclk_freq, linerate)
+        self.config = config = self.compute_config(refclk_freq, linerate)
 
         # # #
 
@@ -35,9 +35,9 @@ class GTPQuadPLL(Module):
         if channel == 0:
             gtpe2_common_params.update(
                 # pll0
-                p_PLL0_FBDIV=self.config["n2"],
-                p_PLL0_FBDIV_45=self.config["n1"],
-                p_PLL0_REFCLK_DIV=self.config["m"],
+                p_PLL0_FBDIV=config["n2"],
+                p_PLL0_FBDIV_45=config["n1"],
+                p_PLL0_REFCLK_DIV=config["m"],
                 i_PLL0LOCKEN=1,
                 i_PLL0PD=0,
                 i_PLL0REFCLKSEL=0b001,
@@ -55,9 +55,9 @@ class GTPQuadPLL(Module):
                 i_PLL0PD=1,
 
                 # pll0
-                p_PLL1_FBDIV=self.config["n2"],
-                p_PLL1_FBDIV_45=self.config["n1"],
-                p_PLL1_REFCLK_DIV=self.config["m"],
+                p_PLL1_FBDIV=config["n2"],
+                p_PLL1_FBDIV_45=config["n1"],
+                p_PLL1_REFCLK_DIV=config["m"],
                 i_PLL1LOCKEN=1,
                 i_PLL1PD=0,
                 i_PLL1REFCLKSEL=0b001,
@@ -87,6 +87,7 @@ class GTPQuadPLL(Module):
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
 
     def __repr__(self):
+        config = self.config
         r = """
 GTPQuadPLL
 ==============
@@ -114,13 +115,13 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
              = {vco_freq}GHz
     LINERATE = CLKOUT x 2 / D = {vco_freq}GHz x 2 / {d}
              = {linerate}GHz
-""".format(clkin=self.config["clkin"]/1e6,
-           n1=self.config["n1"],
-           n2=self.config["n2"],
-           m=self.config["m"],
-           vco_freq=self.config["vco_freq"]/1e9,
-           d=self.config["d"],
-           linerate=self.config["linerate"]/1e9)
+""".format(clkin=config["clkin"]/1e6,
+           n1=config["n1"],
+           n2=config["n2"],
+           m=config["m"],
+           vco_freq=config["vco_freq"]/1e9,
+           d=config["d"],
+           linerate=config["linerate"]/1e9)
         return r
 
 
