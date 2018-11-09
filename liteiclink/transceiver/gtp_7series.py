@@ -204,10 +204,10 @@ class GTP(Module, AutoCSR):
 
         gtp_params = dict(
             # Simulation-Only Attributes
-            p_SIM_RECEIVER_DETECT_PASS   ="TRUE",
-            p_SIM_TX_EIDLE_DRIVE_LEVEL   ="X",
-            p_SIM_RESET_SPEEDUP          ="FALSE",
-            p_SIM_VERSION                ="2.0",
+            p_SIM_RECEIVER_DETECT_PASS               ="TRUE",
+            p_SIM_TX_EIDLE_DRIVE_LEVEL               ="X",
+            p_SIM_RESET_SPEEDUP                      ="FALSE",
+            p_SIM_VERSION                            ="2.0",
 
             # RX Byte and Word Alignment Attributes
             p_ALIGN_COMMA_DOUBLE                     ="FALSE",
