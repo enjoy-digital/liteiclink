@@ -256,15 +256,14 @@ class GTH(Module, AutoCSR):
         # # #
 
         # TX generates TX clock, init must be in system domain
-        tx_init = GTHInit(sys_clk_freq, False)
+        self.submodules.tx_init = tx_init = GTHInit(sys_clk_freq, False)
         self.comb += [
             tx_init.restart.eq(self.restart.re),
             self.tx_ready.eq(tx_init.done)
         ]
         # RX receives restart commands from TX domain
-        rx_init = ClockDomainsRenamer("tx")(
+        self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
             GTHInit(self.tx_clk_freq, True))
-        self.submodules += tx_init, rx_init
         self.comb += [
             tx_init.plllock.eq(pll.lock),
             rx_init.plllock.eq(pll.lock),

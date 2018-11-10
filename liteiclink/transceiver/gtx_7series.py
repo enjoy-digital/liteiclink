@@ -239,11 +239,10 @@ class GTX(Module, AutoCSR):
         use_qpll = isinstance(pll, GTXQuadPLL)
 
         # TX generates TX clock, init must be in system domain
-        tx_init = GTXInit(sys_clk_freq, False)
+        self.submodules.tx_init = tx_init = GTXInit(sys_clk_freq, False)
         # RX receives restart commands from TX domain
-        rx_init = ClockDomainsRenamer("tx")(
+        self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
             GTXInit(self.tx_clk_freq, True))
-        self.submodules += tx_init, rx_init
         self.comb += [
             tx_init.plllock.eq(pll.lock),
             rx_init.plllock.eq(pll.lock),

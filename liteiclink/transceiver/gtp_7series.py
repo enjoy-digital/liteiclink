@@ -176,11 +176,10 @@ class GTP(Module, AutoCSR):
         # # #
 
         # TX generates RTIO clock, init must be in system domain
-        tx_init = GTPTXInit(sys_clk_freq)
+        self.submodules.tx_init = tx_init = GTPTXInit(sys_clk_freq)
         # RX receives restart commands from RTIO domain
-        rx_init = ClockDomainsRenamer("tx")(
+        self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
             GTPRXInit(self.tx_clk_freq))
-        self.submodules += tx_init, rx_init
         # debug
         self.tx_init = tx_init
         self.rx_init = rx_init
