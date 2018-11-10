@@ -8,6 +8,7 @@ from litex.soc.cores.code_8b10b import Encoder, Decoder
 from liteiclink.transceiver.gtp_7series_init import GTPRXInit, GTPTXInit
 from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
 
+from liteiclink.transceiver.common import *
 from liteiclink.transceiver.prbs import *
 
 
@@ -137,6 +138,8 @@ class GTP(Module, AutoCSR):
         self.rx_prbs_config = CSRStorage(2)
         self.rx_prbs_errors = CSRStatus(32)
 
+        self.drp = DRPInterface()
+
         # # #
 
         nwords = data_width//10
@@ -180,14 +183,16 @@ class GTP(Module, AutoCSR):
         # RX receives restart commands from RTIO domain
         self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
             GTPRXInit(self.tx_clk_freq))
-        # debug
-        self.tx_init = tx_init
-        self.rx_init = rx_init
         self.comb += [
             tx_init.plllock.eq(qpll.lock),
             rx_init.plllock.eq(qpll.lock),
             qpll.reset.eq(tx_init.pllreset)
         ]
+
+        # DRP mux
+        self.submodules.drp_mux = drp_mux = DRPMux()
+        drp_mux.add_interface(rx_init.drp)
+        drp_mux.add_interface(self.drp)
 
         assert qpll.config["linerate"] < 6.6e9
         rxcdr_cfgs = {
@@ -519,13 +524,13 @@ class GTP(Module, AutoCSR):
             i_TSTIN                          =0b11111111111111111111,
 
             # Channel - DRP Ports
-            i_DRPADDR                        =rx_init.drpaddr,
-            i_DRPCLK                         =ClockSignal("tx"),
-            i_DRPDI                          =rx_init.drpdi,
-            o_DRPDO                          =rx_init.drpdo,
-            i_DRPEN                          =rx_init.drpen,
-            o_DRPRDY                         =rx_init.drprdy,
-            i_DRPWE                          =rx_init.drpwe,
+            i_DRPADDR                        =drp_mux.addr,
+            i_DRPCLK                         =drp_mux.clk,
+            i_DRPDI                          =drp_mux.di,
+            o_DRPDO                          =drp_mux.do,
+            i_DRPEN                          =drp_mux.en,
+            o_DRPRDY                         =drp_mux.rdy,
+            i_DRPWE                          =drp_mux.we,
 
             # Clocking Ports
             i_RXSYSCLKSEL                    =0b00 if qpll.channel == 0 else 0b11,

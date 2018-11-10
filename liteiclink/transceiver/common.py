@@ -1,0 +1,34 @@
+from migen import *
+
+
+_drp_layout = [
+    ("clk",                1, DIR_M_TO_S),
+    ("en",                 1, DIR_M_TO_S),
+    ("we",                 1, DIR_M_TO_S),
+    ("rdy",                1, DIR_S_TO_M),
+    ("addr", "address_width", DIR_M_TO_S),
+    ("di",      "data_width", DIR_M_TO_S),
+    ("do",      "data_width", DIR_S_TO_M),
+]
+
+
+class DRPInterface(Record):
+    def __init__(self, address_width=9, data_width=16):
+        Record.__init__(self, set_layout_parameters(_drp_layout,
+            address_width=address_width, data_width=data_width))
+
+
+class DRPMux(Module, DRPInterface):
+    def __init__(self, **kwargs):
+        DRPInterface.__init__(self, **kwargs)
+        self.interfaces = []
+
+    def add_interface(self, interface):
+        self.interfaces.append(interface)
+
+    def do_finalize(self):
+        self.sel = Signal(len(self.interfaces))
+        cases = {}
+        for i, interface in enumerate(self.interfaces):
+            cases[i] = self.connect(interface)
+        self.comb += Case(self.sel, cases)

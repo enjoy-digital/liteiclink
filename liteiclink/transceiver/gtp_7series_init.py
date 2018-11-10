@@ -4,6 +4,8 @@ from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.misc import WaitTimer
 
+from liteiclink.transceiver.common import *
+
 
 __all__ = ["GTPTXInit", "GTPRXInit"]
 
@@ -156,23 +158,19 @@ class GTPRXInit(Module):
         self.rxsyncdone = Signal()
         self.rxpmaresetdone = Signal()
 
-        self.drpaddr = Signal(9)
-        self.drpen = Signal()
-        self.drpdi = Signal(16)
-        self.drprdy = Signal()
-        self.drpdo = Signal(16)
-        self.drpwe = Signal()
+        self.drp = DRPInterface()
 
         # # #
 
         drpvalue = Signal(16)
         drpmask = Signal()
         self.comb += [
-            self.drpaddr.eq(0x011),
+            self.drp.clk.eq(ClockSignal()),
+            self.drp.addr.eq(0x011),
             If(drpmask,
-                self.drpdi.eq(drpvalue & 0xf7ff)
+                self.drp.di.eq(drpvalue & 0xf7ff)
             ).Else(
-                self.drpdi.eq(drpvalue)
+                self.drp.di.eq(drpvalue)
             )
         ]
 
@@ -239,26 +237,26 @@ class GTPRXInit(Module):
         )
         startup_fsm.act("DRP_READ_ISSUE",
             gtrxreset.eq(1),
-            self.drpen.eq(1),
+            self.drp.en.eq(1),
             NextState("DRP_READ_WAIT")
         )
         startup_fsm.act("DRP_READ_WAIT",
             gtrxreset.eq(1),
-            If(self.drprdy,
-                NextValue(drpvalue, self.drpdo),
+            If(self.drp.rdy,
+                NextValue(drpvalue, self.drp.do),
                 NextState("DRP_MOD_ISSUE")
             )
         )
         startup_fsm.act("DRP_MOD_ISSUE",
             gtrxreset.eq(1),
             drpmask.eq(1),
-            self.drpen.eq(1),
-            self.drpwe.eq(1),
+            self.drp.en.eq(1),
+            self.drp.we.eq(1),
             NextState("DRP_MOD_WAIT")
         )
         startup_fsm.act("DRP_MOD_WAIT",
             gtrxreset.eq(1),
-            If(self.drprdy,
+            If(self.drp.rdy,
                 NextState("WAIT_PMARST_FALL")
             )
         )
@@ -270,13 +268,13 @@ class GTPRXInit(Module):
         )
         startup_fsm.act("DRP_RESTORE_ISSUE",
             rxuserrdy.eq(1),
-            self.drpen.eq(1),
-            self.drpwe.eq(1),
+            self.drp.en.eq(1),
+            self.drp.we.eq(1),
             NextState("DRP_RESTORE_WAIT")
         )
         startup_fsm.act("DRP_RESTORE_WAIT",
             rxuserrdy.eq(1),
-            If(self.drprdy,
+            If(self.drp.rdy,
                 NextState("WAIT_GTP_RESET_DONE")
             )
         )

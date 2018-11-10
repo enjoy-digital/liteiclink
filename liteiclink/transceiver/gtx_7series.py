@@ -8,6 +8,7 @@ from litex.soc.cores.code_8b10b import Encoder, Decoder
 from liteiclink.transceiver.gtx_7series_init import GTXInit
 from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
 
+from liteiclink.transceiver.common import *
 from liteiclink.transceiver.prbs import *
 
 
@@ -197,6 +198,8 @@ class GTX(Module, AutoCSR):
         self.rx_prbs_config = CSRStorage(2)
         self.rx_prbs_errors = CSRStatus(32)
 
+        self.drp = DRPInterface()
+
         # # #
 
         nwords = data_width//10
@@ -248,6 +251,10 @@ class GTX(Module, AutoCSR):
             rx_init.plllock.eq(pll.lock),
             pll.reset.eq(tx_init.pllreset)
         ]
+
+        # DRP mux
+        self.submodules.drp_mux = drp_mux = DRPMux()
+        drp_mux.add_interface(self.drp)
 
         #assert pll.config["linerate"] < 6.6e9
         rxcdr_cfgs = {
@@ -559,13 +566,13 @@ class GTX(Module, AutoCSR):
             i_GTSOUTHREFCLK1                 =0,
 
             # Channel - DRP Ports
-            i_DRPADDR                        =0,
-            i_DRPCLK                         =0,
-            i_DRPDI                          =0,
-            #o_DRPDO                          =,
-            i_DRPEN                          =0,
-            #o_DRPRDY                         =,
-            i_DRPWE                          =0,
+            i_DRPADDR                        =drp_mux.addr,
+            i_DRPCLK                         =drp_mux.clk,
+            i_DRPDI                          =drp_mux.di,
+            o_DRPDO                          =drp_mux.do,
+            i_DRPEN                          =drp_mux.en,
+            o_DRPRDY                         =drp_mux.rdy,
+            i_DRPWE                          =drp_mux.we,
 
             # Clocking Ports
             #o_GTREFCLKMONITOR                =,

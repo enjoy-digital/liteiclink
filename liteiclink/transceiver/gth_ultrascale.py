@@ -7,6 +7,7 @@ from litex.soc.cores.code_8b10b import Encoder, Decoder
 from liteiclink.transceiver.gth_ultrascale_init import GTHInit
 from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
 
+from liteiclink.transceiver.common import *
 from liteiclink.transceiver.prbs import *
 
 
@@ -211,6 +212,8 @@ class GTH(Module, AutoCSR):
         self.restart = CSR()
         self.ready = CSRStatus(2)
 
+        self.drp = DRPInterface()
+
         # # #
 
         use_cpll = isinstance(pll, GTHChannelPLL)
@@ -271,6 +274,10 @@ class GTH(Module, AutoCSR):
             self.ready.status.eq(Cat(self.tx_ready,
                                      self.rx_ready))
         ]
+
+        # DRP mux
+        self.submodules.drp_mux = drp_mux = DRPMux()
+        drp_mux.add_interface(self.drp)
 
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
@@ -671,6 +678,15 @@ class GTH(Module, AutoCSR):
             # Reset modes
             i_GTRESETSEL=0,
             i_RESETOVRD=0,
+
+            # DRP
+            i_DRPADDR=drp_mux.addr,
+            i_DRPCLK=drp_mux.clk,
+            i_DRPDI=drp_mux.di,
+            o_DRPDO=drp_mux.do,
+            i_DRPEN=drp_mux.en,
+            o_DRPRDY=drp_mux.rdy,
+            i_DRPWE=drp_mux.we,
 
             # CPLL
             i_CPLLRESET=0,
