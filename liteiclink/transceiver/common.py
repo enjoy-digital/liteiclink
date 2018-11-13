@@ -30,5 +30,5 @@ class DRPMux(Module, DRPInterface):
         self.sel = Signal(len(self.interfaces))
         cases = {}
         for i, interface in enumerate(self.interfaces):
-            cases[i] = self.connect(interface)
+            cases[i] = interface.connect(self)
         self.comb += Case(self.sel, cases)
