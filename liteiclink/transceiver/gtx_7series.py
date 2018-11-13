@@ -922,10 +922,10 @@ class GTX(Module, AutoCSR):
         # Use a PLL when non-integer divider
         else:
             txoutclk_pll = S7PLL()
+            self.comb += txoutclk_pll.reset.eq(tx_reset_deglitched)
             self.submodules += txoutclk_pll
             txoutclk_pll.register_clkin(txoutclk_bufg, pll.config["clkin"])
-            txoutclk_pll.create_clkout(self.cd_tx, self.tx_clk_freq, with_reset=False)
-        self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
+            txoutclk_pll.create_clkout(self.cd_tx, self.tx_clk_freq)
 
         # rx clocking
         rx_reset_deglitched = Signal()
