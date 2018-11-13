@@ -200,6 +200,9 @@ class GTX(Module, AutoCSR):
 
         self.drp = DRPInterface()
 
+        self.tx_restart = Signal()
+        self.rx_restart = Signal()
+
         # # #
 
         nwords = data_width//10
@@ -218,6 +221,7 @@ class GTX(Module, AutoCSR):
         self.rxoutclk = Signal()
 
         self.tx_clk_freq = pll.config["linerate"]/data_width
+        self.rx_clk_freq = pll.config["linerate"]/data_width
 
         # control/status cdc
         tx_produce_square_wave = Signal()
@@ -243,6 +247,7 @@ class GTX(Module, AutoCSR):
 
         # TX generates TX clock, init must be in system domain
         self.submodules.tx_init = tx_init = GTXInit(sys_clk_freq, False)
+        self.comb += tx_init.restart.eq(self.tx_restart)
         # RX receives restart commands from TX domain
         self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
             GTXInit(self.tx_clk_freq, True))
@@ -966,7 +971,7 @@ class GTX(Module, AutoCSR):
             self.submodules += clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
-                rx_init.restart.eq(clock_aligner.restart),
+                rx_init.restart.eq(clock_aligner.restart | self.rx_restart),
                 self.rx_ready.eq(clock_aligner.ready)
             ]
         else:
