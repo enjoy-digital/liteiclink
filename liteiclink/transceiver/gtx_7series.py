@@ -186,22 +186,29 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
         return r
 
 
-class GTX(Module, AutoCSR):
-    def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq,
-                 data_width=20, clock_aligner=True,
-                 internal_loopback=False,
+class GTX(Module):
+    def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq, data_width=20,
+                 clock_aligner=True,
                  tx_polarity=0, rx_polarity=0):
         assert (data_width == 20) or (data_width == 40)
-        self.tx_produce_square_wave = CSRStorage()
-        self.tx_prbs_config = CSRStorage(2)
 
-        self.rx_prbs_config = CSRStorage(2)
-        self.rx_prbs_errors = CSRStatus(32)
+        # TX controls
+        self.tx_restart = Signal()
+        self.tx_disable = Signal()
+        self.tx_produce_square_wave = Signal()
+        self.tx_prbs_config = Signal(2)
 
+        # RX controls
+        self.rx_ready = Signal()
+        self.rx_restart = Signal()
+        self.rx_prbs_config = Signal(2)
+        self.rx_prbs_errors = Signal(32)
+
+        # DRP
         self.drp = DRPInterface()
 
-        self.tx_restart = Signal()
-        self.rx_restart = Signal()
+        # Loopback
+        self.loopback = Signal(3)
 
         # # #
 
@@ -212,8 +219,6 @@ class GTX(Module, AutoCSR):
         self.decoders = [ClockDomainsRenamer("rx")(
             Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
-
-        self.rx_ready = Signal()
 
         # transceiver direct clock outputs
         # useful to specify clock constraints in a way palatable to Vivado
@@ -231,13 +236,13 @@ class GTX(Module, AutoCSR):
         rx_prbs_errors = Signal(32)
 
         self.specials += [
-            MultiReg(self.tx_produce_square_wave.storage, tx_produce_square_wave, "tx"),
-            MultiReg(self.tx_prbs_config.storage, tx_prbs_config, "tx"),
+            MultiReg(self.tx_produce_square_wave, tx_produce_square_wave, "tx"),
+            MultiReg(self.tx_prbs_config, tx_prbs_config, "tx"),
         ]
 
         self.specials += [
-            MultiReg(self.rx_prbs_config.storage, rx_prbs_config, "rx"),
-            MultiReg(rx_prbs_errors, self.rx_prbs_errors.status, "sys"), # FIXME
+            MultiReg(self.rx_prbs_config, rx_prbs_config, "rx"),
+            MultiReg(rx_prbs_errors, self.rx_prbs_errors, "sys"), # FIXME
         ]
 
         # # #
@@ -261,7 +266,6 @@ class GTX(Module, AutoCSR):
         self.submodules.drp_mux = drp_mux = DRPMux()
         drp_mux.add_interface(self.drp)
 
-        #assert pll.config["linerate"] < 6.6e9
         rxcdr_cfgs = {
             1 : 0x03000023ff10400020,
             2 : 0x03000023ff10200020,
@@ -593,7 +597,7 @@ class GTX(Module, AutoCSR):
             i_TX8B10BEN                      =0,
 
             # Loopback Ports
-            i_LOOPBACK                       =0b010 if internal_loopback else 0b000,
+            i_LOOPBACK                       =self.loopback,
 
             # PCI Express Ports
             #o_PHYSTATUS                      =,
@@ -849,9 +853,9 @@ class GTX(Module, AutoCSR):
             # Transmit Ports - TX Configurable Driver Ports
             i_TXBUFDIFFCTRL                  =0b100,
             i_TXDEEMPH                       =0,
-            i_TXDIFFCTRL                     =0b1000,
+            i_TXDIFFCTRL                     =0b1111,
             i_TXDIFFPD                       =0,
-            i_TXINHIBIT                      =0,
+            i_TXINHIBIT                      =self.tx_disable,
             i_TXMAINCURSOR                   =0b0000000,
             i_TXPISOPD                       =0,
 

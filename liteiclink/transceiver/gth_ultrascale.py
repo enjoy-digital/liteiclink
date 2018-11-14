@@ -198,21 +198,28 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
 
 
 class GTH(Module, AutoCSR):
-    def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq,
-                 data_width=20, clock_aligner=True,
-                 internal_loopback=False,
+    def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq, data_width=20,
+                 clock_aligner=True,
                  tx_polarity=0, rx_polarity=0):
         assert (data_width == 20) or (data_width == 40)
-        self.tx_produce_square_wave = CSRStorage()
-        self.tx_prbs_config = CSRStorage(2)
 
-        self.rx_prbs_config = CSRStorage(2)
-        self.rx_prbs_errors = CSRStatus(32)
+        # TX controls
+        self.tx_restart = Signal()
+        self.tx_disable = Signal()
+        self.tx_produce_square_wave = Signal()
+        self.tx_prbs_config = Signal(2)
 
-        self.restart = CSR()
-        self.ready = CSRStatus(2)
+        # RX controls
+        self.rx_ready = Signal()
+        self.rx_restart = Signal()
+        self.rx_prbs_config = Signal(2)
+        self.rx_prbs_errors = Signal(32)
 
+        # DRP
         self.drp = DRPInterface()
+
+        # Loopback
+        self.loopback = Signal(3)
 
         # # #
 
@@ -247,32 +254,27 @@ class GTH(Module, AutoCSR):
         rx_prbs_errors = Signal(32)
 
         self.specials += [
-            MultiReg(self.tx_produce_square_wave.storage, tx_produce_square_wave, "tx"),
-            MultiReg(self.tx_prbs_config.storage, tx_prbs_config, "tx"),
+            MultiReg(self.tx_produce_square_wave, tx_produce_square_wave, "tx"),
+            MultiReg(self.tx_prbs_config, tx_prbs_config, "tx"),
         ]
 
         self.specials += [
-            MultiReg(self.rx_prbs_config.storage, rx_prbs_config, "rx"),
-            MultiReg(rx_prbs_errors, self.rx_prbs_errors.status, "sys"), # FIXME
+            MultiReg(self.rx_prbs_config, rx_prbs_config, "rx"),
+            MultiReg(rx_prbs_errors, self.rx_prbs_errors, "sys"), # FIXME
         ]
 
         # # #
 
         # TX generates TX clock, init must be in system domain
         self.submodules.tx_init = tx_init = GTHInit(sys_clk_freq, False)
-        self.comb += [
-            tx_init.restart.eq(self.restart.re),
-            self.tx_ready.eq(tx_init.done)
-        ]
+        self.comb += tx_init.restart.eq(self.tx_restart)
         # RX receives restart commands from TX domain
         self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
             GTHInit(self.tx_clk_freq, True))
         self.comb += [
             tx_init.plllock.eq(pll.lock),
             rx_init.plllock.eq(pll.lock),
-            pll.reset.eq(tx_init.pllreset),
-            self.ready.status.eq(Cat(self.tx_ready,
-                                     self.rx_ready))
+            pll.reset.eq(tx_init.pllreset)
         ]
 
         # DRP mux
@@ -729,9 +731,10 @@ class GTH(Module, AutoCSR):
             i_TXPD=0b00,
             i_TXBUFDIFFCTRL=0b000,
             i_TXDIFFCTRL=0b1100,
+            i_TXINHIBIT=self.tx_disable,
 
             # Internal Loopback
-            i_LOOPBACK=0b010 if internal_loopback else 0b000,
+            i_LOOPBACK=self.loopback,
 
             # RX Startup/Reset
             i_GTRXRESET=rx_init.gtXxreset,
@@ -834,7 +837,7 @@ class GTH(Module, AutoCSR):
             self.submodules += clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
-                rx_init.restart.eq(clock_aligner.restart),
+                rx_init.restart.eq(clock_aligner.restart | self.rx_restart),
                 self.rx_ready.eq(clock_aligner.ready)
             ]
         else:
