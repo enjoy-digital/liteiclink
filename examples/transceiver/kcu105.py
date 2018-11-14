@@ -70,8 +70,7 @@ class GTHTestSoC(SoCCore):
             rx_pads = platform.request("user_sma_mgt_rx")
         else:
             raise ValueError
-        gth = GTH(cpll, tx_pads, rx_pads, self.clk_freq,
-            clock_aligner=True, internal_loopback=False)
+        gth = GTH(cpll, tx_pads, rx_pads, self.clk_freq, clock_aligner=True)
         self.submodules += gth
 
         # led
@@ -92,7 +91,7 @@ class GTHTestSoC(SoCCore):
         gth.cd_tx.clk.attr.add("keep")
         gth.cd_rx.clk.attr.add("keep")
         platform.add_period_constraint(gth.cd_tx.clk, 1e9/gth.tx_clk_freq)
-        platform.add_period_constraint(gth.cd_rx.clk, 1e9/gth.tx_clk_freq)
+        platform.add_period_constraint(gth.cd_rx.clk, 1e9/gth.rx_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gth.cd_tx.clk,

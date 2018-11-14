@@ -100,8 +100,7 @@ class GTPTestSoC(SoCCore):
             rx_pads = platform.request("sfp_rx", 1)
         else:
             raise ValueError
-        gtp = GTP(qpll, tx_pads, rx_pads, sys_clk_freq,
-            clock_aligner=True, internal_loopback=False)
+        gtp = GTP(qpll, tx_pads, rx_pads, sys_clk_freq, clock_aligner=True)
         self.submodules += gtp
 
         # led blink
@@ -119,7 +118,7 @@ class GTPTestSoC(SoCCore):
         gtp.cd_rx.clk.attr.add("keep")
         platform.add_period_constraint(self.crg.cd_sys.clk, 10)
         platform.add_period_constraint(gtp.cd_tx.clk, 1e9/gtp.tx_clk_freq)
-        platform.add_period_constraint(gtp.cd_rx.clk, 1e9/gtp.tx_clk_freq)
+        platform.add_period_constraint(gtp.cd_rx.clk, 1e9/gtp.rx_clk_freq)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gtp.cd_tx.clk,
