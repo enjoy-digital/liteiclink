@@ -216,7 +216,7 @@ class GTP(Module):
         rxdata = Signal(data_width)
         rxphaligndone = Signal()
 
-        gtp_params = dict(
+        self.gtp_params = dict(
             # Simulation-Only Attributes
             p_SIM_RECEIVER_DETECT_PASS               ="TRUE",
             p_SIM_TX_EIDLE_DRIVE_LEVEL               ="X",
@@ -527,7 +527,7 @@ class GTP(Module):
             p_TXSYNC_OVRD                            =0b1,
             p_TXSYNC_SKIP_DA                         =0b0
         )
-        gtp_params.update(
+        self.gtp_params.update(
             # CPLL Ports
             i_GTRSVD                         =0b0000000000000000,
             i_PCSRSVDIN                      =0b0000000000000000,
@@ -751,7 +751,7 @@ class GTP(Module):
             # TX Configurable Driver Ports
             i_TXPOSTCURSOR                   =0b00000,
             i_TXPOSTCURSORINV                =0,
-            i_TXPRECURSOR                    =0,
+            i_TXPRECURSOR                    =0b00000,
             i_TXPRECURSORINV                 =0,
 
             # TX Fabric Clock Output Control Ports
@@ -873,7 +873,6 @@ class GTP(Module):
             # Transmit Ports - pattern Generator Ports
             i_TXPRBSSEL                      =0,
         )
-        self.specials += Instance("GTPE2_CHANNEL", **gtp_params)
 
         # tx clocking
         tx_reset_deglitched = Signal()
@@ -945,3 +944,63 @@ class GTP(Module):
             ]
         else:
             self.comb += self.rx_ready.eq(rx_init.done)
+
+    def add_base_control(self):
+        self._tx_restart             = CSR()
+        self._tx_disable             = CSRStorage(reset=0b0)
+        self._tx_produce_square_wave = CSRStorage(reset=0b0)
+        self._rx_ready               = CSRStatus()
+        self._rx_restart             = CSR()
+        self.comb += [
+            self.tx_restart.eq(self._tx_restart.re),
+            self.tx_disable.eq(self._tx_disable.storage),
+            self.tx_produce_square_wave.eq(self._tx_produce_square_wave.storage),
+            self._rx_ready.status.eq(self.rx_ready),
+            self.rx_restart.eq(self._rx_restart.re)
+        ]
+
+    def add_prbs_control(self):
+        self._tx_prbs_config = CSRStorage(2, reset=0b00)
+        self._rx_prbs_config = CSRStorage(2, reset=0b00)
+        self._rx_prbs_errors = CSRStatus(32)
+        self.comb += [
+            self.tx_prbs_config.eq(self._tx_prbs_config.storage),
+            self.rx_prbs_config.eq(self._rx_prbs_config.storage),
+            self._rx_prbs_errors.status.eq(self.rx_prbs_errors)
+        ]
+
+    def add_loopback_control(self):
+        self._loopback = CSRStorage(3)
+        self.comb += self.loopback.eq(self._loopback.storage)
+
+    def add_polarity_control(self):
+        self._tx_polarity  = CSRStorage()
+        self._rx_polarity  = CSRStorage()
+        self.gtp_params.update(
+            i_TXPOLARITY = self._tx_polarity.storage,
+            i_RXPOLARITY = self._rx_polarity.storage
+        )
+
+    def add_electrical_control(self):
+        self._tx_diffctrl       = CSRStorage(4, reset=0b1000)
+        self._tx_postcursor     = CSRStorage(5, reset=0b00000)
+        self._tx_postcursor_inv = CSRStorage(1, reset=0b0)
+        self._tx_precursor      = CSRStorage(5, reset=0b00000)
+        self._tx_precursor_inv  = CSRStorage(1, reset=0b0)
+        self.gtp_params.update(
+            i_TXDIFFCTRL      = self._tx_diffctrl.storage,
+            i_TXPOSTCURSOR    = self._tx_postcursor.storage,
+            i_TXPOSTCURSORINV = self._tx_postcursor_inv.storage,
+            i_TXPRECURSOR     = self._tx_precursor.storage,
+            i_TXPRECURSORINV  = self._tx_precursor_inv.storage,
+        )
+
+    def add_controls(self):
+        self.add_base_control()
+        self.add_prbs_control()
+        self.add_loopback_control()
+        self.add_polarity_control()
+        self.add_electrical_control()
+
+    def do_finalize(self):
+        self.specials += Instance("GTPE2_CHANNEL", **self.gtp_params)

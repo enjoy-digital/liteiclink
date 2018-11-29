@@ -44,6 +44,7 @@ class GTXTestSoC(SoCCore):
         tx_pads = platform.request("sfp_tx")
         rx_pads = platform.request("sfp_rx")
         gtx = GTX(pll, tx_pads, rx_pads, sys_clk_freq, clock_aligner=True)
+        gtx.add_controls()
         self.submodules += gtx
 
         # led blink

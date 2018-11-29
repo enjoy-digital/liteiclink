@@ -101,6 +101,7 @@ class GTPTestSoC(SoCCore):
         else:
             raise ValueError
         gtp = GTP(qpll, tx_pads, rx_pads, sys_clk_freq, clock_aligner=True)
+        gtp.add_controls()
         self.submodules += gtp
 
         # led blink

@@ -186,7 +186,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
         return r
 
 
-class GTX(Module):
+class GTX(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq, data_width=20,
                  clock_aligner=True,
                  tx_polarity=0, rx_polarity=0):
@@ -276,7 +276,7 @@ class GTX(Module):
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
 
-        gtx_params = dict(
+        self.gtx_params = dict(
             # Simulation-Only Attributes
             p_SIM_RECEIVER_DETECT_PASS   ="TRUE",
             p_SIM_TX_EIDLE_DRIVE_LEVEL   ="X",
@@ -544,7 +544,7 @@ class GTX(Module):
             # TX Configurable Driver Attributes
             p_TX_PREDRIVER_MODE                      =0b0
         )
-        gtx_params.update(
+        self.gtx_params.update(
             # CPLL Ports
             #o_CPLLFBCLKLOST                  =,
             o_CPLLLOCK                       =Signal() if use_qpll else pll.lock,
@@ -853,7 +853,7 @@ class GTX(Module):
             # Transmit Ports - TX Configurable Driver Ports
             i_TXBUFDIFFCTRL                  =0b100,
             i_TXDEEMPH                       =0,
-            i_TXDIFFCTRL                     =0b1111,
+            i_TXDIFFCTRL                     =0b1000,
             i_TXDIFFPD                       =0,
             i_TXINHIBIT                      =self.tx_disable,
             i_TXMAINCURSOR                   =0b0000000,
@@ -908,7 +908,6 @@ class GTX(Module):
             #o_TXQPISENN                      =,
             #o_TXQPISENP                      =,
             )
-        self.specials += Instance("GTXE2_CHANNEL", **gtx_params)
 
         # tx clocking
         tx_reset_deglitched = Signal()
@@ -980,3 +979,63 @@ class GTX(Module):
             ]
         else:
             self.comb += self.rx_ready.eq(rx_init.done)
+
+    def add_base_control(self):
+        self._tx_restart             = CSR()
+        self._tx_disable             = CSRStorage(reset=0b0)
+        self._tx_produce_square_wave = CSRStorage(reset=0b0)
+        self._rx_ready               = CSRStatus()
+        self._rx_restart             = CSR()
+        self.comb += [
+            self.tx_restart.eq(self._tx_restart.re),
+            self.tx_disable.eq(self._tx_disable.storage),
+            self.tx_produce_square_wave.eq(self._tx_produce_square_wave.storage),
+            self._rx_ready.status.eq(self.rx_ready),
+            self.rx_restart.eq(self._rx_restart.re)
+        ]
+
+    def add_prbs_control(self):
+        self._tx_prbs_config = CSRStorage(2, reset=0b00)
+        self._rx_prbs_config = CSRStorage(2, reset=0b00)
+        self._rx_prbs_errors = CSRStatus(32)
+        self.comb += [
+            self.tx_prbs_config.eq(self._tx_prbs_config.storage),
+            self.rx_prbs_config.eq(self._rx_prbs_config.storage),
+            self._rx_prbs_errors.status.eq(self.rx_prbs_errors)
+        ]
+
+    def add_loopback_control(self):
+        self._loopback = CSRStorage(3)
+        self.comb += self.loopback.eq(self._loopback.storage)
+
+    def add_polarity_control(self):
+        self._tx_polarity  = CSRStorage()
+        self._rx_polarity  = CSRStorage()
+        self.gtx_params.update(
+            i_TXPOLARITY = self._tx_polarity.storage,
+            i_RXPOLARITY = self._rx_polarity.storage
+        )
+
+    def add_electrical_control(self):
+        self._tx_diffctrl       = CSRStorage(4, reset=0b1111)
+        self._tx_postcursor     = CSRStorage(5, reset=0b00000)
+        self._tx_postcursor_inv = CSRStorage(1, reset=0b0)
+        self._tx_precursor      = CSRStorage(5, reset=0b00000)
+        self._tx_precursor_inv  = CSRStorage(1, reset=0b0)
+        self.gtx_params.update(
+            i_TXDIFFCTRL      = self._tx_diffctrl.storage,
+            i_TXPOSTCURSOR    = self._tx_postcursor.storage,
+            i_TXPOSTCURSORINV = self._tx_postcursor_inv.storage,
+            i_TXPRECURSOR     = self._tx_precursor.storage,
+            i_TXPRECURSORINV  = self._tx_precursor_inv.storage,
+        )
+
+    def add_controls(self):
+        self.add_base_control()
+        self.add_prbs_control()
+        self.add_loopback_control()
+        self.add_polarity_control()
+        self.add_electrical_control()
+
+    def do_finalize(self):
+        self.specials += Instance("GTXE2_CHANNEL", **self.gtx_params)

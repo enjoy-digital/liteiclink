@@ -285,7 +285,7 @@ class GTH(Module, AutoCSR):
         rxdata = Signal(data_width)
 
         rxphaligndone = Signal()
-        gth_params = dict(
+        self.gth_params = dict(
             p_ACJTAG_DEBUG_MODE              =0b0,
             p_ACJTAG_MODE                    =0b0,
             p_ACJTAG_RESET                   =0b0,
@@ -413,7 +413,7 @@ class GTH(Module, AutoCSR):
             p_RATE_SW_USE_DRP                =0b1,
             p_RESET_POWERSAVE_DISABLE        =0b0,
         )
-        gth_params.update(
+        self.gth_params.update(
             p_RXBUFRESET_TIME                =0b00011,
             p_RXBUF_ADDR_MODE                ="FAST",
             p_RXBUF_EIDLE_HI_CNT             =0b1000,
@@ -602,7 +602,7 @@ class GTH(Module, AutoCSR):
             p_TST_RSV0                       =0b00000000,
             p_TST_RSV1                       =0b00000000,
         )
-        gth_params.update(
+        self.gth_params.update(
             p_TXBUF_EN                       ="FALSE",
             p_TXBUF_RESET_ON_RATE_CHANGE     ="TRUE",
             p_TXDLY_CFG                      =0b0000000000001001,
@@ -676,7 +676,7 @@ class GTH(Module, AutoCSR):
             p_USE_PCS_CLK_PHASE_SEL          =0b0,
             p_WB_MODE                        =0b00,
         )
-        gth_params.update(
+        self.gth_params.update(
             # Reset modes
             i_GTRESETSEL=0,
             i_RESETOVRD=0,
@@ -783,7 +783,6 @@ class GTH(Module, AutoCSR):
             o_GTHTXP=tx_pads.p,
             o_GTHTXN=tx_pads.n
         )
-        self.specials += Instance("GTHE3_CHANNEL", **gth_params)
 
         # tx clocking
         tx_reset_deglitched = Signal()
@@ -842,3 +841,63 @@ class GTH(Module, AutoCSR):
             ]
         else:
             self.comb += self.rx_ready.eq(rx_init.done)
+
+    def add_base_control(self):
+        self._tx_restart             = CSR()
+        self._tx_disable             = CSRStorage(reset=0b0)
+        self._tx_produce_square_wave = CSRStorage(reset=0b0)
+        self._rx_ready               = CSRStatus()
+        self._rx_restart             = CSR()
+        self.comb += [
+            self.tx_restart.eq(self._tx_restart.re),
+            self.tx_disable.eq(self._tx_disable.storage),
+            self.tx_produce_square_wave.eq(self._tx_produce_square_wave.storage),
+            self._rx_ready.status.eq(self.rx_ready),
+            self.rx_restart.eq(self._rx_restart.re)
+        ]
+
+    def add_prbs_control(self):
+        self._tx_prbs_config = CSRStorage(2, reset=0b00)
+        self._rx_prbs_config = CSRStorage(2, reset=0b00)
+        self._rx_prbs_errors = CSRStatus(32)
+        self.comb += [
+            self.tx_prbs_config.eq(self._tx_prbs_config.storage),
+            self.rx_prbs_config.eq(self._rx_prbs_config.storage),
+            self._rx_prbs_errors.status.eq(self.rx_prbs_errors)
+        ]
+
+    def add_loopback_control(self):
+        self._loopback = CSRStorage(3)
+        self.comb += self.loopback.eq(self._loopback.storage)
+
+    def add_polarity_control(self):
+        self._tx_polarity  = CSRStorage()
+        self._rx_polarity  = CSRStorage()
+        self.gth_params.update(
+            i_TXPOLARITY = self._tx_polarity.storage,
+            i_RXPOLARITY = self._rx_polarity.storage
+        )
+
+    def add_electrical_control(self):
+        self._tx_diffctrl       = CSRStorage(4, reset=0b1100)
+        self._tx_postcursor     = CSRStorage(5, reset=0b00000)
+        self._tx_postcursor_inv = CSRStorage(1, reset=0b0)
+        self._tx_precursor      = CSRStorage(5, reset=0b00000)
+        self._tx_precursor_inv  = CSRStorage(1, reset=0b0)
+        self.gth_params.update(
+            i_TXDIFFCTRL      = self._tx_diffctrl.storage,
+            i_TXPOSTCURSOR    = self._tx_postcursor.storage,
+            i_TXPOSTCURSORINV = self._tx_postcursor_inv.storage,
+            i_TXPRECURSOR     = self._tx_precursor.storage,
+            i_TXPRECURSORINV  = self._tx_precursor_inv.storage,
+        )
+
+    def add_controls(self):
+        self.add_base_control()
+        self.add_prbs_control()
+        self.add_loopback_control()
+        self.add_polarity_control()
+        self.add_electrical_control()
+
+    def do_finalize(self):
+        self.specials += Instance("GTHE3_CHANNEL", **self.gth_params)
