@@ -131,9 +131,10 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 class GTP(Module):
     def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq, data_width=20,
-                 clock_aligner=True,
+                 tx_buffer_enable=False, rx_buffer_enable=False, clock_aligner=True,
                  tx_polarity=0, rx_polarity=0):
         assert (data_width == 20) or (data_width == 40)
+        assert not (rx_buffer_enable and clock_aligner)
 
         # TX controls
         self.tx_restart = Signal()
@@ -191,11 +192,11 @@ class GTP(Module):
         # # #
 
         # TX generates RTIO clock, init must be in system domain
-        self.submodules.tx_init = tx_init = GTPTXInit(sys_clk_freq)
+        self.submodules.tx_init = tx_init = GTPTXInit(sys_clk_freq, tx_buffer_enable)
         self.comb += tx_init.restart.eq(self.tx_restart)
         # RX receives restart commands from RTIO domain
         self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
-            GTPRXInit(self.tx_clk_freq))
+            GTPRXInit(self.tx_clk_freq, rx_buffer_enable))
         self.comb += [
             tx_init.plllock.eq(qpll.lock),
             rx_init.plllock.eq(qpll.lock),
@@ -236,7 +237,7 @@ class GTP(Module):
             p_ALIGN_PCOMMA_VALUE                     =0b0101111100,
             p_SHOW_REALIGN_COMMA                     ="FALSE",
             p_RXSLIDE_AUTO_WAIT                      =7,
-            p_RXSLIDE_MODE                           ="PCS",
+            p_RXSLIDE_MODE                           ="OFF" if rx_buffer_enable else "PCS",
             p_RX_SIG_VALID_DLY                       =10,
 
             # RX 8B/10B Decoder Attributes
@@ -329,7 +330,7 @@ class GTP(Module):
             p_RXBUF_ADDR_MODE                        ="FAST",
             p_RXBUF_EIDLE_HI_CNT                     =0b1000,
             p_RXBUF_EIDLE_LO_CNT                     =0b0000,
-            p_RXBUF_EN                               ="FALSE",
+            p_RXBUF_EN                               ="TRUE" if rx_buffer_enable else "FALSE",
             p_RX_BUFFER_CFG                          =0b000000,
             p_RXBUF_RESET_ON_CB_CHANGE               ="TRUE",
             p_RXBUF_RESET_ON_COMMAALIGN              ="FALSE",
@@ -345,7 +346,7 @@ class GTP(Module):
             p_RXPH_CFG                               =0xC00002,
             p_RXPHDLY_CFG                            =0x084020,
             p_RXPH_MONITOR_SEL                       =0b00000,
-            p_RX_XCLK_SEL                            ="RXUSR",
+            p_RX_XCLK_SEL                            ="RXREC" if rx_buffer_enable else "RXUSR",
             p_RX_DDI_SEL                             =0b000000,
             p_RX_DEFER_RESET_BUF_EN                  ="TRUE",
 
@@ -395,7 +396,7 @@ class GTP(Module):
             p_TRANS_TIME_RATE                        =0x0E,
 
             # TX Buffer Attributes
-            p_TXBUF_EN                               ="FALSE",
+            p_TXBUF_EN                               ="TRUE" if tx_buffer_enable else "FALSE",
             p_TXBUF_RESET_ON_RATE_CHANGE             ="TRUE",
             p_TXDLY_CFG                              =0x001F,
             p_TXDLY_LCFG                             =0x030,
@@ -403,7 +404,7 @@ class GTP(Module):
             p_TXPH_CFG                               =0x0780,
             p_TXPHDLY_CFG                            =0x084020,
             p_TXPH_MONITOR_SEL                       =0b00000,
-            p_TX_XCLK_SEL                            ="TXUSR",
+            p_TX_XCLK_SEL                            ="TXOUT" if tx_buffer_enable else "TXUSR",
 
             # FPGA TX Interface Attributes
             p_TX_DATA_WIDTH                          =data_width,
@@ -527,7 +528,7 @@ class GTP(Module):
 
             # TX Buffer Attributes
             p_TXSYNC_MULTILANE                       =0b0,
-            p_TXSYNC_OVRD                            =0b1,
+            p_TXSYNC_OVRD                            =0b1 if tx_buffer_enable else 0b0,
             p_TXSYNC_SKIP_DA                         =0b0
         )
         self.gtp_params.update(
@@ -646,9 +647,9 @@ class GTP(Module):
             # Receive Ports - RX Buffer Bypass Ports
             i_RXBUFRESET                     =0,
             #o_RXBUFSTATUS                    =,
-            i_RXDDIEN                        =1,
-            i_RXDLYBYPASS                    =0,
-            i_RXDLYEN                        =1,
+            i_RXDDIEN                        =0 if rx_buffer_enable else 1,
+            i_RXDLYBYPASS                    =1 if rx_buffer_enable else 0,
+            i_RXDLYEN                        =0 if rx_buffer_enable else 1,
             i_RXDLYOVRDEN                    =0,
             i_RXDLYSRESET                    =rx_init.rxdlysreset,
             o_RXDLYSRESETDONE                =rx_init.rxdlysresetdone,
@@ -664,7 +665,7 @@ class GTP(Module):
             i_RXSYNCALLIN                    =rxphaligndone,
             o_RXSYNCDONE                     =rx_init.rxsyncdone,
             i_RXSYNCIN                       =0,
-            i_RXSYNCMODE                     =1,
+            i_RXSYNCMODE                     =0 if rx_buffer_enable else 1,
             #o_RXSYNCOUT                      =,
 
             # Receive Ports - RX Byte and Word Alignment Ports
@@ -770,7 +771,7 @@ class GTP(Module):
             i_TXPIPPMEN                      =0,
             i_TXPIPPMOVRDEN                  =0,
             i_TXPIPPMPD                      =0,
-            i_TXPIPPMSEL                     =0,
+            i_TXPIPPMSEL                     =1,
             i_TXPIPPMSTEPSIZE                =0,
 
             # Transceiver Reset Mode Operation
@@ -805,7 +806,7 @@ class GTP(Module):
             i_TXCHARISK                      =0,
 
             # Transmit Ports - TX Buffer Bypass Ports
-            i_TXDLYBYPASS                    =0,
+            i_TXDLYBYPASS                    =1 if tx_buffer_enable else 0,
             i_TXDLYEN                        =tx_init.txdlyen,
             i_TXDLYHOLD                      =0,
             i_TXDLYOVRDEN                    =0,
@@ -814,7 +815,7 @@ class GTP(Module):
             i_TXDLYUPDOWN                    =0,
             i_TXPHALIGN                      =tx_init.txphalign,
             o_TXPHALIGNDONE                  =tx_init.txphaligndone,
-            i_TXPHALIGNEN                    =1,
+            i_TXPHALIGNEN                    =0 if tx_buffer_enable else 1,
             i_TXPHDLYPD                      =0,
             i_TXPHDLYRESET                   =0,
             i_TXPHINIT                       =tx_init.txphinit,
@@ -846,7 +847,7 @@ class GTP(Module):
             o_TXOUTCLK                       =self.txoutclk,
             #o_TXOUTCLKFABRIC                 =,
             #o_TXOUTCLKPCS                    =,
-            i_TXOUTCLKSEL                    =0b011,
+            i_TXOUTCLKSEL                    =0b010 if tx_buffer_enable else 0b011 ,
             #o_TXRATEDONE                     =,
 
             # Transmit Ports - TX Gearbox Ports

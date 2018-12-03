@@ -14,7 +14,7 @@ __all__ = ["GTPTXInit", "GTPRXInit"]
 
 
 class GTPTXInit(Module):
-    def __init__(self, sys_clk_freq):
+    def __init__(self, sys_clk_freq, tx_buffer_enable):
         self.done = Signal()
         self.restart = Signal()
 
@@ -102,7 +102,13 @@ class GTPTXInit(Module):
         # of gttxreset)
         startup_fsm.act("WAIT_GTP_RESET_DONE",
             txuserrdy.eq(1),
-            If(txresetdone, NextState("ALIGN"))
+            If(txresetdone,
+                If(tx_buffer_enable,
+                    NextState("READY")
+                ).Else(
+                    NextState("ALIGN")
+                )
+            )
         )
         # Start delay alignment
         startup_fsm.act("ALIGN",
@@ -144,7 +150,7 @@ class GTPTXInit(Module):
 
 
 class GTPRXInit(Module):
-    def __init__(self, sys_clk_freq):
+    def __init__(self, sys_clk_freq, rx_buffer_enable):
         self.done = Signal()
         self.restart = Signal()
 
@@ -288,7 +294,11 @@ class GTPRXInit(Module):
             rxuserrdy.eq(1),
             cdr_stable_timer.wait.eq(1),
             If(rxresetdone & cdr_stable_timer.done,
-                NextState("ALIGN")
+                If(rx_buffer_enable,
+                    NextState("READY")
+                ).Else(
+                    NextState("ALIGN")
+                )
             )
         )
         # Start delay alignment
@@ -309,6 +319,7 @@ class GTPRXInit(Module):
         startup_fsm.act("READY",
             rxuserrdy.eq(1),
             self.done.eq(1),
-            If(self.restart, NextState("GTP_PD")
+            If(self.restart,
+                NextState("GTP_PD")
             )
         )
