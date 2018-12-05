@@ -8,7 +8,7 @@ from litex.soc.cores.clock import *
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
-from liteiclink.transceiver.gtp_7series_init import GTPRXInit, GTPTXInit
+from liteiclink.transceiver.gtp_7series_init import GTPTXInit, GTPRXInit
 from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
 
 from liteiclink.transceiver.common import *

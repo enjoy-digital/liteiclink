@@ -7,7 +7,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
-from liteiclink.transceiver.gth_ultrascale_init import GTHInit
+from liteiclink.transceiver.gth_ultrascale_init import GTHTXInit, GTHRXInit
 from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
 
 from liteiclink.transceiver.common import *
@@ -269,11 +269,11 @@ class GTH(Module, AutoCSR):
         # # #
 
         # TX generates TX clock, init must be in system domain
-        self.submodules.tx_init = tx_init = GTHInit(sys_clk_freq, False)
+        self.submodules.tx_init = tx_init = GTHTXInit(sys_clk_freq)
         self.comb += tx_init.restart.eq(self.tx_restart)
         # RX receives restart commands from TX domain
         self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
-            GTHInit(self.tx_clk_freq, True))
+            GTHRXInit(self.tx_clk_freq))
         self.comb += [
             tx_init.plllock.eq(pll.lock),
             rx_init.plllock.eq(pll.lock),

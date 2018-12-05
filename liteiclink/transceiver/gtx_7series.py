@@ -8,7 +8,7 @@ from litex.soc.cores.clock import *
 from litex.soc.interconnect.csr import *
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
-from liteiclink.transceiver.gtx_7series_init import GTXInit
+from liteiclink.transceiver.gtx_7series_init import GTXTXInit, GTXRXInit
 from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
 
 from liteiclink.transceiver.common import *
@@ -254,11 +254,11 @@ class GTX(Module, AutoCSR):
         use_qpll = isinstance(pll, GTXQuadPLL)
 
         # TX generates TX clock, init must be in system domain
-        self.submodules.tx_init = tx_init = GTXInit(sys_clk_freq, False)
+        self.submodules.tx_init = tx_init = GTXTXInit(sys_clk_freq)
         self.comb += tx_init.restart.eq(self.tx_restart)
         # RX receives restart commands from TX domain
         self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
-            GTXInit(self.tx_clk_freq, True))
+            GTXRXInit(self.tx_clk_freq))
         self.comb += [
             tx_init.plllock.eq(pll.lock),
             rx_init.plllock.eq(pll.lock),

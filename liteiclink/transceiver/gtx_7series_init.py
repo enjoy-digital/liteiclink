@@ -8,6 +8,10 @@ from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.misc import WaitTimer
 
 
+__all__ = ["GTXTXInit", "GTXRXInit"]
+
+
+
 class GTXInit(Module):
     def __init__(self, sys_clk_freq, rx):
         self.done = Signal()
@@ -135,3 +139,13 @@ class GTXInit(Module):
             self.done.eq(1),
             If(self.restart, NextState("GTP_PD"))
         )
+
+
+class GTXTXInit(GTXInit):
+    def __init__(self, sys_clk_freq):
+        GTXInit.__init__(self, sys_clk_freq, rx=False)
+
+
+class GTXRXInit(GTXInit):
+    def __init__(self, sys_clk_freq):
+        GTXInit.__init__(self, sys_clk_freq, rx=True)

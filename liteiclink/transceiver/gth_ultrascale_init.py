@@ -8,6 +8,10 @@ from migen.genlib.cdc import MultiReg
 from migen.genlib.misc import WaitTimer
 
 
+__all__ = ["GTHTXInit", "GTHRXInit"]
+
+
+
 class GTHInit(Module):
     def __init__(self, sys_clk_freq, rx):
         self.done = Signal()
@@ -138,3 +142,13 @@ class GTHInit(Module):
             self.done.eq(1),
             If(self.restart, NextState("RESET_ALL"))
         )
+
+
+class GTHTXInit(GTHInit):
+    def __init__(self, sys_clk_freq):
+        GTHInit.__init__(self, sys_clk_freq, rx=False)
+
+
+class GTHRXInit(GTHInit):
+    def __init__(self, sys_clk_freq):
+        GTHInit.__init__(self, sys_clk_freq, rx=True)
