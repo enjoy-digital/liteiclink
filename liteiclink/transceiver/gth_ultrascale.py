@@ -202,7 +202,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
 
 class GTH(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq, data_width=20,
-                 clock_aligner=True,
+                 tx_buffer_enable=False, rx_buffer_enable=False, clock_aligner=True,
                  tx_polarity=0, rx_polarity=0):
         assert (data_width == 20) or (data_width == 40)
 
@@ -322,8 +322,8 @@ class GTH(Module, AutoCSR):
             p_CHAN_BOND_SEQ_LEN              =1,
             p_CLK_CORRECT_USE                ="FALSE",
             p_CLK_COR_KEEP_IDLE              ="FALSE",
-            p_CLK_COR_MAX_LAT                =20,
-            p_CLK_COR_MIN_LAT                =18,
+            p_CLK_COR_MAX_LAT                =12 if rx_buffer_enable else 20,
+            p_CLK_COR_MIN_LAT                =8 if rx_buffer_enable else 18,
             p_CLK_COR_PRECEDENCE             ="TRUE",
             p_CLK_COR_REPEAT_WAIT            =0,
             p_CLK_COR_SEQ_1_1                =0b0000000000,
@@ -421,14 +421,14 @@ class GTH(Module, AutoCSR):
             p_RXBUF_ADDR_MODE                ="FAST",
             p_RXBUF_EIDLE_HI_CNT             =0b1000,
             p_RXBUF_EIDLE_LO_CNT             =0b0000,
-            p_RXBUF_EN                       ="FALSE",
+            p_RXBUF_EN                       ="TRUE" if rx_buffer_enable else "FALSE",
             p_RXBUF_RESET_ON_CB_CHANGE       ="TRUE",
             p_RXBUF_RESET_ON_COMMAALIGN      ="FALSE",
             p_RXBUF_RESET_ON_EIDLE           ="FALSE",
             p_RXBUF_RESET_ON_RATE_CHANGE     ="TRUE",
-            p_RXBUF_THRESH_OVFLW             =0,
-            p_RXBUF_THRESH_OVRD              ="FALSE",
-            p_RXBUF_THRESH_UNDFLW            =0,
+            p_RXBUF_THRESH_OVFLW             =57 if rx_buffer_enable else 0,
+            p_RXBUF_THRESH_OVRD              ="TRUE" if rx_buffer_enable else "FALSE",
+            p_RXBUF_THRESH_UNDFLW            =3 if rx_buffer_enable else 0,
             p_RXCDRFREQRESET_TIME            =0b00001,
             p_RXCDRPHRESET_TIME              =0b00001,
             p_RXCDR_CFG0                     =0b0000000000000000,
@@ -581,7 +581,7 @@ class GTH(Module, AutoCSR):
             p_RX_SUM_VREF_TUNE               =0b000,
             p_RX_TUNE_AFE_OS                 =0b10,
             p_RX_WIDEMODE_CDR                =0b0,
-            p_RX_XCLK_SEL                    ="RXUSR",
+            p_RX_XCLK_SEL                    ="RXDES" if rx_buffer_enable else "RXUSR",
             p_SAS_MAX_COM                    =64,
             p_SAS_MIN_COM                    =36,
             p_SATA_BURST_SEQ_LEN             =0b1110,
@@ -606,7 +606,7 @@ class GTH(Module, AutoCSR):
             p_TST_RSV1                       =0b00000000,
         )
         self.gth_params.update(
-            p_TXBUF_EN                       ="FALSE",
+            p_TXBUF_EN                       ="TRUE" if tx_buffer_enable else "FALSE",
             p_TXBUF_RESET_ON_RATE_CHANGE     ="TRUE",
             p_TXDLY_CFG                      =0b0000000000001001,
             p_TXDLY_LCFG                     =0b0000000001010000,
@@ -675,7 +675,7 @@ class GTH(Module, AutoCSR):
             p_TX_RXDETECT_REF                =0b100,
             p_TX_SAMPLE_PERIOD               =0b111,
             p_TX_SARC_LPBK_ENB               =0b0,
-            p_TX_XCLK_SEL                    ="TXUSR",
+            p_TX_XCLK_SEL                    ="TXOUT" if tx_buffer_enable else "TXUSR",
             p_USE_PCS_CLK_PHASE_SEL          =0b0,
             p_WB_MODE                        =0b00,
         )
@@ -712,7 +712,7 @@ class GTH(Module, AutoCSR):
             o_TXOUTCLK=self.txoutclk,
             i_TXSYSCLKSEL=0b00 if use_cpll else 0b10 if use_qpll0 else 0b11,
             i_TXPLLCLKSEL=0b00 if use_cpll else 0b11 if use_qpll0 else 0b10,
-            i_TXOUTCLKSEL=0b11,
+            i_TXOUTCLKSEL=0b010 if tx_buffer_enable else 0b011,
 
             # TX Startup/Reset
             i_GTTXRESET=tx_init.gtXxreset,
@@ -722,6 +722,8 @@ class GTH(Module, AutoCSR):
             o_TXPHALIGNDONE=tx_init.Xxphaligndone,
             i_TXUSERRDY=tx_init.Xxuserrdy,
             i_TXSYNCMODE=1,
+            i_TXDLYBYPASS=1 if tx_buffer_enable else 0,
+            i_TXPHDLYPD=1 if tx_buffer_enable else 0,
 
             # TX data
             i_TXCTRL0=Cat(*[txdata[10*i+8] for i in range(nwords)]),
@@ -749,6 +751,8 @@ class GTH(Module, AutoCSR):
             i_RXSYNCIN=0,
             i_RXSYNCMODE=1,
             o_RXSYNCDONE=rx_init.Xxsyncdone,
+            i_RXDLYBYPASS=1 if rx_buffer_enable else 0,
+            i_RXPHDLYPD=1 if rx_buffer_enable else 0,
 
             # RX AFE
             i_RXDFEAGCCTRL=1,
@@ -759,7 +763,6 @@ class GTH(Module, AutoCSR):
 
             # RX clock
             i_RXRATE=0,
-            i_RXDLYBYPASS=0,
             i_RXSYSCLKSEL=0b00,
             i_RXOUTCLKSEL=0b010,
             i_RXPLLCLKSEL=0b00,
