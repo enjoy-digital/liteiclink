@@ -191,7 +191,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
 
 class GTX(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq, data_width=20,
-                 clock_aligner=True,
+                 tx_buffer_enable=False, rx_buffer_enable=False, clock_aligner=True,
                  tx_polarity=0, rx_polarity=0):
         assert (data_width == 20) or (data_width == 40)
 
@@ -254,11 +254,11 @@ class GTX(Module, AutoCSR):
         use_qpll = isinstance(pll, GTXQuadPLL)
 
         # TX generates TX clock, init must be in system domain
-        self.submodules.tx_init = tx_init = GTXTXInit(sys_clk_freq)
+        self.submodules.tx_init = tx_init = GTXTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
         self.comb += tx_init.restart.eq(self.tx_restart)
         # RX receives restart commands from TX domain
         self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
-            GTXRXInit(self.tx_clk_freq))
+            GTXRXInit(self.tx_clk_freq, buffer_enable=rx_buffer_enable))
         self.comb += [
             tx_init.plllock.eq(pll.lock),
             rx_init.plllock.eq(pll.lock),
@@ -390,7 +390,7 @@ class GTX(Module, AutoCSR):
             p_RXBUF_ADDR_MODE                        ="FAST",
             p_RXBUF_EIDLE_HI_CNT                     =0b1000,
             p_RXBUF_EIDLE_LO_CNT                     =0b0000,
-            p_RXBUF_EN                               ="FALSE",
+            p_RXBUF_EN                               ="TRUE" if rx_buffer_enable else "FALSE",
             p_RX_BUFFER_CFG                          =0b000000,
             p_RXBUF_RESET_ON_CB_CHANGE               ="TRUE",
             p_RXBUF_RESET_ON_COMMAALIGN              ="FALSE",
@@ -406,7 +406,7 @@ class GTX(Module, AutoCSR):
             p_RXPH_CFG                               =0x000000,
             p_RXPHDLY_CFG                            =0x084020,
             p_RXPH_MONITOR_SEL                       =0b00000,
-            p_RX_XCLK_SEL                            ="RXUSR",
+            p_RX_XCLK_SEL                            ="RXREC" if rx_buffer_enable else "RXUSR",
             p_RX_DDI_SEL                             =0b000000,
             p_RX_DEFER_RESET_BUF_EN                  ="TRUE",
 
@@ -456,7 +456,7 @@ class GTX(Module, AutoCSR):
             p_TRANS_TIME_RATE                        =0x0E,
 
             # TX Buffer Attributes
-            p_TXBUF_EN                               ="FALSE",
+            p_TXBUF_EN                               ="TRUE" if tx_buffer_enable else "FALSE",
             p_TXBUF_RESET_ON_RATE_CHANGE             ="TRUE",
             p_TXDLY_CFG                              =0x001F,
             p_TXDLY_LCFG                             =0x030,
@@ -464,7 +464,7 @@ class GTX(Module, AutoCSR):
             p_TXPH_CFG                               =0x0780,
             p_TXPHDLY_CFG                            =0x084020,
             p_TXPH_MONITOR_SEL                       =0b00000,
-            p_TX_XCLK_SEL                            ="TXUSR",
+            p_TX_XCLK_SEL                            ="TXOUT" if tx_buffer_enable "TXUSR",
 
             # FPGA TX Interface Attributes
             p_TX_DATA_WIDTH                          =data_width,
@@ -668,8 +668,8 @@ class GTX(Module, AutoCSR):
             # Receive Ports - RX Buffer Bypass Ports
             i_RXBUFRESET                     =0,
             #o_RXBUFSTATUS                    =,
-            i_RXDDIEN                        =1,
-            i_RXDLYBYPASS                    =0,
+            i_RXDDIEN                        =0 if rx_buffer_enable else 1,
+            i_RXDLYBYPASS                    =1 if rx_buffer_enable else 0,
             i_RXDLYEN                        =0,
             i_RXDLYOVRDEN                    =0,
             i_RXDLYSRESET                    =rx_init.Xxdlysreset,
@@ -834,7 +834,7 @@ class GTX(Module, AutoCSR):
             i_TXPRBSFORCEERR                 =0,
 
             # Transmit Ports - TX Buffer Bypass Ports
-            i_TXDLYBYPASS                    =0,
+            i_TXDLYBYPASS                    =1 if tx_buffer_enable else 0,
             i_TXDLYEN                        =0,
             i_TXDLYHOLD                      =0,
             i_TXDLYOVRDEN                    =0,
@@ -873,7 +873,7 @@ class GTX(Module, AutoCSR):
             o_TXOUTCLK                       =self.txoutclk,
             #o_TXOUTCLKFABRIC                 =,
             #o_TXOUTCLKPCS                    =,
-            i_TXOUTCLKSEL                    =0b011,
+            i_TXOUTCLKSEL                    =0b010 if tx_buffer_enable else 0b011,
             #o_TXRATEDONE                     =,
 
             # Transmit Ports - TX Gearbox Ports

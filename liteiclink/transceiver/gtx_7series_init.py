@@ -13,7 +13,7 @@ __all__ = ["GTXTXInit", "GTXRXInit"]
 
 
 class GTXInit(Module):
-    def __init__(self, sys_clk_freq, rx):
+    def __init__(self, sys_clk_freq, rx, buffer_enable):
         self.done = Signal()
         self.restart = Signal()
 
@@ -104,12 +104,24 @@ class GTXInit(Module):
             startup_fsm.act("RELEASE_GTX_RESET",
                 Xxuserrdy.eq(1),
                 cdr_stable_timer.wait.eq(1),
-                If(Xxresetdone & cdr_stable_timer.done, NextState("ALIGN"))
+                If(Xxresetdone & cdr_stable_timer.done,
+                    If(buffer_enable,
+                        NextState("READY")
+                    ).Else(
+                        NextState("ALIGN")
+                    )
+                )
             )
         else:
             startup_fsm.act("RELEASE_GTX_RESET",
                 Xxuserrdy.eq(1),
-                If(Xxresetdone, NextState("ALIGN"))
+                If(Xxresetdone,
+                    If(buffer_enable,
+                        NextState("READY")
+                    ).Else(
+                        NextState("ALIGN")
+                    )
+                )
             )
         # Start delay alignment (pulse)
         startup_fsm.act("ALIGN",
@@ -142,10 +154,10 @@ class GTXInit(Module):
 
 
 class GTXTXInit(GTXInit):
-    def __init__(self, sys_clk_freq):
-        GTXInit.__init__(self, sys_clk_freq, rx=False)
+    def __init__(self, sys_clk_freq, buffer_enable=False):
+        GTXInit.__init__(self, sys_clk_freq, rx=False, buffer_enable=buffer_enable)
 
 
 class GTXRXInit(GTXInit):
-    def __init__(self, sys_clk_freq):
-        GTXInit.__init__(self, sys_clk_freq, rx=True)
+    def __init__(self, sys_clk_freq, buffer_enable=False):
+        GTXInit.__init__(self, sys_clk_freq, rx=True, buffer_enable=buffer_enable)
