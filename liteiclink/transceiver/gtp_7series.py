@@ -649,7 +649,7 @@ class GTP(Module):
             #o_RXBUFSTATUS                    =,
             i_RXDDIEN                        =0 if rx_buffer_enable else 1,
             i_RXDLYBYPASS                    =1 if rx_buffer_enable else 0,
-            i_RXDLYEN                        =0 if rx_buffer_enable else 1,
+            i_RXDLYEN                        =0,
             i_RXDLYOVRDEN                    =0,
             i_RXDLYSRESET                    =rx_init.rxdlysreset,
             o_RXDLYSRESETDONE                =rx_init.rxdlysresetdone,
@@ -847,7 +847,7 @@ class GTP(Module):
             o_TXOUTCLK                       =self.txoutclk,
             #o_TXOUTCLKFABRIC                 =,
             #o_TXOUTCLKPCS                    =,
-            i_TXOUTCLKSEL                    =0b010 if tx_buffer_enable else 0b011 ,
+            i_TXOUTCLKSEL                    =0b010 if tx_buffer_enable else 0b011,
             #o_TXRATEDONE                     =,
 
             # Transmit Ports - TX Gearbox Ports

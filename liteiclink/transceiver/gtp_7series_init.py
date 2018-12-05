@@ -14,7 +14,7 @@ __all__ = ["GTPTXInit", "GTPRXInit"]
 
 
 class GTPTXInit(Module):
-    def __init__(self, sys_clk_freq, tx_buffer_enable):
+    def __init__(self, sys_clk_freq, buffer_enable):
         self.done = Signal()
         self.restart = Signal()
 
@@ -103,7 +103,7 @@ class GTPTXInit(Module):
         startup_fsm.act("WAIT_GTP_RESET_DONE",
             txuserrdy.eq(1),
             If(txresetdone,
-                If(tx_buffer_enable,
+                If(buffer_enable,
                     NextState("READY")
                 ).Else(
                     NextState("ALIGN")
@@ -144,13 +144,14 @@ class GTPTXInit(Module):
         )
         startup_fsm.act("READY",
             txuserrdy.eq(1),
+            txdlyen.eq(1),
             self.done.eq(1),
             If(self.restart, NextState("PLL_RESET"))
         )
 
 
 class GTPRXInit(Module):
-    def __init__(self, sys_clk_freq, rx_buffer_enable):
+    def __init__(self, sys_clk_freq, buffer_enable):
         self.done = Signal()
         self.restart = Signal()
 
@@ -162,7 +163,6 @@ class GTPRXInit(Module):
         self.rxdlysreset = Signal()
         self.rxdlysresetdone = Signal()
         self.rxphalign = Signal()
-        self.rxdlyen = Signal()
         self.rxuserrdy = Signal()
         self.rxsyncdone = Signal()
         self.rxpmaresetdone = Signal()
@@ -205,14 +205,12 @@ class GTPRXInit(Module):
         gtrxpd = Signal()
         rxdlysreset = Signal()
         rxphalign = Signal()
-        rxdlyen = Signal()
         rxuserrdy = Signal()
         self.sync += [
             self.gtrxreset.eq(gtrxreset),
             self.gtrxpd.eq(gtrxpd),
             self.rxdlysreset.eq(rxdlysreset),
             self.rxphalign.eq(rxphalign),
-            self.rxdlyen.eq(rxdlyen),
             self.rxuserrdy.eq(rxuserrdy)
         ]
 
@@ -294,7 +292,7 @@ class GTPRXInit(Module):
             rxuserrdy.eq(1),
             cdr_stable_timer.wait.eq(1),
             If(rxresetdone & cdr_stable_timer.done,
-                If(rx_buffer_enable,
+                If(buffer_enable,
                     NextState("READY")
                 ).Else(
                     NextState("ALIGN")
