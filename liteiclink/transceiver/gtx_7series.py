@@ -464,7 +464,7 @@ class GTX(Module, AutoCSR):
             p_TXPH_CFG                               =0x0780,
             p_TXPHDLY_CFG                            =0x084020,
             p_TXPH_MONITOR_SEL                       =0b00000,
-            p_TX_XCLK_SEL                            ="TXOUT" if tx_buffer_enable "TXUSR",
+            p_TX_XCLK_SEL                            ="TXOUT" if tx_buffer_enable else "TXUSR",
 
             # FPGA TX Interface Attributes
             p_TX_DATA_WIDTH                          =data_width,
