@@ -32,6 +32,10 @@ class GTPTXInit(Module):
         self.txdlyen = Signal()
         self.txuserrdy = Signal()
 
+        # DRP (optional)
+        self.drp_start = Signal()
+        self.drp_done = Signal(reset=1)
+
         # # #
 
         # Double-latch transceiver asynch outputs
@@ -70,7 +74,7 @@ class GTPTXInit(Module):
         self.submodules += pll_reset_timer
 
         startup_fsm = ResetInserter()(FSM(reset_state="PLL_RESET"))
-        self.submodules += startup_fsm
+        self.submodules.startup_fsm = startup_fsm
 
         ready_timer = WaitTimer(int(1e-3*sys_clk_freq))
         self.submodules += ready_timer
@@ -94,6 +98,12 @@ class GTPTXInit(Module):
         startup_fsm.act("GTP_RESET",
             gttxreset.eq(1),
             If(plllock,
+                NextState("WAIT_DRP")
+            )
+        )
+        startup_fsm.act("WAIT_DRP",
+            gttxreset.eq(1),
+            If(self.drp_done,
                 NextState("WAIT_GTP_RESET_DONE")
             )
         )
@@ -221,7 +231,7 @@ class GTPRXInit(Module):
         self.submodules += pll_reset_timer
 
         startup_fsm = ResetInserter()(FSM(reset_state="GTP_PD"))
-        self.submodules += startup_fsm
+        self.submodules.startup_fsm = startup_fsm
 
         ready_timer = WaitTimer(int(4e-3*sys_clk_freq))
         self.submodules += ready_timer

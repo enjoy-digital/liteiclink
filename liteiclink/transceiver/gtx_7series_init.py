@@ -28,6 +28,10 @@ class GTXInit(Module):
         self.Xxphaligndone = Signal()
         self.Xxuserrdy = Signal()
 
+        # DRP (optional)
+        self.drp_start = Signal()
+        self.drp_done = Signal(reset=1)
+
         # # #
 
         # Double-latch transceiver asynch outputs
@@ -61,7 +65,7 @@ class GTXInit(Module):
         self.submodules += startup_timer
 
         startup_fsm = ResetInserter()(FSM(reset_state="GTP_PD"))
-        self.submodules += startup_fsm
+        self.submodules.startup_fsm = startup_fsm
 
         ready_timer = WaitTimer(int(sys_clk_freq/1000))
         self.submodules += ready_timer
@@ -90,7 +94,15 @@ class GTXInit(Module):
             gtXxreset.eq(1),
             self.pllreset.eq(1),
             startup_timer.wait.eq(1),
-            NextState("RELEASE_PLL_RESET")
+            self.drp_start.eq(1),
+            NextState("WAIT_DRP")
+        )
+        startup_fsm.act("WAIT_DRP",
+            gtXxreset.eq(1),
+            self.pllreset.eq(1),
+            If(self.drp_done,
+                NextState("RELEASE_PLL_RESET")
+            )
         )
         startup_fsm.act("RELEASE_PLL_RESET",
             gtXxreset.eq(1),
