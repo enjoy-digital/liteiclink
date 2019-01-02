@@ -894,7 +894,8 @@ class GTP(Module):
             self.specials += [
                 Instance("BUFR", i_I=txoutclk_bufg, o_O=txoutclk_bufr,
                     i_CE=1, p_BUFR_DIVIDE=str(int(txoutclk_div))),
-                Instance("BUFG", i_I=txoutclk_bufr, o_O=self.cd_tx.clk)
+                Instance("BUFG", i_I=txoutclk_bufr, o_O=self.cd_tx.clk),
+                AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
             ]
         # Use a PLL when non-integer divider
         else:
