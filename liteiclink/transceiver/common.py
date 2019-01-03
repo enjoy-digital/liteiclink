@@ -21,13 +21,14 @@ class DRPInterface(Record):
 class DRPMux(Module, DRPInterface):
     def __init__(self, **kwargs):
         DRPInterface.__init__(self, **kwargs)
+        self.sel = Signal(4)
         self.interfaces = []
 
     def add_interface(self, interface):
         self.interfaces.append(interface)
 
     def do_finalize(self):
-        self.sel = Signal(len(self.interfaces))
+        assert len(self.interfaces) <= 16
         cases = {}
         for i, interface in enumerate(self.interfaces):
             cases[i] = interface.connect(self)
