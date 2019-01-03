@@ -85,6 +85,9 @@ class GTXQuadPLL(Module):
         self.lock = Signal()
         self.config = self.compute_config(refclk_freq, linerate)
 
+        # DRP
+        self.drp = DRPInterface()
+
         # # #
 
         fbdiv_ratios = {
@@ -122,7 +125,15 @@ class GTXQuadPLL(Module):
                 o_QPLLOUTREFCLK=self.refclk,
                 i_QPLLLOCKEN=1,
                 o_QPLLLOCK=self.lock,
-                i_QPLLREFCLKSEL=0b001
+                i_QPLLREFCLKSEL=0b001,
+
+                i_DRPADDR=self.drp.addr,
+                i_DRPCLK=self.drp.clk,
+                i_DRPDI=self.drp.di,
+                o_DRPDO=self.drp.do,
+                i_DRPEN=self.drp.en,
+                o_DRPRDY=self.drp.rdy,
+                i_DRPWE=self.drp.we,
             )
 
     @staticmethod
