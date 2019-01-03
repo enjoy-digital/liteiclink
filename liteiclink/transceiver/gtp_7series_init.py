@@ -98,6 +98,7 @@ class GTPTXInit(Module):
         startup_fsm.act("GTP_RESET",
             gttxreset.eq(1),
             If(plllock,
+                self.drp_start.eq(1),
                 NextState("WAIT_DRP")
             )
         )
