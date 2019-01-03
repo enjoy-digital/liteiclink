@@ -795,7 +795,10 @@ class GTH(Module, AutoCSR):
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_tx = ClockDomain()
-        tx_bufg_div = pll.config["clkin"]/self.tx_clk_freq
+        if not tx_buffer_enable:
+            tx_bufg_div = pll.config["clkin"]/self.tx_clk_freq
+        else:
+            txoutclk_div = 1
         assert tx_bufg_div == int(tx_bufg_div)
         self.specials += [
             Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_tx.clk,

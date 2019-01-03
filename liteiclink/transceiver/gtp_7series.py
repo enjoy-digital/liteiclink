@@ -888,7 +888,10 @@ class GTP(Module):
         txoutclk_bufg = Signal()
         self.specials += Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg)
 
-        txoutclk_div = qpll.config["clkin"]/self.tx_clk_freq
+        if not tx_buffer_enable:
+            txoutclk_div = qpll.config["clkin"]/self.tx_clk_freq
+        else:
+            txoutclk_div = 1
         # Use a BUFR when integer divider (with BUFR_DIVIDE)
         if txoutclk_div == int(txoutclk_div):
             txoutclk_bufr = Signal()
