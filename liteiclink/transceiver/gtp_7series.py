@@ -134,7 +134,6 @@ class GTP(Module):
                  tx_buffer_enable=False, rx_buffer_enable=False, clock_aligner=True,
                  tx_polarity=0, rx_polarity=0):
         assert (data_width == 20) or (data_width == 40)
-        assert not (rx_buffer_enable and clock_aligner)
 
         # TX controls
         self.tx_restart = Signal()
