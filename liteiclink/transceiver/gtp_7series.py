@@ -25,6 +25,9 @@ class GTPQuadPLL(Module):
         self.lock = Signal()
         self.config = config = self.compute_config(refclk_freq, linerate)
 
+        # DRP
+        self.drp = DRPInterface()
+
         # # #
 
         if not shared:
@@ -35,7 +38,16 @@ class GTPQuadPLL(Module):
                 i_BGMONITORENB=1,
                 i_BGPDB=1,
                 i_BGRCALOVRD=0b11111,
-                i_RCALENB=1)
+                i_RCALENB=1,
+
+                i_DRPADDR=self.drp.addr,
+                i_DRPCLK=self.drp.clk,
+                i_DRPDI=self.drp.di,
+                o_DRPDO=self.drp.do,
+                i_DRPEN=self.drp.en,
+                o_DRPRDY=self.drp.rdy,
+                i_DRPWE=self.drp.we,
+            )
 
             if channel == 0:
                 gtpe2_common_params.update(
