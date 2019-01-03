@@ -16,7 +16,7 @@ from liteiclink.transceiver.prbs import *
 
 
 class GTPQuadPLL(Module):
-    def __init__(self, refclk, refclk_freq, linerate, channel=0):
+    def __init__(self, refclk, refclk_freq, linerate, channel=0, shared=False):
         assert channel in [0, 1]
         self.channel = channel
         self.clk = Signal()
@@ -27,51 +27,52 @@ class GTPQuadPLL(Module):
 
         # # #
 
-        gtpe2_common_params = dict(
-            # common
-            i_GTREFCLK0=refclk,
-            i_BGBYPASSB=1,
-            i_BGMONITORENB=1,
-            i_BGPDB=1,
-            i_BGRCALOVRD=0b11111,
-            i_RCALENB=1)
+        if not shared:
+            gtpe2_common_params = dict(
+                # common
+                i_GTREFCLK0=refclk,
+                i_BGBYPASSB=1,
+                i_BGMONITORENB=1,
+                i_BGPDB=1,
+                i_BGRCALOVRD=0b11111,
+                i_RCALENB=1)
 
-        if channel == 0:
-            gtpe2_common_params.update(
-                # pll0
-                p_PLL0_FBDIV=config["n2"],
-                p_PLL0_FBDIV_45=config["n1"],
-                p_PLL0_REFCLK_DIV=config["m"],
-                i_PLL0LOCKEN=1,
-                i_PLL0PD=0,
-                i_PLL0REFCLKSEL=0b001,
-                i_PLL0RESET=self.reset,
-                o_PLL0LOCK=self.lock,
-                o_PLL0OUTCLK=self.clk,
-                o_PLL0OUTREFCLK=self.refclk,
+            if channel == 0:
+                gtpe2_common_params.update(
+                    # pll0
+                    p_PLL0_FBDIV=config["n2"],
+                    p_PLL0_FBDIV_45=config["n1"],
+                    p_PLL0_REFCLK_DIV=config["m"],
+                    i_PLL0LOCKEN=1,
+                    i_PLL0PD=0,
+                    i_PLL0REFCLKSEL=0b001,
+                    i_PLL0RESET=self.reset,
+                    o_PLL0LOCK=self.lock,
+                    o_PLL0OUTCLK=self.clk,
+                    o_PLL0OUTREFCLK=self.refclk,
 
-                # pll1 (not used: power down)
-                i_PLL1PD=1,
-            )
-        else:
-            gtpe2_common_params.update(
-                # pll0 (not used: power down)
-                i_PLL0PD=1,
+                    # pll1 (not used: power down)
+                    i_PLL1PD=1,
+                )
+            else:
+                gtpe2_common_params.update(
+                    # pll0 (not used: power down)
+                    i_PLL0PD=1,
 
-                # pll0
-                p_PLL1_FBDIV=config["n2"],
-                p_PLL1_FBDIV_45=config["n1"],
-                p_PLL1_REFCLK_DIV=config["m"],
-                i_PLL1LOCKEN=1,
-                i_PLL1PD=0,
-                i_PLL1REFCLKSEL=0b001,
-                i_PLL1RESET=self.reset,
-                o_PLL1LOCK=self.lock,
-                o_PLL1OUTCLK=self.clk,
-                o_PLL1OUTREFCLK=self.refclk,
-            )
+                    # pll0
+                    p_PLL1_FBDIV=config["n2"],
+                    p_PLL1_FBDIV_45=config["n1"],
+                    p_PLL1_REFCLK_DIV=config["m"],
+                    i_PLL1LOCKEN=1,
+                    i_PLL1PD=0,
+                    i_PLL1REFCLKSEL=0b001,
+                    i_PLL1RESET=self.reset,
+                    o_PLL1LOCK=self.lock,
+                    o_PLL1OUTCLK=self.clk,
+                    o_PLL1OUTREFCLK=self.refclk,
+                )
 
-        self.specials += Instance("GTPE2_COMMON", **gtpe2_common_params)
+            self.specials += Instance("GTPE2_COMMON", **gtpe2_common_params)
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
