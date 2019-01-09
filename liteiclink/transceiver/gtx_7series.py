@@ -937,8 +937,12 @@ class GTX(Module, AutoCSR):
             txoutclk_div = pll.config["clkin"]/self.tx_clk_freq
         else:
             txoutclk_div = 1
+        # Use txoutclk_bufg when divider is 1
+        if txoutclk_div == 1:
+            self.comb += self.cd_tx.clk.eq(txoutclk_bufg)
+            self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
         # Use a BUFR when integer divider (with BUFR_DIVIDE)
-        if txoutclk_div == int(txoutclk_div):
+        elif txoutclk_div == int(txoutclk_div):
             txoutclk_bufr = Signal()
             self.specials += [
                 Instance("BUFR", i_I=txoutclk_bufg, o_O=txoutclk_bufr,
