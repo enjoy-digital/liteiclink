@@ -302,28 +302,28 @@ class GTX(Module, AutoCSR):
             # RX Byte and Word Alignment Attributes
             p_ALIGN_COMMA_DOUBLE                     ="FALSE",
             p_ALIGN_COMMA_ENABLE                     =0b1111111111,
-            p_ALIGN_COMMA_WORD                       =1,
+            p_ALIGN_COMMA_WORD                       =2,
             p_ALIGN_MCOMMA_DET                       ="TRUE",
             p_ALIGN_MCOMMA_VALUE                     =0b1010000011,
             p_ALIGN_PCOMMA_DET                       ="TRUE",
             p_ALIGN_PCOMMA_VALUE                     =0b0101111100,
-            p_SHOW_REALIGN_COMMA                     ="FALSE",
+            p_SHOW_REALIGN_COMMA                     ="TRUE",
             p_RXSLIDE_AUTO_WAIT                      =7,
-            p_RXSLIDE_MODE                           ="PCS",
+            p_RXSLIDE_MODE                           ="OFF" if rx_buffer_enable else "PCS",
             p_RX_SIG_VALID_DLY                       =10,
 
             # RX 8B/10B Decoder Attributes
-            p_RX_DISPERR_SEQ_MATCH                   ="FALSE",
+            p_RX_DISPERR_SEQ_MATCH                   ="TRUE",
             p_DEC_MCOMMA_DETECT                      ="TRUE",
             p_DEC_PCOMMA_DETECT                      ="TRUE",
-            p_DEC_VALID_COMMA_ONLY                   ="FALSE",
+            p_DEC_VALID_COMMA_ONLY                   ="TRUE",
 
             # RX Clock Correction Attributes
-            p_CBCC_DATA_SOURCE_SEL                   ="ENCODED",
+            p_CBCC_DATA_SOURCE_SEL                   ="DECODED",
             p_CLK_COR_SEQ_2_USE                      ="FALSE",
             p_CLK_COR_KEEP_IDLE                      ="FALSE",
-            p_CLK_COR_MAX_LAT                        =9 if data_width == 20 else 19,
-            p_CLK_COR_MIN_LAT                        =7 if data_width == 20 else 15,
+            p_CLK_COR_MAX_LAT                        =9 if data_width == 20 else 20,
+            p_CLK_COR_MIN_LAT                        =7 if data_width == 20 else 16,
             p_CLK_COR_PRECEDENCE                     ="TRUE",
             p_CLK_COR_REPEAT_WAIT                    =0,
             p_CLK_COR_SEQ_LEN                        =1,
@@ -375,7 +375,7 @@ class GTX(Module, AutoCSR):
 
             # PMA Attributes
             p_OUTREFCLK_SEL_INV                      =0b11,
-            p_PMA_RSV                                =0x00018480,
+            p_PMA_RSV                                =0x001e7080,
             p_PMA_RSV2                               =0x2050,
             p_PMA_RSV3                               =0b00,
             p_PMA_RSV4                               =0x00000000,
