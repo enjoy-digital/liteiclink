@@ -994,7 +994,7 @@ class GTX(Module, AutoCSR):
         # clock alignment
         if clock_aligner:
             clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq)
-            self.submodules += clock_aligner
+            self.submodules.clock_aligner = clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
                 rx_init.restart.eq(clock_aligner.restart | self.rx_restart),
@@ -1004,11 +1004,15 @@ class GTX(Module, AutoCSR):
             self.comb += self.rx_ready.eq(rx_init.done)
 
     def add_base_control(self):
+        if hasattr(self, "clock_aligner"):
+            self._clock_aligner_disable  = CSRStorage()
         self._tx_restart             = CSR()
         self._tx_disable             = CSRStorage(reset=0b0)
         self._tx_produce_square_wave = CSRStorage(reset=0b0)
         self._rx_ready               = CSRStatus()
         self._rx_restart             = CSR()
+        if hasattr(self, "clock_aligner"):
+            self.comb += self.clock_aligner.disable.eq(self._clock_aligner_disable.storage)
         self.comb += [
             self.tx_restart.eq(self._tx_restart.re),
             self.tx_disable.eq(self._tx_disable.storage),
