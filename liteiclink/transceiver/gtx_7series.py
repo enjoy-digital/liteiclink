@@ -302,7 +302,7 @@ class GTX(Module, AutoCSR):
             # RX Byte and Word Alignment Attributes
             p_ALIGN_COMMA_DOUBLE                     ="FALSE",
             p_ALIGN_COMMA_ENABLE                     =0b1111111111,
-            p_ALIGN_COMMA_WORD                       =2,
+            p_ALIGN_COMMA_WORD                       =2 if data_width == 20 else 4,
             p_ALIGN_MCOMMA_DET                       ="TRUE",
             p_ALIGN_MCOMMA_VALUE                     =0b1010000011,
             p_ALIGN_PCOMMA_DET                       ="TRUE",
@@ -701,8 +701,8 @@ class GTX(Module, AutoCSR):
             #o_RXBYTEREALIGN                  =,
             #o_RXCOMMADET                     =,
             i_RXCOMMADETEN                   =1,
-            i_RXMCOMMAALIGNEN                =0,
-            i_RXPCOMMAALIGNEN                =0,
+            i_RXMCOMMAALIGNEN                =(rx_prbs_config == 0b00) if rx_buffer_enable else 0,
+            i_RXPCOMMAALIGNEN                =(rx_prbs_config == 0b00) if rx_buffer_enable else 0,
 
             # Receive Ports - RX Channel Bonding Ports
             #o_RXCHANBONDSEQ                  =,
