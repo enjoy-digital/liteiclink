@@ -25,6 +25,7 @@ from migen.genlib.cdc import MultiReg, PulseSynchronizer
 class BruteforceClockAligner(Module):
     def __init__(self, comma, tx_clk_freq, check_period=6e-3):
         self.rxdata = Signal(20)
+        self.disable = Signal()
         self.restart = Signal()
 
         self.ready = Signal()
@@ -35,7 +36,7 @@ class BruteforceClockAligner(Module):
         reset_check_counter = Signal()
         self.sync.tx += [
             check.eq(0),
-            If(reset_check_counter,
+            If(reset_check_counter | self.disable,
                 check_counter.eq(check_max_val)
             ).Else(
                 If(check_counter == 0,
