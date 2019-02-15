@@ -207,12 +207,12 @@ class GTP(Module):
 
         # # #
 
-        # TX generates RTIO clock, init must be in system domain
-        self.submodules.tx_init = tx_init = GTPTXInit(sys_clk_freq, tx_buffer_enable)
+        # TX generates TX clock, init must be in system domain
+        self.submodules.tx_init = tx_init = GTPTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
         self.comb += tx_init.restart.eq(self.tx_restart)
-        # RX receives restart commands from RTIO domain
+        # RX receives restart commands from TX domain
         self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
-            GTPRXInit(self.tx_clk_freq, rx_buffer_enable))
+            GTPRXInit(self.tx_clk_freq, buffer_enable=rx_buffer_enable))
         self.comb += [
             tx_init.plllock.eq(qpll.lock),
             rx_init.plllock.eq(qpll.lock),
@@ -247,28 +247,28 @@ class GTP(Module):
             # RX Byte and Word Alignment Attributes
             p_ALIGN_COMMA_DOUBLE                     ="FALSE",
             p_ALIGN_COMMA_ENABLE                     =0b1111111111,
-            p_ALIGN_COMMA_WORD                       =1,
+            p_ALIGN_COMMA_WORD                       =2 if data_width == 20 else 4,
             p_ALIGN_MCOMMA_DET                       ="TRUE",
             p_ALIGN_MCOMMA_VALUE                     =0b1010000011,
             p_ALIGN_PCOMMA_DET                       ="TRUE",
             p_ALIGN_PCOMMA_VALUE                     =0b0101111100,
-            p_SHOW_REALIGN_COMMA                     ="FALSE",
+            p_SHOW_REALIGN_COMMA                     ="TRUE",
             p_RXSLIDE_AUTO_WAIT                      =7,
             p_RXSLIDE_MODE                           ="OFF" if rx_buffer_enable else "PCS",
             p_RX_SIG_VALID_DLY                       =10,
 
             # RX 8B/10B Decoder Attributes
-            p_RX_DISPERR_SEQ_MATCH                   ="FALSE",
+            p_RX_DISPERR_SEQ_MATCH                   ="TRUE",
             p_DEC_MCOMMA_DETECT                      ="TRUE",
             p_DEC_PCOMMA_DETECT                      ="TRUE",
-            p_DEC_VALID_COMMA_ONLY                   ="FALSE",
+            p_DEC_VALID_COMMA_ONLY                   ="TRUE",
 
             # RX Clock Correction Attributes
-            p_CBCC_DATA_SOURCE_SEL                   ="ENCODED",
+            p_CBCC_DATA_SOURCE_SEL                   ="DECODED",
             p_CLK_COR_SEQ_2_USE                      ="FALSE",
             p_CLK_COR_KEEP_IDLE                      ="FALSE",
-            p_CLK_COR_MAX_LAT                        =9 if data_width == 20 else 19,
-            p_CLK_COR_MIN_LAT                        =7 if data_width == 20 else 15,
+            p_CLK_COR_MAX_LAT                        =10 if data_width == 20 else 19,
+            p_CLK_COR_MIN_LAT                        =8 if data_width == 20 else 15,
             p_CLK_COR_PRECEDENCE                     ="TRUE",
             p_CLK_COR_REPEAT_WAIT                    =0,
             p_CLK_COR_SEQ_LEN                        =1,
@@ -306,8 +306,8 @@ class GTP(Module):
             # RX Margin Analysis Attributes
             p_ES_CONTROL                             =0b000000,
             p_ES_ERRDET_EN                           ="FALSE",
-            p_ES_EYE_SCAN_EN                         ="FALSE",
-            p_ES_HORZ_OFFSET                         =0x010,
+            p_ES_EYE_SCAN_EN                         ="TRUE",
+            p_ES_HORZ_OFFSET                         =0x000,
             p_ES_PMA_CFG                             =0b0000000000,
             p_ES_PRESCALE                            =0b00000,
             p_ES_QUALIFIER                           =0x00000000000000000000,
@@ -908,8 +908,12 @@ class GTP(Module):
             txoutclk_div = qpll.config["clkin"]/self.tx_clk_freq
         else:
             txoutclk_div = 1
+        # Use txoutclk_bufg when divider is 1
+        if txoutclk_div == 1:
+            self.comb += self.cd_tx.clk.eq(txoutclk_bufg)
+            self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
         # Use a BUFR when integer divider (with BUFR_DIVIDE)
-        if txoutclk_div == int(txoutclk_div):
+        elif txoutclk_div == int(txoutclk_div):
             txoutclk_bufr = Signal()
             self.specials += [
                 Instance("BUFR", i_I=txoutclk_bufg, o_O=txoutclk_bufr,
@@ -961,7 +965,7 @@ class GTP(Module):
         # clock alignment
         if clock_aligner:
             clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq, check_period=10e-3)
-            self.submodules += clock_aligner
+            self.submodules.clock_aligner = clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
                 rx_init.restart.eq(clock_aligner.restart | self.rx_restart),
@@ -971,11 +975,15 @@ class GTP(Module):
             self.comb += self.rx_ready.eq(rx_init.done)
 
     def add_base_control(self):
+        if hasattr(self, "clock_aligner"):
+            self._clock_aligner_disable  = CSRStorage()
         self._tx_restart             = CSR()
         self._tx_disable             = CSRStorage(reset=0b0)
         self._tx_produce_square_wave = CSRStorage(reset=0b0)
         self._rx_ready               = CSRStatus()
         self._rx_restart             = CSR()
+        if hasattr(self, "clock_aligner"):
+            self.comb += self.clock_aligner.disable.eq(self._clock_aligner_disable.storage)
         self.comb += [
             self.tx_restart.eq(self._tx_restart.re),
             self.tx_disable.eq(self._tx_disable.storage),
