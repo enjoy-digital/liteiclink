@@ -674,7 +674,6 @@ class GTX(Module, AutoCSR):
 
             # Receive Ports - RX AFE
             i_GTXRXP                         =rx_pads.p,
-            # Receive Ports - RX AFE Ports
             i_GTXRXN                         =rx_pads.n,
 
             # Receive Ports - RX Buffer Bypass Ports
