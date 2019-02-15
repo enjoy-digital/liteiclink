@@ -85,6 +85,10 @@ class GTPQuadPLL(Module):
                 )
 
             self.specials += Instance("GTPE2_COMMON", **gtpe2_common_params)
+        else:
+            self.gtrefclk = refclk
+            self.gtgrefclk = 0
+            self.refclksel = 0b010
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
