@@ -245,9 +245,11 @@ class GTPRXInit(Module):
         self.submodules += cdr_stable_timer
 
         startup_fsm.act("GTP_PD",
-            gtrxreset.eq(1),
+            pll_reset_timer.wait.eq(1),
             gtrxpd.eq(1),
-            NextState("GTP_RESET")
+            If(pll_reset_timer.done,
+                NextState("GTP_RESET")
+            )
         )
         startup_fsm.act("GTP_RESET",
             gtrxreset.eq(1),
