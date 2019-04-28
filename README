@@ -3,10 +3,10 @@
        / /__/ / __/ -_)/ // /__/ /__/ / _ \/  '_/
       /____/_/\__/\__/___/\___/____/_/_//_/_/\_\
 
-          Copyright 2017-2018 / EnjoyDigital
+          Copyright 2017-2019 / EnjoyDigital
 
       Small footprint and configurable Inter-Chip
-       communication cores powered by LiteX & Migen
+       communication cores powered by Migen & LiteX
 
 [> Intro
 --------
@@ -32,6 +32,11 @@ SERWB:
   - Up to 1.25Gbps linerate / 32 bits @ 31.25Mhz user interface.
   - Automatic sampling window adjustement at startup.
   - Encapsulated Etherbone protocol with buffered writes.
+
+Transceiver:
+  - Artix7 GTP support.
+  - Kintex7 GTX support.
+  - Ultrascale GTH support.
 
 [> FPGA Proven
 ---------------
