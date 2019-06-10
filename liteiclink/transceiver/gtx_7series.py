@@ -6,6 +6,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.cores.clock import *
 from litex.soc.interconnect.csr import *
+from litex.soc.cores.prbs import PRBSTX, PRBSRX
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 from liteiclink.transceiver.gtx_7series_init import GTXTXInit, GTXRXInit

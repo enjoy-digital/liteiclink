@@ -5,6 +5,7 @@ from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
+from litex.soc.cores.prbs import PRBSTX, PRBSRX
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 from liteiclink.transceiver.gth_ultrascale_init import GTHTXInit, GTHRXInit
