@@ -2,6 +2,7 @@
 # License: BSD
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.cores.clock import *
@@ -13,7 +14,6 @@ from liteiclink.transceiver.gtp_7series_init import GTPTXInit, GTPRXInit
 from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
 
 from liteiclink.transceiver.common import *
-from liteiclink.transceiver.prbs import *
 
 
 class GTPQuadPLL(Module):

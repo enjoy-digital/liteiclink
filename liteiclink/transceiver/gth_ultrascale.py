@@ -2,6 +2,7 @@
 # License: BSD
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.interconnect.csr import *
@@ -12,7 +13,6 @@ from liteiclink.transceiver.gth_ultrascale_init import GTHTXInit, GTHRXInit
 from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
 
 from liteiclink.transceiver.common import *
-from liteiclink.transceiver.prbs import *
 
 
 class GTHChannelPLL(Module):
