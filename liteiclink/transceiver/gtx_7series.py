@@ -7,6 +7,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.cores.clock import *
 from litex.soc.interconnect.csr import *
+from litex.soc.interconnect import stream
 from litex.soc.cores.prbs import PRBSTX, PRBSRX
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
@@ -228,7 +229,7 @@ class GTX(Module, AutoCSR):
 
         # # #
 
-        nwords = data_width//10
+        self.nwords = nwords = data_width//10
 
         self.submodules.encoder = ClockDomainsRenamer("tx")(
             Encoder(nwords, True))
@@ -1004,6 +1005,20 @@ class GTX(Module, AutoCSR):
             ]
         else:
             self.comb += self.rx_ready.eq(rx_init.done)
+
+    def add_stream_endpoints(self):
+        self.sink = sink = stream.Endpoint([("data", self.nwords*8), ("ctrl", self.nwords)])
+        self.source = source = stream.Endpoint([("data", self.nwords*8), ("ctrl", self.nwords)])
+
+        self.comb += sink.ready.eq(1)
+        self.comb += source.valid.eq(1)
+        for i in range(self.nwords):
+            self.comb += [
+                self.encoder.k[i].eq(sink.ctrl[i]),
+                self.encoder.d[i].eq(sink.data[8*i:8*(i+1)]),
+                source.ctrl[i].eq(self.decoders[i].k),
+                source.data[8*i:8*(i+1)].eq(self.decoders[i].d),
+            ]
 
     def add_base_control(self):
         if hasattr(self, "clock_aligner"):
