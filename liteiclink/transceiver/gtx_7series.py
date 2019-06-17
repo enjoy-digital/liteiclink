@@ -218,6 +218,7 @@ class GTX(Module, AutoCSR):
         # RX controls
         self.rx_ready = Signal()
         self.rx_restart = Signal()
+        self.rx_align = Signal(reset=1)
         self.rx_prbs_config = Signal(2)
         self.rx_prbs_errors = Signal(32)
 
@@ -704,8 +705,8 @@ class GTX(Module, AutoCSR):
             #o_RXBYTEREALIGN                  =,
             #o_RXCOMMADET                     =,
             i_RXCOMMADETEN                   =1,
-            i_RXMCOMMAALIGNEN                =(rx_prbs_config == 0b00) if rx_buffer_enable else 0,
-            i_RXPCOMMAALIGNEN                =(rx_prbs_config == 0b00) if rx_buffer_enable else 0,
+            i_RXMCOMMAALIGNEN                =(self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
+            i_RXPCOMMAALIGNEN                =(self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
 
             # Receive Ports - RX Channel Bonding Ports
             #o_RXCHANBONDSEQ                  =,
