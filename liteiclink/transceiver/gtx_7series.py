@@ -274,6 +274,7 @@ class GTX(Module, AutoCSR):
         # RX receives restart commands from TX domain
         self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
             GTXRXInit(self.tx_clk_freq, buffer_enable=rx_buffer_enable))
+        self.comb += rx_init.restart.eq(self.rx_restart)
         self.comb += [
             tx_init.plllock.eq(pll.lock),
             rx_init.plllock.eq(pll.lock)
