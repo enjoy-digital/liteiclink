@@ -150,11 +150,13 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 class GTP(Module):
     def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq, data_width=20,
-                 tx_buffer_enable=False, rx_buffer_enable=False, clock_aligner=True,
+                 tx_buffer_enable=False, rx_buffer_enable=False,
+                 clock_aligner=True, clock_aligner_comma=0b0101111100,
                  tx_polarity=0, rx_polarity=0):
         assert (data_width == 20) or (data_width == 40)
 
         # TX controls
+        self.tx_ready = Signal()
         self.tx_restart = Signal()
         self.tx_disable = Signal()
         self.tx_produce_square_wave = Signal()
@@ -163,6 +165,7 @@ class GTP(Module):
         # RX controls
         self.rx_ready = Signal()
         self.rx_restart = Signal()
+        self.rx_align = Signal(reset=1)
         self.rx_prbs_config = Signal(2)
         self.rx_prbs_errors = Signal(32)
 
@@ -182,15 +185,14 @@ class GTP(Module):
             Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
 
-        # transceiver direct clock outputs
-        # useful to specify clock constraints in a way palatable to Vivado
+        # Transceiver direct clock outputs (useful to specify clock constraints)
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
         self.tx_clk_freq = qpll.config["linerate"]/data_width
         self.rx_clk_freq = qpll.config["linerate"]/data_width
 
-        # control/status cdc
+        # Control/Status CDC
         tx_produce_square_wave = Signal()
         tx_prbs_config = Signal(2)
 
@@ -209,24 +211,6 @@ class GTP(Module):
 
         # # #
 
-        # TX generates TX clock, init must be in system domain
-        self.submodules.tx_init = tx_init = GTPTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
-        self.comb += tx_init.restart.eq(self.tx_restart)
-        # RX receives restart commands from TX domain
-        self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
-            GTPRXInit(self.tx_clk_freq, buffer_enable=rx_buffer_enable))
-        self.comb += rx_init.restart.eq(self.rx_restart)
-        self.comb += [
-            tx_init.plllock.eq(qpll.lock),
-            rx_init.plllock.eq(qpll.lock),
-            qpll.reset.eq(tx_init.pllreset)
-        ]
-
-        # DRP mux
-        self.submodules.drp_mux = drp_mux = DRPMux()
-        drp_mux.add_interface(rx_init.drp)
-        drp_mux.add_interface(self.drp)
-
         assert qpll.config["linerate"] < 6.6e9
         rxcdr_cfgs = {
             1 : 0x0000107FE406001041010,
@@ -236,6 +220,34 @@ class GTP(Module):
            16 : 0x0000107FE086001041010,
         }
 
+        # TX init ----------------------------------------------------------------------------------
+        self.submodules.tx_init = tx_init = GTPTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
+        self.comb += [
+            self.tx_ready.eq(tx_init.done),
+            tx_init.restart.eq(self.tx_restart)
+        ]
+
+        # RX init ----------------------------------------------------------------------------------
+        self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
+            GTPRXInit(self.tx_clk_freq, buffer_enable=rx_buffer_enable))
+        self.comb += [
+            self.rx_ready.eq(rx_init.done),
+            rx_init.restart.eq(self.rx_restart)
+        ]
+
+        # PLL ----------------------------------------------------------------------------------
+        self.comb += [
+            tx_init.plllock.eq(qpll.lock),
+            rx_init.plllock.eq(qpll.lock),
+            qpll.reset.eq(tx_init.pllreset)
+        ]
+
+        # DRP mux ----------------------------------------------------------------------------------
+        self.submodules.drp_mux = drp_mux = DRPMux()
+        drp_mux.add_interface(rx_init.drp)
+        drp_mux.add_interface(self.drp)
+
+        # GTPE2_CHANNEL instance -------------------------------------------------------------------
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
         rxphaligndone = Signal()
@@ -693,8 +705,8 @@ class GTP(Module):
             #o_RXBYTEREALIGN                  =,
             #o_RXCOMMADET                     =,
             i_RXCOMMADETEN                   =1,
-            i_RXMCOMMAALIGNEN                =0,
-            i_RXPCOMMAALIGNEN                =0,
+            i_RXMCOMMAALIGNEN                =(self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
+            i_RXPCOMMAALIGNEN                =(self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
             i_RXSLIDE                        =0,
 
             # Receive Ports - RX Channel Bonding Ports
@@ -898,7 +910,7 @@ class GTP(Module):
             i_TXPRBSSEL                      =0,
         )
 
-        # tx clocking
+        # TX clocking ------------------------------------------------------------------------------
         tx_reset_deglitched = Signal()
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
@@ -932,7 +944,7 @@ class GTP(Module):
             txoutclk_pll.register_clkin(txoutclk_bufg, qpll.config["clkin"])
             txoutclk_pll.create_clkout(self.cd_tx, self.tx_clk_freq)
 
-        # rx clocking
+        # RX clocking ------------------------------------------------------------------------------
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
         self.sync.tx += rx_reset_deglitched.eq(~rx_init.done)
@@ -942,7 +954,7 @@ class GTP(Module):
             AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
         ]
 
-        # tx data and prbs
+        # TX Datapath and PRBS ---------------------------------------------------------------------
         self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, True))
         self.comb += self.tx_prbs.config.eq(tx_prbs_config)
         self.comb += [
@@ -955,7 +967,7 @@ class GTP(Module):
             )
         ]
 
-        # rx data and prbs
+        # TX Datapath and PRBS ---------------------------------------------------------------------
         self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
@@ -965,17 +977,15 @@ class GTP(Module):
             self.comb += self.decoders[i].input.eq(rxdata[10*i:10*(i+1)])
         self.comb += self.rx_prbs.i.eq(rxdata)
 
-        # clock alignment
+        # Clock Aligner ----------------------------------------------------------------------------
         if clock_aligner:
-            clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq, check_period=10e-3)
+            clock_aligner = BruteforceClockAligner(clock_aligner_comma, self.tx_clk_freq, check_period=10e-3)
             self.submodules.clock_aligner = clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
                 rx_init.restart.eq(clock_aligner.restart | self.rx_restart),
                 self.rx_ready.eq(clock_aligner.ready)
             ]
-        else:
-            self.comb += self.rx_ready.eq(rx_init.done)
 
     def add_stream_endpoints(self):
         self.sink = sink = stream.Endpoint([("data", self.nwords*8), ("ctrl", self.nwords)])
@@ -994,6 +1004,7 @@ class GTP(Module):
     def add_base_control(self):
         if hasattr(self, "clock_aligner"):
             self._clock_aligner_disable  = CSRStorage()
+        self._tx_ready               = CSRStatus()
         self._tx_restart             = CSR()
         self._tx_disable             = CSRStorage(reset=0b0)
         self._tx_produce_square_wave = CSRStorage(reset=0b0)
@@ -1002,6 +1013,7 @@ class GTP(Module):
         if hasattr(self, "clock_aligner"):
             self.comb += self.clock_aligner.disable.eq(self._clock_aligner_disable.storage)
         self.comb += [
+            self._tx_ready.status.eq(self.tx_ready),
             self.tx_restart.eq(self._tx_restart.re),
             self.tx_disable.eq(self._tx_disable.storage),
             self.tx_produce_square_wave.eq(self._tx_produce_square_wave.storage),

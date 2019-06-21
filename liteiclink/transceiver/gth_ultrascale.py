@@ -204,11 +204,13 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
 
 class GTH(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq, data_width=20,
-                 tx_buffer_enable=False, rx_buffer_enable=False, clock_aligner=True,
+                 tx_buffer_enable=False, rx_buffer_enable=False,
+                 clock_aligner=True, clock_aligner_comma=0b0101111100,
                  tx_polarity=0, rx_polarity=0):
         assert (data_width == 20) or (data_width == 40)
 
         # TX controls
+        self.tx_ready = Signal()
         self.tx_restart = Signal()
         self.tx_disable = Signal()
         self.tx_produce_square_wave = Signal()
@@ -217,6 +219,7 @@ class GTH(Module, AutoCSR):
         # RX controls
         self.rx_ready = Signal()
         self.rx_restart = Signal()
+        self.rx_align = Signal(reset=1)
         self.rx_prbs_config = Signal(2)
         self.rx_prbs_errors = Signal(32)
 
@@ -240,18 +243,14 @@ class GTH(Module, AutoCSR):
             Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
 
-        self.tx_ready = Signal()
-        self.rx_ready = Signal()
-
-        # transceiver direct clock outputs
-        # useful to specify clock constraints in a way palatable to Vivado
+        # Transceiver direct clock outputs (useful to specify clock constraints)
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
         self.tx_clk_freq = pll.config["linerate"]/data_width
         self.rx_clk_freq = pll.config["linerate"]/data_width
 
-        # control/status cdc
+        # Control/Status CDC
         tx_produce_square_wave = Signal()
         tx_prbs_config = Signal(2)
 
@@ -270,26 +269,34 @@ class GTH(Module, AutoCSR):
 
         # # #
 
-        # TX generates TX clock, init must be in system domain
+        # TX init ----------------------------------------------------------------------------------
         self.submodules.tx_init = tx_init = GTHTXInit(sys_clk_freq)
-        self.comb += tx_init.restart.eq(self.tx_restart)
-        # RX receives restart commands from TX domain
-        self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
-            GTHRXInit(self.tx_clk_freq))
-        self.comb += rx_init.restart.eq(self.rx_restart)
+        self.comb += [
+            self.tx_ready.eq(tx_init.done),
+            tx_init.restart.eq(self.tx_restart)
+        ]
+
+        # RX init ----------------------------------------------------------------------------------
+        self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(GTHRXInit(self.tx_clk_freq))
+        self.comb += [
+            self.rx_ready.eq(rx_init.done),
+            rx_init.restart.eq(self.rx_restart)
+        ]
+
+        # PLL ----------------------------------------------------------------------------------
         self.comb += [
             tx_init.plllock.eq(pll.lock),
             rx_init.plllock.eq(pll.lock),
             pll.reset.eq(tx_init.pllreset)
         ]
 
-        # DRP mux
+        # DRP mux ----------------------------------------------------------------------------------
         self.submodules.drp_mux = drp_mux = DRPMux()
         drp_mux.add_interface(self.drp)
 
+        # GTHE3_CHANNEL instance -------------------------------------------------------------------
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
-
         rxphaligndone = Signal()
         self.gth_params = dict(
             p_ACJTAG_DEBUG_MODE              =0b0,
@@ -793,7 +800,7 @@ class GTH(Module, AutoCSR):
             o_GTHTXN=tx_pads.n
         )
 
-        # tx clocking
+        # TX clocking ------------------------------------------------------------------------------
         tx_reset_deglitched = Signal()
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
@@ -809,7 +816,7 @@ class GTH(Module, AutoCSR):
             AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
         ]
 
-        # rx clocking
+        # RX clocking ------------------------------------------------------------------------------
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
         self.sync.tx += rx_reset_deglitched.eq(~rx_init.done)
@@ -819,7 +826,7 @@ class GTH(Module, AutoCSR):
             AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
         ]
 
-        # tx data and prbs
+        # TX Datapath and PRBS ---------------------------------------------------------------------
         self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, True))
         self.comb += self.tx_prbs.config.eq(tx_prbs_config)
         self.comb += [
@@ -832,7 +839,7 @@ class GTH(Module, AutoCSR):
             )
         ]
 
-        # rx data and prbs
+        # TX Datapath and PRBS ---------------------------------------------------------------------
         self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
@@ -842,17 +849,15 @@ class GTH(Module, AutoCSR):
             self.comb += self.decoders[i].input.eq(rxdata[10*i:10*(i+1)])
         self.comb += self.rx_prbs.i.eq(rxdata)
 
-        # clock alignment
+        # Clock Aligner ----------------------------------------------------------------------------
         if clock_aligner:
-            clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq)
-            self.submodules += clock_aligner
+            clock_aligner = BruteforceClockAligner(clock_aligner_comma, self.tx_clk_freq)
+            self.submodules.clock_aligner = clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
                 rx_init.restart.eq(clock_aligner.restart | self.rx_restart),
                 self.rx_ready.eq(clock_aligner.ready)
             ]
-        else:
-            self.comb += self.rx_ready.eq(rx_init.done)
 
     def add_stream_endpoints(self):
         self.sink = sink = stream.Endpoint([("data", self.nwords*8), ("ctrl", self.nwords)])
@@ -869,12 +874,18 @@ class GTH(Module, AutoCSR):
             ]
 
     def add_base_control(self):
+        if hasattr(self, "clock_aligner"):
+            self._clock_aligner_disable  = CSRStorage()
+        self._tx_ready               = CSRStatus()
         self._tx_restart             = CSR()
         self._tx_disable             = CSRStorage(reset=0b0)
         self._tx_produce_square_wave = CSRStorage(reset=0b0)
         self._rx_ready               = CSRStatus()
         self._rx_restart             = CSR()
+        if hasattr(self, "clock_aligner"):
+            self.comb += self.clock_aligner.disable.eq(self._clock_aligner_disable.storage)
         self.comb += [
+            self._tx_ready.status.eq(self.tx_ready),
             self.tx_restart.eq(self._tx_restart.re),
             self.tx_disable.eq(self._tx_disable.storage),
             self.tx_produce_square_wave.eq(self._tx_produce_square_wave.storage),

@@ -204,12 +204,14 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
 
 class GTX(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq, data_width=20,
-                 tx_buffer_enable=False, rx_buffer_enable=False, clock_aligner=True,
+                 tx_buffer_enable=False, rx_buffer_enable=False,
+                 clock_aligner=True, clock_aligner_comma=0b0101111100,
                  tx_polarity=0, rx_polarity=0,
                  pll_master=True):
         assert (data_width == 20) or (data_width == 40)
 
         # TX controls
+        self.tx_ready = Signal()
         self.tx_restart = Signal()
         self.tx_disable = Signal()
         self.tx_produce_square_wave = Signal()
@@ -238,15 +240,14 @@ class GTX(Module, AutoCSR):
             Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
 
-        # transceiver direct clock outputs
-        # useful to specify clock constraints in a way palatable to Vivado
+        # Transceiver direct clock outputs (useful to specify clock constraints)
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
         self.tx_clk_freq = pll.config["linerate"]/data_width
         self.rx_clk_freq = pll.config["linerate"]/data_width
 
-        # control/status cdc
+        # Control/Status CDC
         tx_produce_square_wave = Signal()
         tx_prbs_config = Signal(2)
 
@@ -268,24 +269,6 @@ class GTX(Module, AutoCSR):
         use_cpll = isinstance(pll, GTXChannelPLL)
         use_qpll = isinstance(pll, GTXQuadPLL)
 
-        # TX generates TX clock, init must be in system domain
-        self.submodules.tx_init = tx_init = GTXTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
-        self.comb += tx_init.restart.eq(self.tx_restart)
-        # RX receives restart commands from TX domain
-        self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
-            GTXRXInit(self.tx_clk_freq, buffer_enable=rx_buffer_enable))
-        self.comb += rx_init.restart.eq(self.rx_restart)
-        self.comb += [
-            tx_init.plllock.eq(pll.lock),
-            rx_init.plllock.eq(pll.lock)
-        ]
-        if pll_master:
-            self.comb += pll.reset.eq(tx_init.pllreset)
-
-        # DRP mux
-        self.submodules.drp_mux = drp_mux = DRPMux()
-        drp_mux.add_interface(self.drp)
-
         rxcdr_cfgs = {
             1 : 0x03000023ff10400020,
             2 : 0x03000023ff10200020,
@@ -294,9 +277,36 @@ class GTX(Module, AutoCSR):
            16 : 0x03000023ff10080020,
         }
 
+        # TX init ----------------------------------------------------------------------------------
+        self.submodules.tx_init = tx_init = GTXTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
+        self.comb += [
+            self.tx_ready.eq(tx_init.done),
+            tx_init.restart.eq(self.tx_restart)
+        ]
+
+        # RX init ----------------------------------------------------------------------------------
+        self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
+            GTXRXInit(self.tx_clk_freq, buffer_enable=rx_buffer_enable))
+        self.comb += [
+            self.rx_ready.eq(rx_init.done),
+            rx_init.restart.eq(self.rx_restart)
+        ]
+
+        # PLL ----------------------------------------------------------------------------------
+        self.comb += [
+            tx_init.plllock.eq(pll.lock),
+            rx_init.plllock.eq(pll.lock)
+        ]
+        if pll_master:
+            self.comb += pll.reset.eq(tx_init.pllreset)
+
+        # DRP mux ----------------------------------------------------------------------------------
+        self.submodules.drp_mux = drp_mux = DRPMux()
+        drp_mux.add_interface(self.drp)
+
+        # GTXE2_CHANNEL instance -------------------------------------------------------------------
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
-
         self.gtx_params = dict(
             # Simulation-Only Attributes
             p_SIM_RECEIVER_DETECT_PASS   ="TRUE",
@@ -929,7 +939,7 @@ class GTX(Module, AutoCSR):
             #o_TXQPISENP                      =,
             )
 
-        # tx clocking
+        # TX clocking ------------------------------------------------------------------------------
         tx_reset_deglitched = Signal()
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
@@ -963,7 +973,7 @@ class GTX(Module, AutoCSR):
             txoutclk_pll.register_clkin(txoutclk_bufg, pll.config["clkin"])
             txoutclk_pll.create_clkout(self.cd_tx, self.tx_clk_freq)
 
-        # rx clocking
+        # RX clocking ------------------------------------------------------------------------------
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
         self.sync.tx += rx_reset_deglitched.eq(~rx_init.done)
@@ -973,7 +983,7 @@ class GTX(Module, AutoCSR):
             AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
         ]
 
-        # tx data and prbs
+        # TX Datapath and PRBS ---------------------------------------------------------------------
         self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, True))
         self.comb += self.tx_prbs.config.eq(tx_prbs_config)
         self.comb += [
@@ -986,7 +996,7 @@ class GTX(Module, AutoCSR):
             )
         ]
 
-        # rx data and prbs
+        # TX Datapath and PRBS ---------------------------------------------------------------------
         self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
@@ -996,17 +1006,15 @@ class GTX(Module, AutoCSR):
             self.comb += self.decoders[i].input.eq(rxdata[10*i:10*(i+1)])
         self.comb += self.rx_prbs.i.eq(rxdata)
 
-        # clock alignment
+        # Clock Aligner ----------------------------------------------------------------------------
         if clock_aligner:
-            clock_aligner = BruteforceClockAligner(0b0101111100, self.tx_clk_freq)
+            clock_aligner = BruteforceClockAligner(clock_aligner_comma, self.tx_clk_freq)
             self.submodules.clock_aligner = clock_aligner
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
                 rx_init.restart.eq(clock_aligner.restart | self.rx_restart),
                 self.rx_ready.eq(clock_aligner.ready)
             ]
-        else:
-            self.comb += self.rx_ready.eq(rx_init.done)
 
     def add_stream_endpoints(self):
         self.sink = sink = stream.Endpoint([("data", self.nwords*8), ("ctrl", self.nwords)])
@@ -1025,6 +1033,7 @@ class GTX(Module, AutoCSR):
     def add_base_control(self):
         if hasattr(self, "clock_aligner"):
             self._clock_aligner_disable  = CSRStorage()
+        self._tx_ready               = CSRStatus()
         self._tx_restart             = CSR()
         self._tx_disable             = CSRStorage(reset=0b0)
         self._tx_produce_square_wave = CSRStorage(reset=0b0)
@@ -1033,6 +1042,7 @@ class GTX(Module, AutoCSR):
         if hasattr(self, "clock_aligner"):
             self.comb += self.clock_aligner.disable.eq(self._clock_aligner_disable.storage)
         self.comb += [
+            self._tx_ready.status.eq(self.tx_ready),
             self.tx_restart.eq(self._tx_restart.re),
             self.tx_disable.eq(self._tx_disable.storage),
             self.tx_produce_square_wave.eq(self._tx_produce_square_wave.storage),
