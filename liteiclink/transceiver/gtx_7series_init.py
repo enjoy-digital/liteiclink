@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2018-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 from math import ceil
@@ -11,9 +11,8 @@ from migen.genlib.misc import WaitTimer
 __all__ = ["GTXTXInit", "GTXRXInit"]
 
 
-
 class GTXInit(Module):
-    def __init__(self, sys_clk_freq, rx, buffer_enable):
+    def __init__(self, sys_clk_freq, buffer_enable):
         self.done = Signal()
         self.restart = Signal()
 
@@ -46,6 +45,12 @@ class GTXInit(Module):
             MultiReg(self.Xxphaligndone, Xxphaligndone)
         ]
 
+        # Detect Xxphaligndone rising edge
+        Xxphaligndone_r = Signal(reset=1)
+        Xxphaligndone_rising = Signal()
+        self.sync += Xxphaligndone_r.eq(Xxphaligndone)
+        self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
+
         # Deglitch FSM outputs driving transceiver asynch inputs
         gtXxreset = Signal()
         gtXxpd = Signal()
@@ -58,118 +63,106 @@ class GTXInit(Module):
             self.Xxuserrdy.eq(Xxuserrdy)
         ]
 
-        # After configuration, transceiver resets have to stay low for
-        # at least 500ns (see AR43482)
-        startup_cycles = ceil(500*sys_clk_freq/1000000000)
-        startup_timer = WaitTimer(startup_cycles)
-        self.submodules += startup_timer
-
-        startup_fsm = ResetInserter()(FSM(reset_state="GTP_PD"))
-        self.submodules.startup_fsm = startup_fsm
-
-        ready_timer = WaitTimer(int(sys_clk_freq/1000))
-        self.submodules += ready_timer
-        self.comb += [
-            ready_timer.wait.eq(~self.done & ~startup_fsm.reset),
-            startup_fsm.reset.eq(self.restart | ready_timer.done)
-        ]
-
-        if rx:
-            cdr_stable_timer = WaitTimer(1024)
-            self.submodules += cdr_stable_timer
-
-        Xxphaligndone_r = Signal(reset=1)
-        Xxphaligndone_rising = Signal()
-        self.sync += Xxphaligndone_r.eq(Xxphaligndone)
-        self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
-
-        startup_fsm.act("GTP_PD",
+        # FSM
+        fsm = ResetInserter()(FSM(reset_state="POWER-DOWN"))
+        self.submodules.fsm = fsm
+        fsm.act("POWER-DOWN",
             gtXxreset.eq(1),
             gtXxpd.eq(1),
             self.pllreset.eq(1),
-            startup_timer.wait.eq(1),
-            NextState("RESET_ALL")
+            NextState("DRP")
         )
-        startup_fsm.act("RESET_ALL",
+        fsm.act("DRP",
             gtXxreset.eq(1),
             self.pllreset.eq(1),
-            startup_timer.wait.eq(1),
             self.drp_start.eq(1),
-            NextState("WAIT_DRP")
-        )
-        startup_fsm.act("WAIT_DRP",
-            gtXxreset.eq(1),
-            self.pllreset.eq(1),
             If(self.drp_done,
-                NextState("RELEASE_PLL_RESET")
+                NextState("WAIT-PLL-RESET")
             )
         )
-        startup_fsm.act("RELEASE_PLL_RESET",
+        fsm.act("WAIT-PLL-RESET",
             gtXxreset.eq(1),
-            startup_timer.wait.eq(1),
-            If(plllock & startup_timer.done, NextState("RELEASE_GTX_RESET"))
+            If(plllock,
+                NextState("WAIT-INIT-DELAY")
+            )
         )
-        # Release GTX reset and wait for GTX resetdone
-        # (from UG476, GTX is reset on falling edge
-        # of gtXxreset)
-        if rx:
-            startup_fsm.act("RELEASE_GTX_RESET",
-                Xxuserrdy.eq(1),
-                cdr_stable_timer.wait.eq(1),
-                If(Xxresetdone & cdr_stable_timer.done,
-                    If(buffer_enable,
-                        NextState("READY")
-                    ).Else(
-                        NextState("ALIGN")
-                    )
+        # Wait 500ns after configuration before releasing
+        # GTX reset (to follow AR43482)
+        init_delay = WaitTimer(int(500e-9*sys_clk_freq))
+        self.submodules += init_delay
+        self.comb += init_delay.wait.eq(1)
+        fsm.act("WAIT-INIT-DELAY",
+            gtXxreset.eq(1),
+            If(init_delay.done,
+                NextState("WAIT-GTX-RESET")
+            )
+        )
+        fsm.act("WAIT-GTX-RESET",
+            Xxuserrdy.eq(1),
+            If(Xxresetdone,
+                NextState("WAIT-CDR-LOCK")
+            )
+        )
+        # Wait for clock recovery lock (only
+        # needed for RX but we also do it for TX
+        cdr_lock_timer = WaitTimer(1024)
+        self.submodules += cdr_lock_timer
+        fsm.act("WAIT-CDR-LOCK",
+            Xxuserrdy.eq(1),
+            cdr_lock_timer.wait.eq(1),
+            If(cdr_lock_timer.done,
+                If(buffer_enable,
+                    NextState("READY")
+                ).Else(
+                    NextState("ALIGN")
                 )
             )
-        else:
-            startup_fsm.act("RELEASE_GTX_RESET",
-                Xxuserrdy.eq(1),
-                If(Xxresetdone,
-                    If(buffer_enable,
-                        NextState("READY")
-                    ).Else(
-                        NextState("ALIGN")
-                    )
-                )
-            )
-        # Start delay alignment (pulse)
-        startup_fsm.act("ALIGN",
+        )
+        fsm.act("ALIGN",
             Xxuserrdy.eq(1),
             Xxdlysreset.eq(1),
-            NextState("WAIT_ALIGN")
+            NextState("WAIT-ALIGN")
         )
-        # Wait for delay alignment
-        startup_fsm.act("WAIT_ALIGN",
+        fsm.act("WAIT-ALIGN",
             Xxuserrdy.eq(1),
             If(Xxdlysresetdone,
-                NextState("WAIT_FIRST_ALIGN_DONE")
+                NextState("WAIT-FIRST-ALIGN-DONE")
             )
         )
-        # Wait 2 rising edges of Xxphaligndone
-        # (from UG476 in buffer bypass config)
-        startup_fsm.act("WAIT_FIRST_ALIGN_DONE",
+        # Align done after 2 rising edges of Xxphaligndone
+        # (UG476 / buffer bypass config mode)
+        fsm.act("WAIT-FIRST-ALIGN-DONE",
             Xxuserrdy.eq(1),
-            If(Xxphaligndone_rising, NextState("WAIT_SECOND_ALIGN_DONE"))
+            If(Xxphaligndone_rising,
+                NextState("WAIT-SECOND-ALIGN-DONE")
+            )
         )
-        startup_fsm.act("WAIT_SECOND_ALIGN_DONE",
+        fsm.act("WAIT-SECOND-ALIGN-DONE",
             Xxuserrdy.eq(1),
-            If(Xxphaligndone_rising, NextState("READY"))
+            If(Xxphaligndone_rising,
+                NextState("READY")
+            )
         )
-        startup_fsm.act("READY",
+        fsm.act("READY",
             Xxuserrdy.eq(1),
             self.done.eq(1),
-            If(self.restart, NextState("GTP_PD"))
+            If(self.restart,
+                NextState("POWER-DOWN")
+            )
         )
+
+        # FSM watchdog / restart
+        watchdog = WaitTimer(int(1e-3*sys_clk_freq))
+        self.submodules += watchdog
+        self.comb += [
+            watchdog.wait.eq(~fsm.reset & ~self.done),
+            fsm.reset.eq(self.restart | watchdog.done)
+        ]
 
 
 class GTXTXInit(GTXInit):
-    def __init__(self, sys_clk_freq, buffer_enable=False):
-        GTXInit.__init__(self, sys_clk_freq, rx=False, buffer_enable=buffer_enable)
+    pass
 
 
 class GTXRXInit(GTXInit):
-    def __init__(self, sys_clk_freq, buffer_enable=False):
-        GTXInit.__init__(self, sys_clk_freq, rx=True, buffer_enable=buffer_enable)
+    pass
