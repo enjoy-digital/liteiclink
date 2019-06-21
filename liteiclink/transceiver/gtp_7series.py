@@ -704,8 +704,8 @@ class GTP(Module):
             #o_RXBYTEREALIGN                  =,
             #o_RXCOMMADET                     =,
             i_RXCOMMADETEN                   =1,
-            i_RXMCOMMAALIGNEN                =(self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
-            i_RXPCOMMAALIGNEN                =(self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
+            i_RXMCOMMAALIGNEN                =(~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
+            i_RXPCOMMAALIGNEN                =(~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
             i_RXSLIDE                        =0,
 
             # Receive Ports - RX Channel Bonding Ports
@@ -985,7 +985,7 @@ class GTP(Module):
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
                 ps_restart.i.eq(clock_aligner.restart),
-                rx_init.restart.eq(ps_restart.o | self.rx_restart),
+                rx_init.restart.eq((ps_restart.o & self.rx_align) | self.rx_restart),
                 self.rx_ready.eq(clock_aligner.ready)
             ]
 

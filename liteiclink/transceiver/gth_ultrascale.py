@@ -858,7 +858,7 @@ class GTH(Module, AutoCSR):
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
                 ps_restart.i.eq(clock_aligner.restart),
-                rx_init.restart.eq(ps_restart.o | self.rx_restart),
+                rx_init.restart.eq((ps_restart.o & self.rx_align) | self.rx_restart),
                 self.rx_ready.eq(clock_aligner.ready)
             ]
 
