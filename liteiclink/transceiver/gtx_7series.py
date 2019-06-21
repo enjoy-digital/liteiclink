@@ -2,7 +2,7 @@
 # License: BSD
 
 from migen import *
-from migen.genlib.cdc import MultiReg
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.soc.cores.clock import *
@@ -285,8 +285,7 @@ class GTX(Module, AutoCSR):
         ]
 
         # RX init ----------------------------------------------------------------------------------
-        self.submodules.rx_init = rx_init = ClockDomainsRenamer("tx")(
-            GTXRXInit(self.tx_clk_freq, buffer_enable=rx_buffer_enable))
+        self.submodules.rx_init = rx_init = GTXRXInit(sys_clk_freq, buffer_enable=rx_buffer_enable)
         self.comb += [
             self.rx_ready.eq(rx_init.done),
             rx_init.restart.eq(self.rx_restart)
@@ -1010,9 +1009,12 @@ class GTX(Module, AutoCSR):
         if clock_aligner:
             clock_aligner = BruteforceClockAligner(clock_aligner_comma, self.tx_clk_freq)
             self.submodules.clock_aligner = clock_aligner
+            ps_restart = PulseSynchronizer("tx", "sys")
+            self.submodules += ps_restart
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
-                rx_init.restart.eq(clock_aligner.restart | self.rx_restart),
+                ps_restart.i.eq(clock_aligner.restart),
+                rx_init.restart.eq(ps_restart.o | self.rx_restart),
                 self.rx_ready.eq(clock_aligner.ready)
             ]
 
