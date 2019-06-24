@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# This file is Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 import sys
 
 from migen import *
@@ -157,7 +161,7 @@ class SERDESTestSoC(BaseSoC):
         self.register_mem("serwb", self.mem_map["serwb"], serwb_master_core.etherbone.wishbone.bus, 8192)
         self.submodules.serwb_sram = wishbone.SRAM(8192, init=[i for i in range(8192//4)])
         self.comb += serwb_slave_core.etherbone.wishbone.bus.connect(self.serwb_sram.bus)
-        
+
         # analyzer
         if with_analyzer:
             converter_group = [

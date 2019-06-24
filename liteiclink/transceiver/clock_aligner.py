@@ -1,3 +1,5 @@
+# This file is Copyright (c) 2017 Sebastien Bourdeauducq <sb@m-labs.hk>
+
 from math import ceil
 from functools import reduce
 from operator import add

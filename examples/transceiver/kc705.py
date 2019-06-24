@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# This file is Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# License: BSD
+
 import sys
 
 from migen import *
@@ -15,7 +19,7 @@ from liteiclink.transceiver.gtx_7series import GTXChannelPLL, GTXQuadPLL, GTX
 
 
 class GTXTestSoC(SoCCore):
-    def __init__(self, platform, use_qpll=True):
+    def __init__(self, platform, use_qpll=False):
         sys_clk_freq = int(156e9)
         SoCCore.__init__(self, platform, sys_clk_freq, cpu_type=None)
         clk156 = platform.request("clk156")
@@ -35,7 +39,7 @@ class GTXTestSoC(SoCCore):
 
         # pll
         pll_cls = GTXQuadPLL if use_qpll else GTXChannelPLL
-        pll = pll_cls(refclk, 125e6, 1.25e9)
+        pll = pll_cls(refclk, 125e6, 2.50e9)
         print(pll)
         self.submodules += pll
 
@@ -43,7 +47,11 @@ class GTXTestSoC(SoCCore):
         self.comb += platform.request("sfp_tx_disable_n").eq(1)
         tx_pads = platform.request("sfp_tx")
         rx_pads = platform.request("sfp_rx")
-        gtx = GTX(pll, tx_pads, rx_pads, sys_clk_freq, clock_aligner=True)
+        gtx = GTX(pll, tx_pads, rx_pads, sys_clk_freq,
+            data_width=40,
+            clock_aligner=False,
+            tx_buffer_enable=True,
+            rx_buffer_enable=True)
         gtx.add_controls()
         self.submodules += gtx
 

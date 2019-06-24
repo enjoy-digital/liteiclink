@@ -1,4 +1,5 @@
-# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2017 Sebastien Bourdeauducq <sb@m-labs.hk>
 # License: BSD
 
 from migen import *

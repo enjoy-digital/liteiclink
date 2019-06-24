@@ -1,4 +1,4 @@
-# This file is Copyright (c) 2018 Florent Kermarrec <florent@enjoy-digital.fr>
+# This file is Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
 from math import ceil
