@@ -104,7 +104,11 @@ class GTPTestSoC(SoCCore):
             rx_pads = platform.request("sfp_rx", 1)
         else:
             raise ValueError
-        gtp = GTP(qpll, tx_pads, rx_pads, sys_clk_freq, clock_aligner=True)
+        gtp = GTP(qpll, tx_pads, rx_pads, sys_clk_freq,
+            data_width=20,
+            clock_aligner=False,
+            tx_buffer_enable=True,
+            rx_buffer_enable=True)
         gtp.add_controls()
         self.submodules += gtp
 
@@ -115,13 +119,14 @@ class GTPTestSoC(SoCCore):
         self.comb += [
             gtp.encoder.k[0].eq(1),
             gtp.encoder.d[0].eq((5 << 5) | 28),
-            gtp.encoder.k[1].eq(0)
+            gtp.encoder.k[1].eq(0),
+            gtp.encoder.d[1].eq(counter[26:]),
         ]
 
         self.crg.cd_sys.clk.attr.add("keep")
         gtp.cd_tx.clk.attr.add("keep")
         gtp.cd_rx.clk.attr.add("keep")
-        platform.add_period_constraint(self.crg.cd_sys.clk, 10)
+        platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/100e6)
         platform.add_period_constraint(gtp.cd_tx.clk, 1e9/gtp.tx_clk_freq)
         platform.add_period_constraint(gtp.cd_rx.clk, 1e9/gtp.rx_clk_freq)
         self.platform.add_false_path_constraints(
@@ -129,18 +134,8 @@ class GTPTestSoC(SoCCore):
             gtp.cd_tx.clk,
             gtp.cd_rx.clk)
 
-        tx_counter_led = Signal()
-        tx_counter = Signal(32)
-        self.sync.tx += tx_counter.eq(tx_counter + 1)
-        self.comb += tx_counter_led.eq(tx_counter[26])
-
-        rx_counter_led = Signal()
-        rx_counter = Signal(32)
-        self.sync.rx += rx_counter.eq(rx_counter + 1)
-        self.comb += rx_counter_led.eq(rx_counter[26])
-
-        self.comb += platform.request("user_led", 0).eq(tx_counter_led)
-        self.comb += platform.request("user_led", 1).eq(rx_counter_led)
+        self.comb += platform.request("user_led", 0).eq(gtp.decoders[1].d[0])
+        self.comb += platform.request("user_led", 1).eq(gtp.decoders[1].d[1])
 
 
 def main():
