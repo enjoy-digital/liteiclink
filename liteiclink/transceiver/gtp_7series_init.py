@@ -22,6 +22,7 @@ class GTPTXInit(Module):
         self.plllock = Signal()
         self.pllreset = Signal()
         self.gttxreset = Signal()
+        self.gttxpd = Signal()
         self.txresetdone = Signal()
         self.txdlysreset = Signal()
         self.txdlysresetdone = Signal()
@@ -54,6 +55,7 @@ class GTPTXInit(Module):
 
         # Deglitch FSM outputs driving transceiver asynch inputs
         gttxreset = Signal()
+        gttxpd = Signal()
         txdlysreset = Signal()
         txphinit = Signal()
         txphalign = Signal()
@@ -61,6 +63,7 @@ class GTPTXInit(Module):
         txuserrdy = Signal()
         self.sync += [
             self.gttxreset.eq(gttxreset),
+            self.gttxpd.eq(gttxpd),
             self.txdlysreset.eq(txdlysreset),
             self.txphinit.eq(txphinit),
             self.txphalign.eq(txphalign),
@@ -68,50 +71,47 @@ class GTPTXInit(Module):
             self.txuserrdy.eq(txuserrdy)
         ]
 
-        # PLL reset must be at least 500us
-        pll_reset_cycles = ceil(500e-9*sys_clk_freq)
-        pll_reset_timer = WaitTimer(pll_reset_cycles)
-        self.submodules += pll_reset_timer
-
-        startup_fsm = ResetInserter()(FSM(reset_state="PLL_RESET"))
-        self.submodules.startup_fsm = startup_fsm
-
-        ready_timer = WaitTimer(int(1e-3*sys_clk_freq))
-        self.submodules += ready_timer
-        self.comb += [
-            ready_timer.wait.eq(~self.done & ~startup_fsm.reset),
-            startup_fsm.reset.eq(self.restart | ready_timer.done)
-        ]
-
+        # Detect txphaligndone rising edge
         txphaligndone_r = Signal(reset=1)
         txphaligndone_rising = Signal()
         self.sync += txphaligndone_r.eq(txphaligndone)
         self.comb += txphaligndone_rising.eq(txphaligndone & ~txphaligndone_r)
 
-        startup_fsm.act("PLL_RESET",
+        # FSM
+        fsm = ResetInserter()(FSM(reset_state="POWER-DOWN"))
+        self.submodules.fsm = fsm
+        fsm.act("POWER-DOWN",
+            gttxreset.eq(1),
+            gttxpd.eq(1),
             self.pllreset.eq(1),
-            pll_reset_timer.wait.eq(1),
-            If(pll_reset_timer.done,
-                NextState("GTP_RESET")
+            NextState("DRP")
+        )
+        fsm.act("DRP",
+            gttxreset.eq(1),
+            self.pllreset.eq(1),
+            self.drp_start.eq(1),
+            If(self.drp_done,
+                NextState("WAIT-PLL-RESET")
             )
         )
-        startup_fsm.act("GTP_RESET",
+        fsm.act("WAIT-PLL-RESET",
             gttxreset.eq(1),
             If(plllock,
-                self.drp_start.eq(1),
-                NextState("WAIT_DRP")
+                NextState("WAIT-INIT-DELAY")
             )
         )
-        startup_fsm.act("WAIT_DRP",
+        # Wait 500ns after configuration before releasing
+        # GTP reset (to follow AR43482)
+        init_delay = WaitTimer(int(500e-9*sys_clk_freq))
+        self.submodules += init_delay
+        self.comb += init_delay.wait.eq(1)
+        fsm.act("WAIT-INIT-DELAY",
             gttxreset.eq(1),
-            If(self.drp_done,
-                NextState("WAIT_GTP_RESET_DONE")
+            If(init_delay.done,
+                NextState("WAIT-GTP-RESET")
             )
         )
-        # Release GTP reset and wait for GTP resetdone
-        # (from UG482, GTP is reset on falling edge
-        # of gttxreset)
-        startup_fsm.act("WAIT_GTP_RESET_DONE",
+        fsm.act("WAIT-GTP-RESET",
             txuserrdy.eq(1),
             If(txresetdone,
                 If(buffer_enable,
@@ -121,44 +121,52 @@ class GTPTXInit(Module):
                 )
             )
         )
-        # Start delay alignment
-        startup_fsm.act("ALIGN",
+        fsm.act("ALIGN",
             txuserrdy.eq(1),
             txdlysreset.eq(1),
             If(txdlysresetdone,
-                NextState("PHALIGN")
+                NextState("WAIT-ALIGN")
             )
         )
-        # Start phase alignment
-        startup_fsm.act("PHALIGN",
+        fsm.act("WAIT-ALIGN",
             txuserrdy.eq(1),
             txphinit.eq(1),
             If(txphinitdone,
-                NextState("WAIT_FIRST_ALIGN_DONE")
+                NextState("WAIT-FIRST-ALIGN-DONE")
             )
         )
-        # Wait 2 rising edges of Xxphaligndone
-        # (from UG482 in TX Buffer Bypass in Single-Lane Auto Mode)
-        startup_fsm.act("WAIT_FIRST_ALIGN_DONE",
+        # Align done after 2 rising edges of Xxphaligndone
+        # (UG482 / buffer bypass config mode)
+        fsm.act("WAIT-FIRST-ALIGN-DONE",
             txuserrdy.eq(1),
             txphalign.eq(1),
             If(txphaligndone_rising,
-                NextState("WAIT_SECOND_ALIGN_DONE")
+                NextState("WAIT-SECOND-ALIGN-DONE")
             )
         )
-        startup_fsm.act("WAIT_SECOND_ALIGN_DONE",
+        fsm.act("WAIT-SECOND-ALIGN-DONE",
             txuserrdy.eq(1),
             txdlyen.eq(1),
             If(txphaligndone_rising,
                 NextState("READY")
             )
         )
-        startup_fsm.act("READY",
+        fsm.act("READY",
             txuserrdy.eq(1),
             txdlyen.eq(1),
             self.done.eq(1),
-            If(self.restart, NextState("PLL_RESET"))
+            If(self.restart,
+                NextState("POWER-DOWN")
+            )
         )
+
+        # FSM watchdog / restart
+        watchdog = WaitTimer(int(1e-3*sys_clk_freq))
+        self.submodules += watchdog
+        self.comb += [
+            watchdog.wait.eq(~fsm.reset & ~self.done),
+            fsm.reset.eq(self.restart | watchdog.done)
+        ]
 
 
 class GTPRXInit(Module):
@@ -225,86 +233,70 @@ class GTPRXInit(Module):
             self.rxuserrdy.eq(rxuserrdy)
         ]
 
-        # After configuration, transceiver resets have to stay low for
-        # at least 500ns (see AR43482)
-        pll_reset_cycles = ceil(500e-9*sys_clk_freq)
-        pll_reset_timer = WaitTimer(pll_reset_cycles)
-        self.submodules += pll_reset_timer
-
-        startup_fsm = ResetInserter()(FSM(reset_state="GTP_PD"))
-        self.submodules.startup_fsm = startup_fsm
-
-        ready_timer = WaitTimer(int(4e-3*sys_clk_freq))
-        self.submodules += ready_timer
-        self.comb += [
-            ready_timer.wait.eq(~self.done & ~startup_fsm.reset),
-            startup_fsm.reset.eq(self.restart | ready_timer.done)
-        ]
-
-        cdr_stable_timer = WaitTimer(1024)
-        self.submodules += cdr_stable_timer
-
-        startup_fsm.act("GTP_PD",
-            pll_reset_timer.wait.eq(1),
-            gtrxpd.eq(1),
-            If(pll_reset_timer.done,
-                NextState("GTP_RESET")
-            )
-        )
-        startup_fsm.act("GTP_RESET",
+        fsm = ResetInserter()(FSM(reset_state="POWER-DOWN"))
+        self.submodules.fsm = fsm
+        fsm.act("POWER-DOWN",
             gtrxreset.eq(1),
+            gtrxpd.eq(1),
             NextState("DRP_READ_ISSUE")
         )
-        startup_fsm.act("DRP_READ_ISSUE",
+        # Wait 500ns after configuration before releasing
+        # GTP reset (to follow AR43482)
+        init_delay = WaitTimer(int(500e-9*sys_clk_freq))
+        self.submodules += init_delay
+        self.comb += init_delay.wait.eq(1)
+        fsm.act("DRP_READ_ISSUE",
+            gtrxreset.eq(1),
+            If(init_delay.done,
+                NextState("DRP_READ_ISSUE")
+            )
+        )
+        fsm.act("DRP_READ_ISSUE",
             gtrxreset.eq(1),
             self.drp.en.eq(1),
             NextState("DRP_READ_WAIT")
         )
-        startup_fsm.act("DRP_READ_WAIT",
+        fsm.act("DRP_READ_WAIT",
             gtrxreset.eq(1),
             If(self.drp.rdy,
                 NextValue(drpvalue, self.drp.do),
                 NextState("DRP_MOD_ISSUE")
             )
         )
-        startup_fsm.act("DRP_MOD_ISSUE",
+        fsm.act("DRP_MOD_ISSUE",
             gtrxreset.eq(1),
             drpmask.eq(1),
             self.drp.en.eq(1),
             self.drp.we.eq(1),
             NextState("DRP_MOD_WAIT")
         )
-        startup_fsm.act("DRP_MOD_WAIT",
+        fsm.act("DRP_MOD_WAIT",
             gtrxreset.eq(1),
             If(self.drp.rdy,
                 NextState("WAIT_PMARST_FALL")
             )
         )
-        startup_fsm.act("WAIT_PMARST_FALL",
+        fsm.act("WAIT_PMARST_FALL",
             rxuserrdy.eq(1),
             If(rxpmaresetdone_r & ~rxpmaresetdone,
                 NextState("DRP_RESTORE_ISSUE")
             )
         )
-        startup_fsm.act("DRP_RESTORE_ISSUE",
+        fsm.act("DRP_RESTORE_ISSUE",
             rxuserrdy.eq(1),
             self.drp.en.eq(1),
             self.drp.we.eq(1),
             NextState("DRP_RESTORE_WAIT")
         )
-        startup_fsm.act("DRP_RESTORE_WAIT",
+        fsm.act("DRP_RESTORE_WAIT",
             rxuserrdy.eq(1),
             If(self.drp.rdy,
-                NextState("WAIT_GTP_RESET_DONE")
+                NextState("WAIT-GTP-RESET")
             )
         )
-        # Release GTP reset and wait for GTP resetdone
-        # (from UG482, GTP is reset on falling edge
-        # of gtrxreset)
-        startup_fsm.act("WAIT_GTP_RESET_DONE",
+        fsm.act("WAIT-GTP-RESET",
             rxuserrdy.eq(1),
-            cdr_stable_timer.wait.eq(1),
-            If(rxresetdone & cdr_stable_timer.done,
+            If(rxresetdone,
                 If(buffer_enable,
                     NextState("READY")
                 ).Else(
@@ -312,25 +304,31 @@ class GTPRXInit(Module):
                 )
             )
         )
-        # Start delay alignment
-        startup_fsm.act("ALIGN",
+        fsm.act("ALIGN",
             rxuserrdy.eq(1),
             rxdlysreset.eq(1),
             If(rxdlysresetdone,
                 NextState("WAIT_ALIGN_DONE")
             )
         )
-        # Wait for delay alignment
-        startup_fsm.act("WAIT_ALIGN_DONE",
+        fsm.act("WAIT_ALIGN_DONE",
             rxuserrdy.eq(1),
             If(rxsyncdone,
                 NextState("READY")
             )
         )
-        startup_fsm.act("READY",
+        fsm.act("READY",
             rxuserrdy.eq(1),
             self.done.eq(1),
             If(self.restart,
-                NextState("GTP_PD")
+                NextState("POWER-DOWN")
             )
         )
+
+        # FSM watchdog / restart
+        watchdog = WaitTimer(int(4e-3*sys_clk_freq))
+        self.submodules += watchdog
+        self.comb += [
+            watchdog.wait.eq(~fsm.reset & ~self.done),
+            fsm.reset.eq(self.restart | watchdog.done)
+        ]
