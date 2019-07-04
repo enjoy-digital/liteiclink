@@ -211,15 +211,15 @@ class GTH(Module, AutoCSR):
         assert (data_width == 20) or (data_width == 40)
 
         # TX controls
+        self.tx_enable = Signal()
         self.tx_ready = Signal()
-        self.tx_restart = Signal()
-        self.tx_disable = Signal()
+        self.tx_inhibit = Signal()
         self.tx_produce_square_wave = Signal()
         self.tx_prbs_config = Signal(2)
 
         # RX controls
+        self.rx_enable = Signal()
         self.rx_ready = Signal()
-        self.rx_restart = Signal()
         self.rx_align = Signal(reset=1)
         self.rx_prbs_config = Signal(2)
         self.rx_prbs_errors = Signal(32)
@@ -274,14 +274,14 @@ class GTH(Module, AutoCSR):
         self.submodules.tx_init = tx_init = GTHTXInit(sys_clk_freq)
         self.comb += [
             self.tx_ready.eq(tx_init.done),
-            tx_init.restart.eq(self.tx_restart)
+            tx_init.restart.eq(~self.tx_enable)
         ]
 
         # RX init ----------------------------------------------------------------------------------
         self.submodules.rx_init = rx_init = GTHRXInit(self.tx_clk_freq)
         self.comb += [
             self.rx_ready.eq(rx_init.done),
-            rx_init.restart.eq(self.rx_restart)
+            rx_init.restart.eq(~self.rx_enable)
         ]
 
         # PLL ----------------------------------------------------------------------------------
@@ -747,7 +747,7 @@ class GTH(Module, AutoCSR):
             i_TXPD=0b00,
             i_TXBUFDIFFCTRL=0b000,
             i_TXDIFFCTRL=0b1100,
-            i_TXINHIBIT=self.tx_disable,
+            i_TXINHIBIT=self.tx_inhibit,
 
             # Internal Loopback
             i_LOOPBACK=self.loopback,
@@ -859,7 +859,7 @@ class GTH(Module, AutoCSR):
             self.comb += [
                 clock_aligner.rxdata.eq(rxdata),
                 ps_restart.i.eq(clock_aligner.restart),
-                rx_init.restart.eq((ps_restart.o & self.rx_align) | self.rx_restart),
+                rx_init.restart.eq((ps_restart.o & self.rx_align) | ~self.rx_enable),
                 self.rx_ready.eq(clock_aligner.ready)
             ]
 
@@ -880,21 +880,21 @@ class GTH(Module, AutoCSR):
     def add_base_control(self):
         if hasattr(self, "clock_aligner"):
             self._clock_aligner_disable  = CSRStorage()
+        self._tx_enable              = CSRStorage()
         self._tx_ready               = CSRStatus()
-        self._tx_restart             = CSR()
-        self._tx_disable             = CSRStorage(reset=0b0)
+        self._tx_inhibit             = CSRStorage(reset=0b0)
         self._tx_produce_square_wave = CSRStorage(reset=0b0)
+        self._rx_enable              = CSRStorage()
         self._rx_ready               = CSRStatus()
-        self._rx_restart             = CSR()
         if hasattr(self, "clock_aligner"):
             self.comb += self.clock_aligner.disable.eq(self._clock_aligner_disable.storage)
         self.comb += [
+            self.tx_enable.eq(self._tx_enable.storage),
             self._tx_ready.status.eq(self.tx_ready),
-            self.tx_restart.eq(self._tx_restart.re),
-            self.tx_disable.eq(self._tx_disable.storage),
+            self.tx_inhibit.eq(self._tx_inhibit.storage),
             self.tx_produce_square_wave.eq(self._tx_produce_square_wave.storage),
+            self.rx_enable.eq(self._rx_enable.storage),
             self._rx_ready.status.eq(self.rx_ready),
-            self.rx_restart.eq(self._rx_restart.re)
         ]
 
     def add_prbs_control(self):
