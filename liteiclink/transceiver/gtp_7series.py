@@ -154,7 +154,7 @@ class GTP(Module, AutoCSR):
                  tx_buffer_enable=False, rx_buffer_enable=False,
                  clock_aligner=True, clock_aligner_comma=0b0101111100,
                  tx_polarity=0, rx_polarity=0):
-        assert (data_width == 20) or (data_width == 40)
+        assert (data_width == 20)
 
         # TX controls
         self.tx_enable = Signal()
