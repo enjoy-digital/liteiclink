@@ -149,7 +149,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
         return r
 
 
-class GTP(Module):
+class GTP(Module, AutoCSR):
     def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq, data_width=20,
                  tx_buffer_enable=False, rx_buffer_enable=False,
                  clock_aligner=True, clock_aligner_comma=0b0101111100,
