@@ -215,6 +215,8 @@ class GTH(Module, AutoCSR):
         self.tx_ready = Signal()
         self.tx_inhibit = Signal()
         self.tx_produce_square_wave = Signal()
+        self.tx_produce_pattern = Signal()
+        self.tx_pattern = Signal(data_width)
         self.tx_prbs_config = Signal(2)
 
         # RX controls
@@ -253,6 +255,7 @@ class GTH(Module, AutoCSR):
 
         # Control/Status CDC
         tx_produce_square_wave = Signal()
+        tx_produce_pattern = Signal()
         tx_prbs_config = Signal(2)
 
         rx_prbs_config = Signal(2)
@@ -260,6 +263,7 @@ class GTH(Module, AutoCSR):
 
         self.specials += [
             MultiReg(self.tx_produce_square_wave, tx_produce_square_wave, "tx"),
+            MultiReg(self.tx_produce_pattern, tx_produce_pattern, "tx"),
             MultiReg(self.tx_prbs_config, tx_prbs_config, "tx"),
         ]
 
@@ -835,6 +839,8 @@ class GTH(Module, AutoCSR):
             If(tx_produce_square_wave,
                 # square wave @ linerate/data_width for scope observation
                 txdata.eq(Signal(data_width, reset=1<<(data_width//2)-1))
+            ).Elif(tx_produce_pattern,
+                txdata.eq(self.tx_pattern)
             ).Else(
                 txdata.eq(self.tx_prbs.o)
             )
