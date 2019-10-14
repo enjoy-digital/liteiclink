@@ -15,36 +15,36 @@ __all__ = ["GTPTXInit", "GTPRXInit"]
 
 class GTPTXInit(Module):
     def __init__(self, sys_clk_freq, buffer_enable):
-        self.done = Signal()
-        self.restart = Signal()
+        self.done            = Signal()
+        self.restart         = Signal()
 
         # GTP signals
-        self.plllock = Signal()
-        self.pllreset = Signal()
-        self.gttxreset = Signal()
-        self.gttxpd = Signal()
-        self.txresetdone = Signal()
-        self.txdlysreset = Signal()
+        self.plllock         = Signal()
+        self.pllreset        = Signal()
+        self.gttxreset       = Signal()
+        self.gttxpd          = Signal()
+        self.txresetdone     = Signal()
+        self.txdlysreset     = Signal()
         self.txdlysresetdone = Signal()
-        self.txphinit = Signal()
-        self.txphinitdone = Signal()
-        self.txphalign = Signal()
-        self.txphaligndone = Signal()
-        self.txdlyen = Signal()
-        self.txuserrdy = Signal()
+        self.txphinit        = Signal()
+        self.txphinitdone    = Signal()
+        self.txphalign       = Signal()
+        self.txphaligndone   = Signal()
+        self.txdlyen         = Signal()
+        self.txuserrdy       = Signal()
 
         # DRP (optional)
-        self.drp_start = Signal()
-        self.drp_done = Signal(reset=1)
+        self.drp_start       = Signal()
+        self.drp_done        = Signal(reset=1)
 
         # # #
 
         # Double-latch transceiver asynch outputs
-        plllock = Signal()
-        txresetdone = Signal()
+        plllock         = Signal()
+        txresetdone     = Signal()
         txdlysresetdone = Signal()
-        txphinitdone = Signal()
-        txphaligndone = Signal()
+        txphinitdone    = Signal()
+        txphaligndone   = Signal()
         self.specials += [
             MultiReg(self.plllock, plllock),
             MultiReg(self.txresetdone, txresetdone),
@@ -54,13 +54,13 @@ class GTPTXInit(Module):
         ]
 
         # Deglitch FSM outputs driving transceiver asynch inputs
-        gttxreset = Signal()
-        gttxpd = Signal()
+        gttxreset   = Signal()
+        gttxpd      = Signal()
         txdlysreset = Signal()
-        txphinit = Signal()
-        txphalign = Signal()
-        txdlyen = Signal()
-        txuserrdy = Signal()
+        txphinit    = Signal()
+        txphalign   = Signal()
+        txdlyen     = Signal()
+        txuserrdy   = Signal()
         self.sync += [
             self.gttxreset.eq(gttxreset),
             self.gttxpd.eq(gttxpd),
@@ -171,27 +171,27 @@ class GTPTXInit(Module):
 
 class GTPRXInit(Module):
     def __init__(self, sys_clk_freq, buffer_enable):
-        self.done = Signal()
-        self.restart = Signal()
+        self.done            = Signal()
+        self.restart         = Signal()
 
         # GTP signals
-        self.plllock = Signal()
-        self.gtrxreset = Signal()
-        self.gtrxpd = Signal()
-        self.rxresetdone = Signal()
-        self.rxdlysreset = Signal()
+        self.plllock         = Signal()
+        self.gtrxreset       = Signal()
+        self.gtrxpd          = Signal()
+        self.rxresetdone     = Signal()
+        self.rxdlysreset     = Signal()
         self.rxdlysresetdone = Signal()
-        self.rxphalign = Signal()
-        self.rxuserrdy = Signal()
-        self.rxsyncdone = Signal()
-        self.rxpmaresetdone = Signal()
+        self.rxphalign       = Signal()
+        self.rxuserrdy       = Signal()
+        self.rxsyncdone      = Signal()
+        self.rxpmaresetdone  = Signal()
 
-        self.drp = DRPInterface()
+        self.drp             = DRPInterface()
 
         # # #
 
         drpvalue = Signal(16)
-        drpmask = Signal()
+        drpmask  = Signal()
         self.comb += [
             self.drp.clk.eq(ClockSignal()),
             self.drp.addr.eq(0x011),
@@ -208,10 +208,10 @@ class GTPRXInit(Module):
         self.sync += rxpmaresetdone_r.eq(rxpmaresetdone)
 
         # Double-latch transceiver asynch outputs
-        plllock = Signal()
-        rxresetdone = Signal()
+        plllock         = Signal()
+        rxresetdone     = Signal()
         rxdlysresetdone = Signal()
-        rxsyncdone = Signal()
+        rxsyncdone      = Signal()
         self.specials += [
             MultiReg(self.plllock, plllock),
             MultiReg(self.rxresetdone, rxresetdone),
@@ -220,11 +220,11 @@ class GTPRXInit(Module):
         ]
 
         # Deglitch FSM outputs driving transceiver asynch inputs
-        gtrxreset = Signal()
-        gtrxpd = Signal()
+        gtrxreset   = Signal()
+        gtrxpd      = Signal()
         rxdlysreset = Signal()
-        rxphalign = Signal()
-        rxuserrdy = Signal()
+        rxphalign   = Signal()
+        rxuserrdy   = Signal()
         self.sync += [
             self.gtrxreset.eq(gtrxreset),
             self.gtrxpd.eq(gtrxpd),

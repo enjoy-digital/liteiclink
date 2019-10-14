@@ -14,28 +14,28 @@ __all__ = ["GTHTXInit", "GTHRXInit"]
 
 class GTHInit(Module):
     def __init__(self, sys_clk_freq, rx, buffer_enable):
-        self.done = Signal()
-        self.restart = Signal()
+        self.done            = Signal()
+        self.restart         = Signal()
 
         # GTH signals
-        self.plllock = Signal()
-        self.pllreset = Signal()
-        self.gtXxreset = Signal()
-        self.Xxresetdone = Signal()
-        self.Xxdlysreset = Signal()
+        self.plllock         = Signal()
+        self.pllreset        = Signal()
+        self.gtXxreset       = Signal()
+        self.Xxresetdone     = Signal()
+        self.Xxdlysreset     = Signal()
         self.Xxdlysresetdone = Signal()
-        self.Xxphaligndone = Signal()
-        self.Xxsyncdone = Signal()
-        self.Xxuserrdy = Signal()
+        self.Xxphaligndone   = Signal()
+        self.Xxsyncdone      = Signal()
+        self.Xxuserrdy       = Signal()
 
         # # #
 
         # Double-latch transceiver asynch outputs
-        plllock = Signal()
-        Xxresetdone = Signal()
+        plllock         = Signal()
+        Xxresetdone     = Signal()
         Xxdlysresetdone = Signal()
-        Xxphaligndone = Signal()
-        Xxsyncdone = Signal()
+        Xxphaligndone   = Signal()
+        Xxsyncdone      = Signal()
         self.specials += [
             MultiReg(self.plllock, plllock),
             MultiReg(self.Xxresetdone, Xxresetdone),
@@ -45,9 +45,9 @@ class GTHInit(Module):
         ]
 
         # Deglitch FSM outputs driving transceiver asynch inputs
-        gtXxreset = Signal()
+        gtXxreset   = Signal()
         Xxdlysreset = Signal()
-        Xxuserrdy = Signal()
+        Xxuserrdy   = Signal()
         self.sync += [
             self.gtXxreset.eq(gtXxreset),
             self.Xxdlysreset.eq(Xxdlysreset),
@@ -56,7 +56,7 @@ class GTHInit(Module):
 
         # PLL reset must be at least 2us
         pll_reset_cycles = ceil(2000*sys_clk_freq/1000000000)
-        pll_reset_timer = WaitTimer(pll_reset_cycles)
+        pll_reset_timer  = WaitTimer(pll_reset_cycles)
         self.submodules += pll_reset_timer
 
         startup_fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
@@ -73,7 +73,7 @@ class GTHInit(Module):
             cdr_stable_timer = WaitTimer(1024)
             self.submodules += cdr_stable_timer
 
-        Xxphaligndone_r = Signal(reset=1)
+        Xxphaligndone_r      = Signal(reset=1)
         Xxphaligndone_rising = Signal()
         self.sync += Xxphaligndone_r.eq(Xxphaligndone)
         self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)

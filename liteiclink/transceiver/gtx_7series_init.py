@@ -13,31 +13,31 @@ __all__ = ["GTXTXInit", "GTXRXInit"]
 
 class GTXInit(Module):
     def __init__(self, sys_clk_freq, buffer_enable):
-        self.done = Signal()
-        self.restart = Signal()
+        self.done            = Signal()
+        self.restart         = Signal()
 
         # GTX signals
-        self.plllock = Signal()
-        self.pllreset = Signal()
-        self.gtXxreset = Signal()
-        self.gtXxpd = Signal()
-        self.Xxresetdone = Signal()
-        self.Xxdlysreset = Signal()
+        self.plllock         = Signal()
+        self.pllreset        = Signal()
+        self.gtXxreset       = Signal()
+        self.gtXxpd          = Signal()
+        self.Xxresetdone     = Signal()
+        self.Xxdlysreset     = Signal()
         self.Xxdlysresetdone = Signal()
-        self.Xxphaligndone = Signal()
-        self.Xxuserrdy = Signal()
+        self.Xxphaligndone   = Signal()
+        self.Xxuserrdy       = Signal()
 
         # DRP (optional)
-        self.drp_start = Signal()
-        self.drp_done = Signal(reset=1)
+        self.drp_start       = Signal()
+        self.drp_done        = Signal(reset=1)
 
         # # #
 
         # Double-latch transceiver asynch outputs
-        plllock = Signal()
-        Xxresetdone = Signal()
+        plllock         = Signal()
+        Xxresetdone     = Signal()
         Xxdlysresetdone = Signal()
-        Xxphaligndone = Signal()
+        Xxphaligndone   = Signal()
         self.specials += [
             MultiReg(self.plllock, plllock),
             MultiReg(self.Xxresetdone, Xxresetdone),
@@ -46,16 +46,16 @@ class GTXInit(Module):
         ]
 
         # Detect Xxphaligndone rising edge
-        Xxphaligndone_r = Signal(reset=1)
+        Xxphaligndone_r      = Signal(reset=1)
         Xxphaligndone_rising = Signal()
         self.sync += Xxphaligndone_r.eq(Xxphaligndone)
         self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
 
         # Deglitch FSM outputs driving transceiver asynch inputs
-        gtXxreset = Signal()
-        gtXxpd = Signal()
+        gtXxreset   = Signal()
+        gtXxpd      = Signal()
         Xxdlysreset = Signal()
-        Xxuserrdy = Signal()
+        Xxuserrdy   = Signal()
         self.sync += [
             self.gtXxreset.eq(gtXxreset),
             self.gtXxpd.eq(gtXxpd),
