@@ -963,7 +963,7 @@ class GTP(Module, AutoCSR):
             self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
             If(tx_produce_square_wave,
                 # square wave @ linerate/data_width for scope observation
-                txdata.eq(Signal(data_width, reset=1<<(data_width//2)-1))
+                txdata.eq(Signal(data_width, reset=(1<<(data_width//2))-1))
             ).Elif(tx_produce_pattern,
                 txdata.eq(self.tx_pattern)
             ).Else(
