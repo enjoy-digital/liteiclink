@@ -37,6 +37,7 @@ Transceiver:
   - Artix7 GTP support.
   - Kintex7 GTX support.
   - Ultrascale GTH support.
+  - Lattice ECP5 support.
 
 [> FPGA Proven
 ---------------
