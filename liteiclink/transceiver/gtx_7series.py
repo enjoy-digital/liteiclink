@@ -998,7 +998,7 @@ class GTX(Module, AutoCSR):
             )
         ]
 
-        # TX Datapath and PRBS ---------------------------------------------------------------------
+        # RX Datapath and PRBS ---------------------------------------------------------------------
         self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
