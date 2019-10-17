@@ -54,6 +54,8 @@ class SerDesTestSoC(SoCMini):
 
         # SerDes RefClk ----------------------------------------------------------------------------
         refclk_pads = platform.request("refclk", 1)
+        self.comb += platform.request("refclk_en").eq(1)
+        self.comb += platform.request("refclk_rst_n").eq(1)
         refclk = Signal()
         self.specials.extref0 = Instance("EXTREFB",
             i_REFCLKP=refclk_pads.p,
@@ -65,7 +67,7 @@ class SerDesTestSoC(SoCMini):
         self.extref0.attr.add(("LOC", "EXTREF0"))
 
         # SerDes PLL -------------------------------------------------------------------------------
-        serdes_pll = SerDesECP5PLL(refclk, refclk_freq=156.25e6, linerate=2.5e9)
+        serdes_pll = SerDesECP5PLL(refclk, refclk_freq=156.25e6, linerate=5e9)
         self.submodules += serdes_pll
 
         # SerDes -----------------------------------------------------------------------------------
