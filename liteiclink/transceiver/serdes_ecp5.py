@@ -33,13 +33,137 @@ class SerDesECP5PLL(Module):
         msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
 
+# SerDesSCI ----------------------------------------------------------------------------------------
+
+class SerDesECP5SCI(Module):
+    def __init__(self, serdes):
+        self.dual_sel = Signal()
+        self.chan_sel = Signal()
+        self.re       = Signal()
+        self.we       = Signal()
+        self.done     = Signal()
+        self.adr      = Signal(6)
+        self.dat_w    = Signal(8)
+        self.dat_r    = Signal(8)
+
+        # # #
+
+        self.sci_rd    = sci_rd    = Signal()
+        self.sci_wrn   = sci_wrn   = Signal(reset=1)
+        self.sci_addr  = sci_addr  = Signal(6)
+        self.sci_wdata = sci_wdata = Signal(8)
+        self.sci_rdata = sci_rdata = Signal(8)
+
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            self.done.eq(1),
+            If(self.we,
+                NextState("WRITE")
+            ).Elif(self.re,
+                sci_rd.eq(1),
+                NextState("READ")
+            )
+        )
+        fsm.act("WRITE",
+            sci_wrn.eq(0),
+            NextState("IDLE")
+        )
+        fsm.act("READ",
+            sci_rd.eq(1),
+            NextValue(self.dat_r, sci_rdata),
+            NextState("IDLE")
+        )
+        self.comb += [
+            sci_addr.eq(self.adr),
+            sci_wdata.eq(self.dat_w)
+        ]
+
+        serdes.serdes_params.update(
+             **{"i_D_SCIWDATA%d" % n: sci_wdata[n] for n in range(8)},
+             **{"i_D_SCIADDR%d"   % n: sci_addr[n]   for n in range(6)},
+             **{"o_D_SCIRDATA%d" % n: sci_rdata[n] for n in range(8)},
+             i_D_SCIENAUX  = self.dual_sel,
+             i_D_SCISELAUX = self.dual_sel,
+             i_CHX_SCIEN   = self.chan_sel,
+             i_CHX_SCISEL  = self.chan_sel,
+             i_D_SCIRD     = sci_rd,
+             i_D_SCIWSTN   = sci_wrn,
+        )
+
+class SerDesECP5SCIReconfig(Module):
+    def __init__(self, serdes):
+        self.loopback = Signal()
+        self.tx_idle  = Signal()
+
+        # # #
+
+        sci = SerDesECP5SCI(serdes)
+        self.submodules.sci = sci
+
+        first = Signal()
+        data  = Signal(8)
+
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            NextState("READ-CH_02"),
+        )
+        fsm.act("READ-CH_02",
+            sci.chan_sel.eq(1),
+            sci.re.eq(1),
+            sci.adr.eq(0x02),
+            If(~first & sci.done,
+                sci.re.eq(0),
+                NextValue(data, sci.dat_r),
+                NextState("WRITE-CH_02"),
+            )
+        )
+        fsm.act("WRITE-CH_02",
+            sci.chan_sel.eq(1),
+            sci.we.eq(1),
+            sci.adr.eq(0x02),
+            sci.dat_w.eq(data),
+            sci.dat_w[6].eq(self.tx_idle),  # pcie_ei_en
+            If(~first & sci.done,
+                sci.we.eq(0),
+                NextState("READ-CH_04")
+            )
+        )
+        fsm.act("READ-CH_04",
+            sci.chan_sel.eq(1),
+            sci.re.eq(1),
+            sci.adr.eq(0x04),
+            If(~first & sci.done,
+                sci.re.eq(0),
+                NextValue(data, sci.dat_r),
+                NextState("WRITE-CH_04"),
+            )
+        )
+        fsm.act("WRITE-CH_04",
+            sci.chan_sel.eq(1),
+            sci.we.eq(1),
+            sci.adr.eq(0x04),
+            sci.dat_w.eq(data),
+            sci.dat_w[0].eq(self.loopback),  # sb_loopback
+            If(~first & sci.done,
+                sci.we.eq(0),
+                NextState("IDLE")
+            )
+        )
+        fsm.finalize()
+
+        last_fsm_state = Signal(4)
+        self.sync += last_fsm_state.eq(fsm.state)
+        self.comb += first.eq(fsm.state != last_fsm_state)
+
 # SerDesECP5 ---------------------------------------------------------------------------------------
 
 class SerDesECP5(Module, AutoCSR):
-    def __init__(self, pll, tx_pads, rx_pads, channel=0, data_width=20,
+    def __init__(self, pll, tx_pads, rx_pads, dual=0, channel=0, data_width=20,
         clock_aligner=True, clock_aligner_comma=0b0101111100):
         assert (data_width == 20)
+        assert dual in [0, 1]
         assert channel in [0, 1]
+        self.dual    = dual
         self.channel = channel
 
         # TX controls
@@ -50,6 +174,7 @@ class SerDesECP5(Module, AutoCSR):
         self.tx_produce_pattern     = Signal()
         self.tx_pattern             = Signal(data_width)
         self.tx_prbs_config         = Signal(2)
+        self.tx_idle                = Signal()
 
         # RX controls
         self.rx_enable              = Signal(reset=1)
@@ -57,6 +182,10 @@ class SerDesECP5(Module, AutoCSR):
         self.rx_align               = Signal(reset=1)
         self.rx_prbs_config         = Signal(2)
         self.rx_prbs_errors         = Signal(32)
+        self.rx_idle                = Signal()
+
+        # Loopback
+        self.loopback               = Signal()
 
         # # #
 
@@ -100,6 +229,7 @@ class SerDesECP5(Module, AutoCSR):
         self.specials += [
             MultiReg(self.rx_align, rx_align, "rx"),
             MultiReg(self.rx_prbs_config, rx_prbs_config, "rx"),
+            MultiReg(rx_los, self.rx_idle, "sys"),
             MultiReg(rx_prbs_errors, self.rx_prbs_errors, "sys"), # FIXME
         ]
 
@@ -295,6 +425,12 @@ class SerDesECP5(Module, AutoCSR):
             **{"i_CHX_FF_TX_D_%d" % n: tx_bus[n] for n in range(tx_bus.nbits)}
         )
 
+        # SCI Reconfiguration ----------------------------------------------------------------------
+        sci_reconfig = SerDesECP5SCIReconfig(self)
+        self.submodules.sci_reconfig = sci_reconfig
+        self.comb += sci_reconfig.loopback.eq(self.loopback)
+        self.comb += sci_reconfig.tx_idle.eq(self.tx_idle)
+
         # TX Datapath and PRBS ---------------------------------------------------------------------
         self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, True))
         self.comb += self.tx_prbs.config.eq(tx_prbs_config)
@@ -377,12 +513,16 @@ class SerDesECP5(Module, AutoCSR):
             self._rx_prbs_errors.status.eq(self.rx_prbs_errors)
         ]
 
+    def add_loopback_control(self):
+        self._loopback = CSRStorage()
+        self.comb += self.loopback.eq(self._loopback.storage)
+
     def do_finalize(self):
         serdes_params = dict()
         for k, v in self.serdes_params.items():
             k = k.replace("CHX", "CH{}".format(self.channel))
             serdes_params[k] = v
         self.specials.dcu0 = Instance("DCUA", **serdes_params)
-        self.dcu0.attr.add(("LOC", "DCU0"))
+        self.dcu0.attr.add(("LOC", "DCU{}".format(self.dual)))
         self.dcu0.attr.add(("CHAN", "CH{}".format(self.channel)))
         self.dcu0.attr.add(("BEL", "X42/Y71/DCU"))
