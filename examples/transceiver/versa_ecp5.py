@@ -19,6 +19,17 @@ from litex.soc.integration.builder import *
 
 from liteiclink.transceiver.serdes_ecp5 import SerDesECP5PLL, SerDesECP5
 
+_transceiver_io = [
+    ("pcie_tx", 0,
+        Subsignal("p", Pins("W4")),
+        Subsignal("n", Pins("W5")),
+    ),
+    ("pcie_rx", 0,
+        Subsignal("p", Pins("Y5")),
+        Subsignal("n", Pins("Y6")),
+    ),
+]
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
@@ -44,9 +55,11 @@ class _CRG(Module):
 # SerDesTestSoC ------------------------------------------------------------------------------------
 
 class SerDesTestSoC(SoCMini):
-    def __init__(self, toolchain="diamond", **kwargs):
+    def __init__(self, toolchain="diamond", connector="pcie", **kwargs):
+        assert connector in ["sma", "pcie"]
         sys_clk_freq = int(100e6)
         platform = versa_ecp5.Platform(toolchain=toolchain)
+        platform.add_extension(_transceiver_io)
         SoCMini.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
@@ -71,9 +84,10 @@ class SerDesTestSoC(SoCMini):
         self.submodules += serdes_pll
 
         # SerDes -----------------------------------------------------------------------------------
-        tx_pads = platform.request("sma_tx")
-        rx_pads = platform.request("sma_rx")
-        serdes  = SerDesECP5(serdes_pll, tx_pads, rx_pads, channel=1, data_width=20)
+        tx_pads = platform.request(connector + "_tx")
+        rx_pads = platform.request(connector + "_rx")
+        channel = 1 if connector == "sma" else 0
+        serdes  = SerDesECP5(serdes_pll, tx_pads, rx_pads, channel=channel, data_width=20)
         serdes.add_stream_endpoints()
         self.submodules += serdes
         platform.add_period_constraint(serdes.txoutclk, 1e9/125e6)
