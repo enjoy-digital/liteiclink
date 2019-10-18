@@ -90,8 +90,8 @@ class SerDesTestSoC(SoCMini):
         serdes  = SerDesECP5(serdes_pll, tx_pads, rx_pads, channel=channel, data_width=20)
         serdes.add_stream_endpoints()
         self.submodules += serdes
-        platform.add_period_constraint(serdes.txoutclk, 1e9/125e6)
-        platform.add_period_constraint(serdes.rxoutclk, 1e9/125e6)
+        platform.add_period_constraint(serdes.txoutclk, 1e9/serdes.tx_clk_freq)
+        platform.add_period_constraint(serdes.rxoutclk, 1e9/serdes.rx_clk_freq)
 
         # Test -------------------------------------------------------------------------------------
         counter = Signal(32)

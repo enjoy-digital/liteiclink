@@ -198,6 +198,8 @@ class SerDesECP5(Module, AutoCSR):
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
+        self.tx_clk_freq = pll.config["linerate"]/data_width
+        self.rx_clk_freq = pll.config["linerate"]/data_width
 
         # Internal signals -------------------------------------------------------------------------
         rx_los     = Signal()
