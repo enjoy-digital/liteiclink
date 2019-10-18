@@ -19,7 +19,8 @@ from liteiclink.transceiver.gtx_7series import GTXChannelPLL, GTXQuadPLL, GTX
 
 
 class GTXTestSoC(SoCCore):
-    def __init__(self, platform, use_qpll=False):
+    def __init__(self, platform, connector="sma", use_qpll=False):
+        assert connector in ["sfp", "sma"]
         sys_clk_freq = int(156e9)
         SoCCore.__init__(self, platform, sys_clk_freq, cpu_type=None)
         clk156 = platform.request("clk156")
@@ -44,15 +45,17 @@ class GTXTestSoC(SoCCore):
         self.submodules += pll
 
         # gtx
-        self.comb += platform.request("sfp_tx_disable_n").eq(1)
-        tx_pads = platform.request("sfp_tx")
-        rx_pads = platform.request("sfp_rx")
+        if connector == "sfp":
+            self.comb += platform.request("sfp_tx_disable_n").eq(1)
+        if connector == "sma":
+            connector = "user_sma_mgt"
+        tx_pads = platform.request(connector + "_tx")
+        rx_pads = platform.request(connector + "_rx")
         gtx = GTX(pll, tx_pads, rx_pads, sys_clk_freq,
             data_width=40,
             clock_aligner=False,
             tx_buffer_enable=True,
             rx_buffer_enable=True)
-        gtx.add_controls()
         self.submodules += gtx
 
         # led blink

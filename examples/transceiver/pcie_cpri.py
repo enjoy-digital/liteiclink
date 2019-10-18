@@ -109,7 +109,6 @@ class GTPTestSoC(SoCCore):
             clock_aligner=False,
             tx_buffer_enable=True,
             rx_buffer_enable=True)
-        gtp.add_controls()
         self.submodules += gtp
 
         # led blink

@@ -75,7 +75,6 @@ class GTHTestSoC(SoCCore):
         else:
             raise ValueError
         gth = GTH(cpll, tx_pads, rx_pads, self.clk_freq, clock_aligner=True)
-        gth.add_controls()
         self.submodules += gth
 
         # led
