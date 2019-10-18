@@ -211,7 +211,7 @@ class GTH(Module, AutoCSR):
         assert (data_width == 20) or (data_width == 40)
 
         # TX controls
-        self.tx_enable              = Signal()
+        self.tx_enable              = Signal(reset=1)
         self.tx_ready               = Signal()
         self.tx_inhibit             = Signal()
         self.tx_produce_square_wave = Signal()
@@ -220,7 +220,7 @@ class GTH(Module, AutoCSR):
         self.tx_prbs_config         = Signal(2)
 
         # RX controls
-        self.rx_enable      = Signal()
+        self.rx_enable      = Signal(reset=1)
         self.rx_ready       = Signal()
         self.rx_align       = Signal(reset=1)
         self.rx_prbs_config = Signal(2)
