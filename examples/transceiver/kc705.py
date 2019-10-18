@@ -17,10 +17,30 @@ from litex.soc.integration.builder import *
 
 from liteiclink.transceiver.gtx_7series import GTXChannelPLL, GTXQuadPLL, GTX
 
+_transceiver_io = [
+    # SMA
+    ("sma_tx", 0,
+        Subsignal("p", Pins("K2")),
+        Subsignal("n", Pins("K1"))
+    ),
+    ("sma_rx", 0,
+        Subsignal("p", Pins("K6")),
+        Subsignal("n", Pins("K5"))
+    ),
+    # PCIe
+    ("pcie_tx", 0,
+        Subsignal("p", Pins("L4")),
+        Subsignal("n", Pins("L3"))
+    ),
+    ("pcie_rx", 0,
+        Subsignal("p", Pins("M6")),
+        Subsignal("n", Pins("M5"))
+    ),
+]
 
 class GTXTestSoC(SoCCore):
-    def __init__(self, platform, connector="sma", use_qpll=False):
-        assert connector in ["sfp", "sma"]
+    def __init__(self, platform, connector="pcie", use_qpll=False):
+        assert connector in ["sfp", "sma", "pcie"]
         sys_clk_freq = int(156e9)
         SoCCore.__init__(self, platform, sys_clk_freq, cpu_type=None)
         clk156 = platform.request("clk156")
@@ -40,15 +60,13 @@ class GTXTestSoC(SoCCore):
 
         # pll
         pll_cls = GTXQuadPLL if use_qpll else GTXChannelPLL
-        pll = pll_cls(refclk, 125e6, 2.50e9)
+        pll = pll_cls(refclk, 125e6, 5e9)
         print(pll)
         self.submodules += pll
 
         # gtx
         if connector == "sfp":
             self.comb += platform.request("sfp_tx_disable_n").eq(1)
-        if connector == "sma":
-            connector = "user_sma_mgt"
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
         gtx = GTX(pll, tx_pads, rx_pads, sys_clk_freq,
@@ -101,6 +119,7 @@ def main():
         prog.load_bitstream("build/gateware/kc705.bit")
     else:
         platform = kc705.Platform()
+        platform.add_extension(_transceiver_io)
         soc = GTXTestSoC(platform)
         builder = Builder(soc, output_dir="build", compile_gateware=True)
         vns = builder.build(build_name="kc705")
