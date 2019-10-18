@@ -459,7 +459,7 @@ class SerDesECP5(Module, AutoCSR):
             rx_data[10:20].eq(rx_bus[12:22]),
         ]
         for i in range(nwords):
-            self.comb += self.decoders[i].input.eq(rx_data[10*i:10*(i+1)])
+            self.sync.rx += self.decoders[i].input.eq(rx_data[10*i:10*(i+1)])
         self.comb += self.rx_prbs.i.eq(rx_data)
 
         # Clock Aligner ----------------------------------------------------------------------------
