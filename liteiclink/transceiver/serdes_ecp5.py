@@ -490,12 +490,16 @@ class SerDesECP5(Module, AutoCSR):
             ]
 
     def add_base_control(self):
+        if hasattr(self, "clock_aligner"):
+            self._clock_aligner_disable  = CSRStorage()
         self._tx_enable              = CSRStorage()
         self._tx_ready               = CSRStatus()
         self._tx_inhibit             = CSRStorage(reset=0b0)
         self._tx_produce_square_wave = CSRStorage(reset=0b0)
         self._rx_enable              = CSRStorage()
         self._rx_ready               = CSRStatus()
+        if hasattr(self, "clock_aligner"):
+            self.comb += self.clock_aligner.disable.eq(self._clock_aligner_disable.storage)
         self.comb += [
             self.tx_enable.eq(self._tx_enable.storage),
             self._tx_ready.status.eq(self.tx_ready),
@@ -518,6 +522,12 @@ class SerDesECP5(Module, AutoCSR):
     def add_loopback_control(self):
         self._loopback = CSRStorage()
         self.comb += self.loopback.eq(self._loopback.storage)
+
+
+    def add_controls(self):
+        self.add_base_control()
+        self.add_prbs_control()
+        self.add_loopback_control()
 
     def do_finalize(self):
         serdes_params = dict()
