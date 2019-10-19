@@ -271,9 +271,15 @@ class SerDesECP5(Module, AutoCSR):
                 20: "0b000",
                 16: "0b010",
                 10: "0b001",
-                8: "0b011"}[pll.config["mult"]],
+                 8: "0b011"}[pll.config["mult"]],
             p_D_TX_MAX_RATE         = "5.0",    # 5.0 Gbps
-            p_D_TX_VCO_CK_DIV       = "0b000",  # DIV/1
+            p_D_TX_VCO_CK_DIV       = {
+                32: "0b111",
+                16: "0b110",
+                 8: "0b101",
+                 4: "0b100",
+                 2: "0b010",
+                 1: "0b000"}[1],                # DIV/1
             p_D_BITCLK_LOCAL_EN     = "0b1",    # Use clock from local PLL
 
             # DCU ­— unknown
@@ -297,17 +303,15 @@ class SerDesECP5(Module, AutoCSR):
             p_D_RG_SET              = "0b00",   # end undocumented
 
             # DCU — FIFOs
-            p_D_LOW_MARK            = "0d4",
-            p_D_HIGH_MARK           = "0d12",
+            p_D_LOW_MARK            = "0d4",    # Clock compensation FIFO low  water mark (mean=8)
+            p_D_HIGH_MARK           = "0d12",   # Clock compensation FIFO high water mark (mean=8)
 
             # CHX common ---------------------------------------------------------------------------
             # CHX — protocol
             p_CHX_PROTOCOL          = "10BSER",
             p_CHX_UC_MODE           = "0b1",
-            p_CHX_ENC_BYPASS        = "0b1",
-            p_CHX_DEC_BYPASS        = "0b1",
-            p_CHX_REQ_EN            = "0b0",
-            p_CHX_RX_RATE_SEL       = "0d10",
+            p_CHX_ENC_BYPASS        = "0b1",    # Bypass 8b10b encoder
+            p_CHX_DEC_BYPASS        = "0b1",    # Bypass 8b10b encoder
 
             # CHX receive --------------------------------------------------------------------------
             # CHX RX ­— power management
@@ -323,6 +327,8 @@ class SerDesECP5(Module, AutoCSR):
             i_CHX_HDINN             = rx_pads.n,
             i_CHX_FFC_SB_INV_RX     = 0,
 
+            p_CHX_REQ_EN            = "0b0",    # Enable equalizer
+            p_CHX_RX_RATE_SEL       = "0d10",   # Equalizer  pole position
             p_CHX_RTERM_RX          = "0d22",   # 50 Ohm (wizard value used, does not match D/S)
             p_CHX_RXIN_CM           = "0b11",   # CMFB (wizard value used)
             p_CHX_RXTERM_CM         = "0b11",   # RX Input (wizard value used)
@@ -333,7 +339,13 @@ class SerDesECP5(Module, AutoCSR):
             i_CHX_FF_RXI_CLK        = ClockSignal("rx"),
 
             p_CHX_CDR_MAX_RATE      = "5.0",    # 5.0 Gbps
-            p_CHX_RX_DCO_CK_DIV     = "0b000",  # DIV/1
+            p_CHX_RX_DCO_CK_DIV     = {
+                32: "0b111",
+                16: "0b110",
+                 8: "0b101",
+                 4: "0b100",
+                 2: "0b010",
+                 1: "0b000"}[1],                # DIV/1
             p_CHX_RX_GEAR_MODE      = "0b1",    # 1:2 gearbox
             p_CHX_FF_RX_H_CLK_EN    = "0b1",    # enable  DIV/2 output clock
             p_CHX_FF_RX_F_CLK_DIS   = "0b1",    # disable DIV/1 output clock
