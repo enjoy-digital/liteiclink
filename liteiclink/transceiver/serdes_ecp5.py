@@ -293,14 +293,16 @@ class SerDesECP5(Module, AutoCSR):
             p_D_CMUSETISCL4VCO      = "0b000",
             p_D_CMUSETP1GM          = "0b000",
             p_D_CMUSETP2AGM         = "0b000",
-            p_D_CMUSETZGM           = "0b100",
-            p_D_SETIRPOLY_AUX       = "0b10",
+            p_D_CMUSETZGM           = "0b000",
+            p_D_SETIRPOLY_AUX       = "0b01",
             p_D_SETICONST_AUX       = "0b01",
-            p_D_SETIRPOLY_CH        = "0b10",
+            p_D_SETIRPOLY_CH        = "0b01",
             p_D_SETICONST_CH        = "0b10",
             p_D_SETPLLRC            = "0d1",
             p_D_RG_EN               = "0b0",
-            p_D_RG_SET              = "0b00",   # end undocumented
+            p_D_RG_SET              = "0b00",
+            p_D_REQ_ISET            = "0b011",
+            p_D_PD_ISET             = "0b11",   # end undocumented
 
             # DCU — FIFOs
             p_D_LOW_MARK            = "0d4",    # Clock compensation FIFO low  water mark (mean=8)
@@ -329,7 +331,14 @@ class SerDesECP5(Module, AutoCSR):
 
             p_CHX_REQ_EN            = "0b0",    # Enable equalizer
             p_CHX_RX_RATE_SEL       = "0d10",   # Equalizer  pole position
-            p_CHX_RTERM_RX          = "0d22",   # 50 Ohm (wizard value used, does not match D/S)
+            p_CHX_RTERM_RX          = {
+                "5k-ohms": "0b00000",
+                "80-ohms": "0b00001",
+                "75-ohms": "0b00100",
+                "70-ohms": "0b00110",
+                "60-ohms": "0b01011",
+                "50-ohms": "0b10011",
+                "46-ohms": "0b11001"}["50-ohms"],
             p_CHX_RXIN_CM           = "0b11",   # CMFB (wizard value used)
             p_CHX_RXTERM_CM         = "0b11",   # RX Input (wizard value used)
 
@@ -358,16 +367,16 @@ class SerDesECP5(Module, AutoCSR):
             p_CHX_DCOATDCFG         = "0b00",   # begin undocumented (sample code used)
             p_CHX_DCOATDDLY         = "0b00",
             p_CHX_DCOBYPSATD        = "0b1",
-            p_CHX_DCOCALDIV         = "0b010",
+            p_CHX_DCOCALDIV         = "0b000",
             p_CHX_DCOCTLGI          = "0b011",
-            p_CHX_DCODISBDAVOID     = "0b1",
+            p_CHX_DCODISBDAVOID     = "0b0",
             p_CHX_DCOFLTDAC         = "0b00",
-            p_CHX_DCOFTNRG          = "0b010",
+            p_CHX_DCOFTNRG          = "0b001",
             p_CHX_DCOIOSTUNE        = "0b010",
             p_CHX_DCOITUNE          = "0b00",
             p_CHX_DCOITUNE4LSB      = "0b010",
             p_CHX_DCOIUPDNX2        = "0b1",
-            p_CHX_DCONUOFLSB        = "0b101",
+            p_CHX_DCONUOFLSB        = "0b100",
             p_CHX_DCOSCALEI         = "0b01",
             p_CHX_DCOSTARTVAL       = "0b010",
             p_CHX_DCOSTEP           = "0b11",   # end undocumented
@@ -411,8 +420,15 @@ class SerDesECP5(Module, AutoCSR):
             o_CHX_HDOUTP            = tx_pads.p,
             o_CHX_HDOUTN            = tx_pads.n,
 
-            p_CHX_TXAMPLITUDE       = "0d1000", # 1000 mV
-            p_CHX_RTERM_TX          = "0d19",   # 50 Ohm
+            p_CHX_TXAMPLITUDE       = "0d1000",  # 1000 mV
+            p_CHX_RTERM_TX          = {
+                "5k-ohms": "0b00000",
+                "80-ohms": "0b00001",
+                "75-ohms": "0b00100",
+                "70-ohms": "0b00110",
+                "60-ohms": "0b01011",
+                "50-ohms": "0b10011",
+                "46-ohms": "0b11001"}["50-ohms"],
 
             p_CHX_TDRV_SLICE0_CUR   = "0b011",  # 400 uA
             p_CHX_TDRV_SLICE0_SEL   = "0b01",   # main data
@@ -420,10 +436,10 @@ class SerDesECP5(Module, AutoCSR):
             p_CHX_TDRV_SLICE1_SEL   = "0b00",   # power down
             p_CHX_TDRV_SLICE2_CUR   = "0b11",   # 3200 uA
             p_CHX_TDRV_SLICE2_SEL   = "0b01",   # main data
-            p_CHX_TDRV_SLICE3_CUR   = "0b11",   # 3200 uA
+            p_CHX_TDRV_SLICE3_CUR   = "0b10",   # 2400 uA
             p_CHX_TDRV_SLICE3_SEL   = "0b01",   # main data
-            p_CHX_TDRV_SLICE4_CUR   = "0b11",   # 3200 uA
-            p_CHX_TDRV_SLICE4_SEL   = "0b01",   # main data
+            p_CHX_TDRV_SLICE4_CUR   = "0b00",   # 800 uA
+            p_CHX_TDRV_SLICE4_SEL   = "0b00",   # power down
             p_CHX_TDRV_SLICE5_CUR   = "0b00",   # 800 uA
             p_CHX_TDRV_SLICE5_SEL   = "0b00",   # power down
 
