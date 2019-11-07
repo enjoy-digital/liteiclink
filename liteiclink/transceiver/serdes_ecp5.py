@@ -492,7 +492,7 @@ class SerDesECP5(Module, AutoCSR):
 
         # Clock Aligner ----------------------------------------------------------------------------
         if clock_aligner:
-            clock_aligner = BruteforceClockAligner(clock_aligner_comma, int(125e6))
+            clock_aligner = BruteforceClockAligner(clock_aligner_comma, self.tx_clk_freq)
             self.submodules.clock_aligner = clock_aligner
             ps_restart = PulseSynchronizer("tx", "sys")
             self.submodules += ps_restart
