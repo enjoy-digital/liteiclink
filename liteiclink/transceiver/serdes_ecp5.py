@@ -92,8 +92,10 @@ class SerDesECP5SCI(Module):
 
 class SerDesECP5SCIReconfig(Module):
     def __init__(self, serdes):
-        self.loopback = Signal()
-        self.tx_idle  = Signal()
+        self.loopback    = Signal()
+        self.rx_polarity = Signal()
+        self.tx_idle     = Signal()
+        self.tx_polarity = Signal()
 
         # # #
 
@@ -105,7 +107,29 @@ class SerDesECP5SCIReconfig(Module):
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-            NextState("READ-CH_02"),
+            NextState("READ-CH_01"),
+        )
+        fsm.act("READ-CH_01",
+            sci.chan_sel.eq(1),
+            sci.re.eq(1),
+            sci.adr.eq(0x01),
+            If(~first & sci.done,
+                sci.re.eq(0),
+                NextValue(data, sci.dat_r),
+                NextState("WRITE-CH_01"),
+            )
+        )
+        fsm.act("WRITE-CH_01",
+            sci.chan_sel.eq(1),
+            sci.we.eq(1),
+            sci.adr.eq(0x01),
+            sci.dat_w.eq(data),
+            sci.dat_w[0].eq(self.rx_polarity),
+            sci.dat_w[1].eq(self.tx_polarity),
+            If(~first & sci.done,
+                sci.we.eq(0),
+                NextState("READ-CH_02")
+            )
         )
         fsm.act("READ-CH_02",
             sci.chan_sel.eq(1),
@@ -224,7 +248,8 @@ class SerdesRXInit(Module):
 
 class SerDesECP5(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, dual=0, channel=0, data_width=20,
-        clock_aligner=False, clock_aligner_comma=0b0101111100):
+        clock_aligner=False, clock_aligner_comma=0b0101111100,
+        tx_polarity=0, rx_polarity=0):
         assert (data_width == 20)
         assert dual in [0, 1]
         assert channel in [0, 1]
@@ -395,7 +420,6 @@ class SerDesECP5(Module, AutoCSR):
             # CHX RX ­— input
             i_CHX_HDINP             = rx_pads.p,
             i_CHX_HDINN             = rx_pads.n,
-            i_CHX_FFC_SB_INV_RX     = 0,
 
             p_CHX_REQ_EN            = "0b0",    # Enable equalizer
             p_CHX_RX_RATE_SEL       = "0d10",   # Equalizer  pole position
@@ -534,6 +558,8 @@ class SerDesECP5(Module, AutoCSR):
         self.submodules.sci_reconfig = sci_reconfig
         self.comb += sci_reconfig.loopback.eq(self.loopback)
         self.comb += sci_reconfig.tx_idle.eq(self.tx_idle)
+        self.comb += sci_reconfig.rx_polarity.eq(rx_polarity)
+        self.comb += sci_reconfig.tx_polarity.eq(tx_polarity)
 
         # TX Datapath and PRBS ---------------------------------------------------------------------
         self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, True))
