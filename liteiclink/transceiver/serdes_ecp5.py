@@ -572,7 +572,7 @@ class SerDesECP5(Module, AutoCSR):
                 # square wave @ linerate/data_width for scope observation
                 tx_data.eq(Signal(data_width, reset=(1<<(data_width//2))-1))
             ).Elif(tx_produce_pattern,
-                txdata.eq(tx_pattern)
+                tx_data.eq(tx_pattern)
             ).Else(
                 tx_data.eq(self.tx_prbs.o)
             ),
