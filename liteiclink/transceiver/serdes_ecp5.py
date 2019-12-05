@@ -23,7 +23,7 @@ class SerDesECP5PLL(Module):
     @staticmethod
     def compute_config(refclk_freq, linerate):
         for mult in [8, 10, 16, 20, 25]:
-            current_linerate = refclk_freq*mult*2 # FIXME: understand x2
+            current_linerate = refclk_freq*mult
             if current_linerate == linerate:
                 return {
                     "mult":       mult,
