@@ -3,8 +3,7 @@
 # This file is Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
 # License: BSD
 
-import argparse
-import os
+import sys
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -16,9 +15,10 @@ from litex.boards.platforms import versa_ecp5
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
-from litex.soc.cores.uart import UARTWishboneBridge
 
 from liteiclink.transceiver.serdes_ecp5 import SerDesECP5PLL, SerDesECP5
+
+# IOs ----------------------------------------------------------------------------------------------
 
 _transceiver_io = [
     ("pcie_tx", 0,
@@ -40,8 +40,6 @@ class _CRG(Module):
         self.clock_domains.cd_ref = ClockDomain(reset_less=True)
 
         # # #
-
-        self.cd_sys.clk.attr.add("keep")
 
         # clk / rst
         clk100 = platform.request("clk100")
@@ -66,19 +64,16 @@ class _CRG(Module):
 # SerDesTestSoC ------------------------------------------------------------------------------------
 
 class SerDesTestSoC(SoCMini):
-    def __init__(self, toolchain="diamond", connector="pcie", refclk_from_pll=True, refclk_freq=200e6):
+    def __init__(self, platform, connector="sma", linerate=2.5e9,
+        refclk_from_pll=True, refclk_freq=200e6):
         assert connector in ["sma", "pcie"]
         sys_clk_freq = int(100e6)
-        platform = versa_ecp5.Platform(toolchain=toolchain)
-        platform.add_extension(_transceiver_io)
-        SoCMini.__init__(self, platform, clk_freq=sys_clk_freq)
+
+        # SoCMini ----------------------------------------------------------------------------------
+        SoCMini.__init__(self, platform, sys_clk_freq)
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq, refclk_from_pll, refclk_freq)
-
-        # Serial Bridge ----------------------------------------------------------------------------
-        self.submodules.bridge = UARTWishboneBridge(platform.request("serial"), sys_clk_freq)
-        self.add_wb_master(self.bridge.wishbone)
 
         # SerDes RefClk ----------------------------------------------------------------------------
         if refclk_from_pll:
@@ -130,6 +125,7 @@ class SerDesTestSoC(SoCMini):
         self.sync.rx += [
             serdes.rx_align.eq(1),
             serdes.source.ready.eq(1),
+            # No word aligner, so look for K28.5 and redirect the other byte to the leds
             If(serdes.source.data[0:8] == ((5 << 5) | 28),
                 counter.eq(serdes.source.data[8:]),
             ).Else(
@@ -154,13 +150,32 @@ class SerDesTestSoC(SoCMini):
         self.sync.tx += tx_counter.eq(rx_counter + 1)
         self.comb += platform.request("user_led", 2).eq(tx_counter[26])
 
+# Load ---------------------------------------------------------------------------------------------
+def load():
+    import os
+    f = open("ecp5-versa5g.cfg", "w")
+    f.write(
+"""
+interface ftdi
+ftdi_vid_pid 0x0403 0x6010
+ftdi_channel 0
+ftdi_layout_init 0xfff8 0xfffb
+reset_config none
+adapter_khz 25000
+jtag newtap ecp5 tap -irlen 8 -expected-id 0x81112043
+""")
+    f.close()
+    os.system("openocd -f ecp5-versa5g.cfg -c \"transport select jtag; init; svf build/gateware/versa_ecp5.svf; exit\"")
+    exit()
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="SerDes Test SoC on Versa ECP5")
-    args = parser.parse_args()
-
-    soc = SerDesTestSoC(toolchain="trellis")
+    if "load" in sys.argv[1:]:
+        load()
+    platform = versa_ecp5.Platform(toolchain="trellis")
+    platform.add_extension(_transceiver_io)
+    soc     = SerDesTestSoC(platform)
     builder = Builder(soc, output_dir="build")
     builder.build(build_name="versa_ecp5")
 
