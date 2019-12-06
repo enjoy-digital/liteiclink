@@ -93,7 +93,7 @@ class SerDesTestSoC(SoCMini):
             self.extref0.attr.add(("LOC", "EXTREF0"))
 
         # SerDes PLL -------------------------------------------------------------------------------
-        serdes_pll = SerDesECP5PLL(refclk, refclk_freq=refclk_freq, linerate=5e9)
+        serdes_pll = SerDesECP5PLL(refclk, refclk_freq=refclk_freq, linerate=linerate)
         self.submodules += serdes_pll
 
         # SerDes -----------------------------------------------------------------------------------
