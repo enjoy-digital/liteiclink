@@ -11,8 +11,6 @@ from litex.soc.interconnect import stream
 from litex.soc.cores.prbs import PRBSTX, PRBSRX
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
-from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
-
 # SerDesECP5PLL ------------------------------------------------------------------------------------
 
 class SerDesECP5PLL(Module):
@@ -248,7 +246,6 @@ class SerdesRXInit(Module):
 
 class SerDesECP5(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, dual=0, channel=0, data_width=20,
-        clock_aligner=False, clock_aligner_comma=0b0101111100,
         tx_polarity=0, rx_polarity=0):
         assert (data_width == 20)
         assert dual in [0, 1]
@@ -298,7 +295,6 @@ class SerDesECP5(Module, AutoCSR):
         rx_align   = Signal()
         rx_data    = Signal(20)
         rx_bus     = Signal(24)
-        rx_restart = Signal()
 
         tx_lol     = Signal()
         tx_data    = Signal(20)
@@ -416,8 +412,8 @@ class SerDesECP5(Module, AutoCSR):
             i_CHX_FFC_RXPWDNB       = 1,
 
             # CHX RX ­— reset
-            i_CHX_FFC_RRST          = ~self.rx_enable | rx_restart | rx_init.rrst,
-            i_CHX_FFC_LANE_RX_RST   = ~self.rx_enable | rx_restart | rx_init.lane_rx_rst,
+            i_CHX_FFC_RRST          = ~self.rx_enable | rx_init.rrst,
+            i_CHX_FFC_LANE_RX_RST   = ~self.rx_enable | rx_init.lane_rx_rst,
 
             # CHX RX ­— input
             i_CHX_HDINP             = rx_pads.p,
@@ -591,19 +587,6 @@ class SerDesECP5(Module, AutoCSR):
         for i in range(nwords):
             self.sync.rx += self.decoders[i].input.eq(rx_data[10*i:10*(i+1)])
         self.comb += self.rx_prbs.i.eq(rx_data)
-
-        # Clock Aligner ----------------------------------------------------------------------------
-        if clock_aligner:
-            clock_aligner = BruteforceClockAligner(clock_aligner_comma, self.tx_clk_freq)
-            self.submodules.clock_aligner = clock_aligner
-            ps_restart = PulseSynchronizer("tx", "sys")
-            self.submodules += ps_restart
-            self.comb += [
-                clock_aligner.rxdata.eq(rx_data),
-                ps_restart.i.eq(clock_aligner.restart),
-                rx_restart.eq((ps_restart.o & rx_align) | ~self.rx_enable),
-            ]
-            self.specials += MultiReg(clock_aligner.ready, self.rx_ready)
 
     def add_stream_endpoints(self):
         self.sink   =   sink = stream.Endpoint([("data", self.nwords*8), ("ctrl", self.nwords)])
