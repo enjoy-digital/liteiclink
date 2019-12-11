@@ -147,25 +147,27 @@ class SerDesECP5SCIReconfig(Module):
             sci.dat_w[6].eq(self.tx_idle),  # pcie_ei_en
             If(~first & sci.done,
                 sci.we.eq(0),
-                NextState("READ-CH_04")
+                NextState("READ-CH_15")
             )
         )
-        fsm.act("READ-CH_04",
+        fsm.act("READ-CH_15",
             sci.chan_sel.eq(1),
             sci.re.eq(1),
-            sci.adr.eq(0x04),
+            sci.adr.eq(0x15),
             If(~first & sci.done,
                 sci.re.eq(0),
                 NextValue(data, sci.dat_r),
-                NextState("WRITE-CH_04"),
+                NextState("WRITE-CH_15"),
             )
         )
-        fsm.act("WRITE-CH_04",
+        fsm.act("WRITE-CH_15",
             sci.chan_sel.eq(1),
             sci.we.eq(1),
-            sci.adr.eq(0x04),
+            sci.adr.eq(0x15),
             sci.dat_w.eq(data),
-            sci.dat_w[0].eq(self.loopback),  # sb_loopback
+            If(self.loopback,
+                sci.dat_w[0:4].eq(0b0001) # lb_ctl
+            ),
             If(~first & sci.done,
                 sci.we.eq(0),
                 NextState("IDLE")
@@ -272,7 +274,7 @@ class SerDesECP5(Module, AutoCSR):
         self.rx_idle                = Signal()
 
         # Loopback
-        self.loopback               = Signal()
+        self.loopback               = Signal() # FIXME: reconfigure lb_ctl to 0b0001 but does not seem enough
 
         # # #
 
