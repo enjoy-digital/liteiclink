@@ -137,10 +137,10 @@ class SerDesTestSoC(SoCMini):
             ).Else(
                 counter.eq(serdes.source.data[0:]),
             ),
-            platform.request("user_led", 4).eq(counter[0]),
-            platform.request("user_led", 5).eq(counter[1]),
-            platform.request("user_led", 6).eq(counter[2]),
-            platform.request("user_led", 7).eq(counter[3]),
+            platform.request("user_led", 4).eq(~counter[0]),
+            platform.request("user_led", 5).eq(~counter[1]),
+            platform.request("user_led", 6).eq(~counter[2]),
+            platform.request("user_led", 7).eq(~counter[3]),
         ]
 
         # Leds -------------------------------------------------------------------------------------
