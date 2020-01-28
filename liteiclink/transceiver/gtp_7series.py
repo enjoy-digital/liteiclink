@@ -17,6 +17,8 @@ from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
 
 from liteiclink.transceiver.common import *
 
+class Open(Signal):
+    pass
 
 class GTPQuadPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate, channel=0, shared=False):
@@ -599,9 +601,9 @@ class GTP(Module, AutoCSR):
             i_LOOPBACK              = self.loopback,
 
             # PCI Express Ports
-            #o_PHYSTATUS            =,
+            o_PHYSTATUS             = Open(),
             i_RXRATE                = 0,
-            #o_RXVALID              =,
+            o_RXVALID               = Open(),
 
             # PMA Reserved Ports
             i_PMARSVDIN3            = 0b0,
@@ -619,7 +621,7 @@ class GTP(Module, AutoCSR):
             i_RXUSERRDY             = rx_init.rxuserrdy,
 
             # RX Margin Analysis Ports
-            #o_EYESCANDATAERROR     =,
+            o_EYESCANDATAERROR      = Open(),
             i_EYESCANMODE           = 0,
             i_EYESCANTRIGGER        = 0,
 
@@ -634,23 +636,23 @@ class GTP(Module, AutoCSR):
             # Receive Ports - CDR Ports
             i_RXCDRFREQRESET        = 0,
             i_RXCDRHOLD             = 0,
-            #o_RXCDRLOCK            =,
+            o_RXCDRLOCK             = Open(),
             i_RXCDROVRDEN           = 0,
             i_RXCDRRESET            = 0,
             i_RXCDRRESETRSV         = 0,
             i_RXOSCALRESET          = 0,
             i_RXOSINTCFG            = 0b0010,
-            #o_RXOSINTDONE          =,
+            o_RXOSINTDONE           = Open(),
             i_RXOSINTHOLD           = 0,
             i_RXOSINTOVRDEN         = 0,
             i_RXOSINTPD             = 0,
-            #o_RXOSINTSTARTED       =,
+            o_RXOSINTSTARTED        = Open(),
             i_RXOSINTSTROBE         = 0,
-            #o_RXOSINTSTROBESTARTED =,
+            o_RXOSINTSTROBESTARTED  = Open(),
             i_RXOSINTTESTOVRDEN     = 0,
 
             # Receive Ports - Clock Correction Ports
-            #o_RXCLKCORCNT          =,
+            o_RXCLKCORCNT           = Open(),
 
             # Receive Ports - FPGA RX Interface Datapath Configuration
             i_RX8B10BEN             = 0,
@@ -661,28 +663,28 @@ class GTP(Module, AutoCSR):
             i_RXUSRCLK2             = ClockSignal("rx"),
 
             # Receive Ports - Pattern Checker Ports
-            #o_RXPRBSERR            =,
+            o_RXPRBSERR             = Open(),
             i_RXPRBSSEL             = 0,
 
             # Receive Ports - Pattern Checker ports
             i_RXPRBSCNTRESET        = 0,
 
             # Receive Ports - RX 8B/10B Decoder Ports
-            #o_RXCHARISCOMMA        =,
+            o_RXCHARISCOMMA         = Open(),
             o_RXCHARISK             = Cat(*[rxdata[10*i+8] for i in range(nwords)]),
             o_RXDISPERR             = Cat(*[rxdata[10*i+9] for i in range(nwords)]),
-            #o_RXNOTINTABLE         =,
+            o_RXNOTINTABLE          = Open(),
 
             # Receive Ports - RX AFE Ports
             i_GTPRXN                = rx_pads.n,
             i_GTPRXP                = rx_pads.p,
             i_PMARSVDIN2            = 0b0,
-            #o_PMARSVDOUT0          =,
-            #o_PMARSVDOUT1          =,
+            o_PMARSVDOUT0           = Open(),
+            o_PMARSVDOUT1           = Open(),
 
             # Receive Ports - RX Buffer Bypass Ports
             i_RXBUFRESET            = 0,
-            #o_RXBUFSTATUS          =,
+            o_RXBUFSTATUS           = Open(),
             i_RXDDIEN               = 0 if rx_buffer_enable else 1,
             i_RXDLYBYPASS           = 1 if rx_buffer_enable else 0,
             i_RXDLYEN               = 0,
@@ -694,46 +696,46 @@ class GTP(Module, AutoCSR):
             i_RXPHALIGNEN           = 0,
             i_RXPHDLYPD             = 0,
             i_RXPHDLYRESET          = 0,
-            #o_RXPHMONITOR          =,
+            o_RXPHMONITOR           = Open(),
             i_RXPHOVRDEN            = 0,
-            #o_RXPHSLIPMONITOR      =,
-            #o_RXSTATUS             =,
+            o_RXPHSLIPMONITOR       = Open(),
+            o_RXSTATUS              = Open(),
             i_RXSYNCALLIN           = rxphaligndone,
             o_RXSYNCDONE            = rx_init.rxsyncdone,
             i_RXSYNCIN              = 0,
             i_RXSYNCMODE            = 0 if rx_buffer_enable else 1,
-            #o_RXSYNCOUT            =,
+            o_RXSYNCOUT             = Open(),
 
             # Receive Ports - RX Byte and Word Alignment Ports
-            #o_RXBYTEISALIGNED      =,
-            #o_RXBYTEREALIGN        =,
-            #o_RXCOMMADET           =,
+            o_RXBYTEISALIGNED       = Open(),
+            o_RXBYTEREALIGN         = Open(),
+            o_RXCOMMADET            = Open(),
             i_RXCOMMADETEN          = 1,
             i_RXMCOMMAALIGNEN       = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
             i_RXPCOMMAALIGNEN       = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
             i_RXSLIDE               = 0,
 
             # Receive Ports - RX Channel Bonding Ports
-            #o_RXCHANBONDSEQ        =,
+            o_RXCHANBONDSEQ         = Open(),
             i_RXCHBONDEN            = 0,
             i_RXCHBONDI             = 0b0000,
             i_RXCHBONDLEVEL         = 0,
             i_RXCHBONDMASTER        = 0,
-            #o_RXCHBONDO            =,
+            o_RXCHBONDO             = Open(),
             i_RXCHBONDSLAVE         = 0,
 
             # Receive Ports - RX Channel Bonding Ports
-            #o_RXCHANISALIGNED      =,
-            #o_RXCHANREALIGN        =,
+            o_RXCHANISALIGNED       = Open(),
+            o_RXCHANREALIGN         = Open(),
 
             # Receive Ports - RX Decision Feedback Equalizer
-            #o_DMONITOROUT          =,
+            o_DMONITOROUT           = Open(),
             i_RXADAPTSELTEST        = 0,
             i_RXDFEXYDEN            = 0,
             i_RXOSINTEN             = 0b1,
             i_RXOSINTID0            = 0,
             i_RXOSINTNTRLEN         = 0,
-            #o_RXOSINTSTROBEDONE    =,
+            o_RXOSINTSTROBEDONE     = Open(),
 
             # Receive Ports - RX Driver,OOB signalling,Coupling and Eq.,CDR
             i_RXLPMLFOVRDEN         = 0,
@@ -747,22 +749,22 @@ class GTP(Module, AutoCSR):
             i_RXOSOVRDEN            = 0,
 
             # Receive Ports - RX Fabric ClocK Output Control Ports
-            #o_RXRATEDONE           =,
+            o_RXRATEDONE            = Open(),
 
             # Receive Ports - RX Fabric Clock Output Control Ports
             i_RXRATEMODE            = 0b0,
 
             # Receive Ports - RX Fabric Output Control Ports
             o_RXOUTCLK              = self.rxoutclk,
-            #o_RXOUTCLKFABRIC       =,
-            #o_RXOUTCLKPCS          =,
+            o_RXOUTCLKFABRIC        = Open(),
+            o_RXOUTCLKPCS           = Open(),
             i_RXOUTCLKSEL           = 0b010,
 
             # Receive Ports - RX Gearbox Ports
-            #o_RXDATAVALID          =,
-            #o_RXHEADER             =,
-            #o_RXHEADERVALID        =,
-            #o_RXSTARTOFSEQ         =,
+            o_RXDATAVALID           = Open(),
+            o_RXHEADER              = Open(),
+            o_RXHEADERVALID         = Open(),
+            o_RXSTARTOFSEQ          = Open(),
             i_RXGEARBOXSLIP         = 0,
 
             # Receive Ports - RX Initialization and Reset Ports
@@ -773,10 +775,10 @@ class GTP(Module, AutoCSR):
             i_RXPMARESET            = 0,
 
             # Receive Ports - RX OOB Signaling ports
-            #o_RXCOMSASDET          =,
-            #o_RXCOMWAKEDET         =,
-            #o_RXCOMINITDET         =,
-            #o_RXELECIDLE           =,
+            o_RXCOMSASDET           = Open(),
+            o_RXCOMWAKEDET          = Open(),
+            o_RXCOMINITDET          = Open(),
+            o_RXELECIDLE            = Open(),
             i_RXELECIDLEMODE        = 0b11,
 
             # Receive Ports - RX Polarity Control Ports
@@ -800,7 +802,7 @@ class GTP(Module, AutoCSR):
             # TX Initialization and Reset Ports
             i_CFGRESET              = 0,
             i_GTTXRESET             = tx_init.gttxreset,
-            #o_PCSRSVDOUT           =,
+            #o_PCSRSVDOUT           = Open(),
             i_TXUSERRDY             = tx_init.txuserrdy,
 
             # TX Phase Interpolator PPM Controller Ports
@@ -815,7 +817,7 @@ class GTP(Module, AutoCSR):
             i_RESETOVRD             = 0,
 
             # Transmit Ports
-            #o_TXPMARESETDONE       =,
+            #o_TXPMARESETDONE       = Open(),
 
             # Transmit Ports - Configurable Driver Ports
             i_PMARSVDIN0            = 0b0,
@@ -859,14 +861,14 @@ class GTP(Module, AutoCSR):
             i_TXPHOVRDEN            = 0,
 
             # Transmit Ports - TX Buffer Ports
-            #o_TXBUFSTATUS          =,
+            o_TXBUFSTATUS           = Open(),
 
             # Transmit Ports - TX Buffer and Phase Alignment Ports
             i_TXSYNCALLIN           = 0,
-            #o_TXSYNCDONE           =,
-            #i_TXSYNCIN             = 0,
-            #i_TXSYNCMODE           = 0,
-            #o_TXSYNCOUT            =,
+            o_TXSYNCDONE            = Open(),
+            i_TXSYNCIN              = 0,
+            i_TXSYNCMODE            = 0,
+            o_TXSYNCOUT             = Open(),
 
             # Transmit Ports - TX Configurable Driver Ports
             o_GTPTXN                = tx_pads.n,
@@ -881,13 +883,13 @@ class GTP(Module, AutoCSR):
 
             # Transmit Ports - TX Fabric Clock Output Control Ports
             o_TXOUTCLK              = self.txoutclk,
-            #o_TXOUTCLKFABRIC       =,
-            #o_TXOUTCLKPCS          =,
+            o_TXOUTCLKFABRIC        = Open(),
+            o_TXOUTCLKPCS           = Open(),
             i_TXOUTCLKSEL           = 0b010 if tx_buffer_enable else 0b011,
-            #o_TXRATEDONE           =,
+            o_TXRATEDONE            = Open(),
 
             # Transmit Ports - TX Gearbox Ports
-            #o_TXGEARBOXREADY       =,
+            o_TXGEARBOXREADY        = Open(),
             i_TXHEADER              = 0,
             i_TXSEQUENCE            = 0,
             i_TXSTARTSEQ            = 0,
@@ -898,7 +900,7 @@ class GTP(Module, AutoCSR):
             o_TXRESETDONE           = tx_init.txresetdone,
 
             # Transmit Ports - TX OOB signalling Ports
-            #o_TXCOMFINISH          =,
+            o_TXCOMFINISH           = Open(),
             i_TXCOMINIT             = 0,
             i_TXCOMSAS              = 0,
             i_TXCOMWAKE             = 0,
@@ -921,7 +923,10 @@ class GTP(Module, AutoCSR):
         self.clock_domains.cd_tx = ClockDomain()
 
         txoutclk_bufg = Signal()
-        self.specials += Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg)
+        self.specials += Instance("BUFG",
+            i_I = self.txoutclk,
+            o_O = txoutclk_bufg,
+        )
 
         if not tx_buffer_enable:
             txoutclk_div = qpll.config["clkin"]/self.tx_clk_freq
@@ -935,9 +940,16 @@ class GTP(Module, AutoCSR):
         elif txoutclk_div == int(txoutclk_div):
             txoutclk_bufr = Signal()
             self.specials += [
-                Instance("BUFR", i_I=txoutclk_bufg, o_O=txoutclk_bufr,
-                    i_CE=1, p_BUFR_DIVIDE=str(int(txoutclk_div))),
-                Instance("BUFG", i_I=txoutclk_bufr, o_O=self.cd_tx.clk),
+                Instance("BUFR",
+                    p_BUFR_DIVIDE = str(int(txoutclk_div)),
+                    i_CE = 1,
+                    i_I  = txoutclk_bufg,
+                    o_O  = txoutclk_bufr,
+                ),
+                Instance("BUFG",
+                    i_I = txoutclk_bufr,
+                    o_O = self.cd_tx.clk,
+                ),
                 AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
             ]
         # Use a PLL when non-integer divider
@@ -954,7 +966,10 @@ class GTP(Module, AutoCSR):
         self.sync.tx += rx_reset_deglitched.eq(~rx_init.done)
         self.clock_domains.cd_rx = ClockDomain()
         self.specials += [
-            Instance("BUFG", i_I=self.rxoutclk, o_O=self.cd_rx.clk),
+            Instance("BUFG",
+                i_I = self.rxoutclk,
+                o_O = self.cd_rx.clk,
+            ),
             AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
         ]
 
