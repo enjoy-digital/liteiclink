@@ -605,12 +605,22 @@ class SerDesECP5(Module, AutoCSR):
             ]
 
     def add_base_control(self):
-        self._tx_enable              = CSRStorage()
-        self._tx_ready               = CSRStatus()
-        self._tx_inhibit             = CSRStorage(reset=0b0)
-        self._tx_produce_square_wave = CSRStorage(reset=0b0)
-        self._rx_enable              = CSRStorage()
-        self._rx_ready               = CSRStatus()
+        self._tx_enable              = CSRStorage(description="TX enable, " +
+            "``0``: Disabled / ``1``: Enabled")
+        self._tx_ready               = CSRStatus(description="TX ready, " +
+            "``0``: TX not initialized / " +
+            "``1``: TX initialized and ready.")
+        self._tx_inhibit             = CSRStorage(reset=0b0, description="TX inhibit, " +
+            "``1``: Disable TX datapath.")
+        self._tx_produce_square_wave = CSRStorage(reset=0b0, description="TX square wave enable, " +
+            "``1``: Generate a square wave on TX for linerate observation/checks.")
+        self._rx_enable              = CSRStorage(description="RX enable, " +
+            "``0``: Disabled / ``1``: Enabled")
+        self._rx_ready               = CSRStatus(description="RX ready, " +
+            "``0``: RX not initialized / " +
+            "``1``: RX initialized and ready.")
+        if hasattr(self, "clock_aligner"):
+            self.comb += self.clock_aligner.disable.eq(self._clock_aligner_disable.storage)
         self.comb += [
             self.tx_enable.eq(self._tx_enable.storage),
             self._tx_ready.status.eq(self.tx_ready),
@@ -621,9 +631,17 @@ class SerDesECP5(Module, AutoCSR):
         ]
 
     def add_prbs_control(self):
-        self._tx_prbs_config = CSRStorage(2, reset=0b00)
-        self._rx_prbs_config = CSRStorage(2, reset=0b00)
-        self._rx_prbs_errors = CSRStatus(32)
+        self._tx_prbs_config = CSRStorage(2, reset=0b00, description="TX PRBS config\n" +
+            "``0b00``: PRBS Disabled, "  +
+            "``0b01``: PRBS7 Enabled, "  +
+            "``0b10``: PRBS15 Enabled, " +
+            "``0b11``: PRBS31 Enabled.")
+        self._rx_prbs_config = CSRStorage(2, reset=0b00, description="RX PRBS config\n" +
+            "``0b00``: PRBS Disabled, "  +
+            "``0b01``: PRBS7 Enabled, "  +
+            "``0b10``: PRBS15 Enabled, " +
+            "``0b11``: PRBS31 Enabled.")
+        self._rx_prbs_errors = CSRStatus(32, description="RX PRBS errors.")
         self.comb += [
             self.tx_prbs_config.eq(self._tx_prbs_config.storage),
             self.rx_prbs_config.eq(self._rx_prbs_config.storage),
