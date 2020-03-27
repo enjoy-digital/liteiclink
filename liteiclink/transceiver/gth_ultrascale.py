@@ -885,22 +885,48 @@ class GTH(Module, AutoCSR):
 
     def add_base_control(self):
         if hasattr(self, "clock_aligner"):
-            self._clock_aligner_disable  = CSRStorage(description="Clock Aligner disable, " +
-                "``0``: Enabled / ``1``: Disabled")
-        self._tx_enable              = CSRStorage(description="TX enable, " +
-            "``0``: Disabled / ``1``: Enabled")
-        self._tx_ready               = CSRStatus(description="TX ready, " +
-            "``0``: TX not initialized / " +
-            "``1``: TX initialized and ready.")
-        self._tx_inhibit             = CSRStorage(reset=0b0, description="TX inhibit, " +
-            "``1``: Disable TX datapath.")
-        self._tx_produce_square_wave = CSRStorage(reset=0b0, description="TX square wave enable, " +
-            "``1``: Generate a square wave on TX for linerate observation/checks.")
-        self._rx_enable              = CSRStorage(description="RX enable, " +
-            "``0``: Disabled / ``1``: Enabled")
-        self._rx_ready               = CSRStatus(description="RX ready, " +
-            "``0``: RX not initialized / " +
-            "``1``: RX initialized and ready.")
+            self._clock_aligner_disable  = CSRStorage(fields=[
+                CSRField("aligner_disable", size=1, values=[
+                    ("``0b0``", "Clock aligner enabled."),
+                    ("``0b1``", "Clock aligner disabled.")
+                ])
+            ])
+        self._tx_enable = CSRStorage(fields=[
+                CSRField("enable", size=1, values=[
+                    ("``0b0``", "TX disabled."),
+                    ("``0b1``", "TX enabled.")
+                ])
+            ])
+        self._tx_ready = CSRStatus(fields=[
+                CSRField("ready", size=1, values=[
+                    ("``0b0``", "TX not initialized."),
+                    ("``0b1``", "TX initialized and ready.")
+                ])
+            ])
+        self._tx_inhibit = CSRStorage(fields=[
+                CSRField("inhibit", size=1, values=[
+                    ("``0b0``", "Normal operation."),
+                    ("``0b1``", "TX inhibited.")
+                ])
+            ])
+        self._tx_produce_square_wave = CSRStorage(fields=[
+                CSRField("enable", size=1, values=[
+                    ("``0b0``", "Normal operation."),
+                    ("``0b1``", "TX square wave genration enabled (linerate observation/checks).")
+                ])
+            ])
+        self._rx_enable = CSRStorage(fields=[
+                CSRField("enable", size=1, values=[
+                    ("``0b0``", "RX disabled."),
+                    ("``0b1``", "RX enabled.")
+                ])
+            ])
+        self._rx_ready = CSRStatus(fields=[
+                CSRField("ready", size=1, values=[
+                    ("``0b0``", "RX not initialized."),
+                    ("``0b1``", "RX initialized and ready.")
+                ])
+            ])
         if hasattr(self, "clock_aligner"):
             self.comb += self.clock_aligner.disable.eq(self._clock_aligner_disable.storage)
         self.comb += [
@@ -913,16 +939,22 @@ class GTH(Module, AutoCSR):
         ]
 
     def add_prbs_control(self):
-        self._tx_prbs_config = CSRStorage(2, reset=0b00, description="TX PRBS config\n" +
-            "``0b00``: PRBS Disabled, "  +
-            "``0b01``: PRBS7 Enabled, "  +
-            "``0b10``: PRBS15 Enabled, " +
-            "``0b11``: PRBS31 Enabled.")
-        self._rx_prbs_config = CSRStorage(2, reset=0b00, description="RX PRBS config\n" +
-            "``0b00``: PRBS Disabled, "  +
-            "``0b01``: PRBS7 Enabled, "  +
-            "``0b10``: PRBS15 Enabled, " +
-            "``0b11``: PRBS31 Enabled.")
+        self._tx_prbs_config = CSRStorage(fields=[
+            CSRField("config", size=2, values=[
+                ("``0b00``", "PRBS   Disabled."),
+                ("``0b01``", "PRBS7  Enabled."),
+                ("``0b10``", "PRBS15 Enabled."),
+                ("``0b11``", "PRBS31 Enabled."),
+            ])
+        ])
+        self._rx_prbs_config = CSRStorage(fields=[
+            CSRField("config", size=2, values=[
+                ("``0b00``", "PRBS   Disabled."),
+                ("``0b01``", "PRBS7  Enabled."),
+                ("``0b10``", "PRBS15 Enabled."),
+                ("``0b11``", "PRBS31 Enabled."),
+            ])
+        ])
         self._rx_prbs_errors = CSRStatus(32, description="RX PRBS errors.")
         self.comb += [
             self.tx_prbs_config.eq(self._tx_prbs_config.storage),
@@ -931,23 +963,41 @@ class GTH(Module, AutoCSR):
         ]
 
     def add_loopback_control(self):
-        self._loopback = CSRStorage(3)
+        self._loopback = CSRStorage(fields=[
+            CSRField("config", size=3, values=[
+                ("``0b000``", "Normal operation."),
+                ("``0b001``", "Near-End PCS Loopback."),
+                ("``0b010``", "Near-End PMA Loopback."),
+                ("``0b100``", "Far-End PMA Loopback."),
+                ("``0b110``", "Far-End PCS Loopback."),
+            ])
+        ])
         self.comb += self.loopback.eq(self._loopback.storage)
 
     def add_polarity_control(self):
-        self._tx_polarity  = CSRStorage()
-        self._rx_polarity  = CSRStorage()
+        self._tx_polarity  = CSRStorage(fields=[
+            CSRField("swap", size=1, values=[
+                ("``0b0``", "Normal operation."),
+                ("``0b1``", "TX polarity swap (equivalent to P/N swap)."),
+            ])
+        ])
+        self._rx_polarity  = CSRStorage(fields=[
+            CSRField("swap", size=1, values=[
+                ("``0b0``", "Normal operation."),
+                ("``0b1``", "RX polarity swap (equivalent to P/N swap)."),
+            ])
+        ])
         self.gth_params.update(
             i_TXPOLARITY = self._tx_polarity.storage,
             i_RXPOLARITY = self._rx_polarity.storage
         )
 
     def add_electrical_control(self):
-        self._tx_diffctrl       = CSRStorage(4, reset=0b1100)
-        self._tx_postcursor     = CSRStorage(5, reset=0b00000)
-        self._tx_postcursor_inv = CSRStorage(1, reset=0b0)
-        self._tx_precursor      = CSRStorage(5, reset=0b00000)
-        self._tx_precursor_inv  = CSRStorage(1, reset=0b0)
+        self._tx_diffctrl       = CSRStorage(4, reset=0b1100,  description="TX Driver Swing Control, see UG576.")
+        self._tx_postcursor     = CSRStorage(5, reset=0b00000, description="TX Post Cursor Pre-emphasis Control, see UG576.")
+        self._tx_postcursor_inv = CSRStorage(1, reset=0b0,     description="TX Post Cursor Polarity, see UG576.")
+        self._tx_precursor      = CSRStorage(5, reset=0b00000, description="TX Pre Cursor Pre-emphasis Control, see UG576.")
+        self._tx_precursor_inv  = CSRStorage(1, reset=0b0,     description="Invert polarity of TX Pre Cursor, see UG576.")
         self.gth_params.update(
             i_TXDIFFCTRL      = self._tx_diffctrl.storage,
             i_TXPOSTCURSOR    = self._tx_postcursor.storage,
