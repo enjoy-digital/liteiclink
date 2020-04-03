@@ -1055,7 +1055,7 @@ class GTX(Module, AutoCSR):
     def add_base_control(self):
         if hasattr(self, "clock_aligner"):
             self._clock_aligner_disable  = CSRStorage(fields=[
-                CSRField("aligner_disable", size=1, values=[
+                CSRField("disable", size=1, values=[
                     ("``0b0``", "Clock aligner enabled."),
                     ("``0b1``", "Clock aligner disabled.")
                 ])
@@ -1097,14 +1097,14 @@ class GTX(Module, AutoCSR):
                 ])
             ])
         if hasattr(self, "clock_aligner"):
-            self.comb += self.clock_aligner.disable.eq(self._clock_aligner_disable.storage)
+            self.comb += self.clock_aligner.disable.eq(self._clock_aligner_disable.fields.disable)
         self.comb += [
-            self.tx_enable.eq(self._tx_enable.storage),
-            self._tx_ready.status.eq(self.tx_ready),
-            self.tx_inhibit.eq(self._tx_inhibit.storage),
-            self.tx_produce_square_wave.eq(self._tx_produce_square_wave.storage),
-            self.rx_enable.eq(self._rx_enable.storage),
-            self._rx_ready.status.eq(self.rx_ready),
+            self.tx_enable.eq(self._tx_enable.fields.enable),
+            self._tx_ready.fields.ready.eq(self.tx_ready),
+            self.tx_inhibit.eq(self._tx_inhibit.fields.inhibit),
+            self.tx_produce_square_wave.eq(self._tx_produce_square_wave.fields.enable),
+            self.rx_enable.eq(self._rx_enable.fields.enable),
+            self._rx_ready.fields.ready.eq(self.rx_ready),
         ]
 
     def add_prbs_control(self):
@@ -1126,8 +1126,8 @@ class GTX(Module, AutoCSR):
         ])
         self._rx_prbs_errors = CSRStatus(32, description="RX PRBS errors.")
         self.comb += [
-            self.tx_prbs_config.eq(self._tx_prbs_config.storage),
-            self.rx_prbs_config.eq(self._rx_prbs_config.storage),
+            self.tx_prbs_config.eq(self._tx_prbs_config.fields.config),
+            self.rx_prbs_config.eq(self._rx_prbs_config.fields.config),
             self._rx_prbs_errors.status.eq(self.rx_prbs_errors)
         ]
 
@@ -1141,7 +1141,7 @@ class GTX(Module, AutoCSR):
                 ("``0b110``", "Far-End PCS Loopback."),
             ])
         ])
-        self.comb += self.loopback.eq(self._loopback.storage)
+        self.comb += self.loopback.eq(self._loopback.fields.config)
 
     def add_polarity_control(self):
         self._tx_polarity  = CSRStorage(fields=[
@@ -1157,8 +1157,8 @@ class GTX(Module, AutoCSR):
             ])
         ])
         self.gtx_params.update(
-            i_TXPOLARITY = self._tx_polarity.storage,
-            i_RXPOLARITY = self._rx_polarity.storage
+            i_TXPOLARITY = self._tx_polarity.fields.swap,
+            i_RXPOLARITY = self._rx_polarity.fields.swap,
         )
 
     def add_electrical_control(self):
