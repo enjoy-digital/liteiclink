@@ -2,8 +2,9 @@
 # License: BSD
 
 from migen import *
-from migen.genlib.io import *
 from migen.genlib.misc import WaitTimer
+
+from litex.build.io import *
 
 from litex.soc.interconnect import stream
 from litex.soc.interconnect.csr import *
