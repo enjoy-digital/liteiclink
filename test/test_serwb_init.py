@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+
+#
+# This file is part of LiteICLink.
+#
+# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
 import unittest
 
 from migen import *

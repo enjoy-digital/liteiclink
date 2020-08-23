@@ -1,4 +1,8 @@
-# This file is Copyright (c) 2017 Sebastien Bourdeauducq <sb@m-labs.hk>
+#
+# This file is part of LiteICLink.
+#
+# Copyright (c) 2017 Sebastien Bourdeauducq <sb@m-labs.hk>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from math import ceil
 from functools import reduce

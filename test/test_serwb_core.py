@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+
+#
+# This file is part of LiteICLink.
+#
+# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
 import unittest
 import random
 
@@ -89,7 +96,7 @@ class DUTCore(Module):
             phy_master.serdes.rx_ce.eq(phy_slave.serdes.tx_ce),
             phy_master.serdes.rx_k.eq(phy_slave.serdes.tx_k),
             phy_master.serdes.rx_d.eq(phy_slave.serdes.tx_d),
-            
+
             phy_slave.serdes.rx_ce.eq(phy_master.serdes.tx_ce),
             phy_slave.serdes.rx_k.eq(phy_master.serdes.tx_k),
             phy_slave.serdes.rx_d.eq(phy_master.serdes.tx_d)

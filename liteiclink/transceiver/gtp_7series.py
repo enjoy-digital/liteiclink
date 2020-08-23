@@ -1,6 +1,9 @@
-# This file is Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# This file is Copyright (c) 2017 Sebastien Bourdeauducq <sb@m-labs.hk>
-# License: BSD
+#
+# This file is part of LiteICLink.
+#
+# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017 Sebastien Bourdeauducq <sb@m-labs.hk>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
