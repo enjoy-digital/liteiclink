@@ -59,7 +59,7 @@ class _CRG(Module):
         # pll
         self.submodules.pll = pll = ECP5PLL()
         pll.register_clkin(clk100, 100e6)
-        pll.create_clkout(self.cd_sys, sys_clk_freq)
+        pll.create_clkout(self.cd_sys, sys_clk_freq, with_reset=False)
         if refclk_from_pll:
             pll.create_clkout(self.cd_ref, refclk_freq)
         self.specials += AsyncResetSynchronizer(self.cd_sys, ~por_done | ~pll.locked | ~rst_n)
