@@ -70,7 +70,7 @@ class GTHTestSoC(SoCMini):
         sys_clk_freq = int(125e9)
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq)
+        SoCMini.__init__(self, platform, sys_clk_freq, with_uart=True, uart="bridge")
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("clk125"), platform.request("cpu_reset"))
