@@ -898,7 +898,7 @@ class GTH(Module, AutoCSR):
                 CSRField("enable", size=1, values=[
                     ("``0b0``", "TX disabled."),
                     ("``0b1``", "TX enabled.")
-                ])
+                ], reset=0b1)
             ])
         self._tx_ready = CSRStatus(fields=[
                 CSRField("ready", size=1, values=[
@@ -922,7 +922,7 @@ class GTH(Module, AutoCSR):
                 CSRField("enable", size=1, values=[
                     ("``0b0``", "RX disabled."),
                     ("``0b1``", "RX enabled.")
-                ])
+                ], reset=0b1)
             ])
         self._rx_ready = CSRStatus(fields=[
                 CSRField("ready", size=1, values=[
