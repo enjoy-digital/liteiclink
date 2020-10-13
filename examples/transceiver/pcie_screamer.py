@@ -3,10 +3,11 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
+import argparse
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -53,13 +54,15 @@ class _CRG(Module):
         pll.create_clkout(self.cd_clk125, 125e6)
 
 
-class GTPTestSoC(SoCCore):
+class GTPTestSoC(SoCMini):
     def __init__(self, platform, connector="pcie", linerate=2.5e9):
         assert connector in ["pcie"]
         sys_clk_freq = int(100e6)
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, sys_clk_freq, cpu_type=None)
+        SoCMini.__init__(self, platform, sys_clk_freq, with_uart=True, uart_name="bridge")
+
+        # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform.request("clk100"), ~platform.request("user_btn", 0))
 
         # GTP RefClk -------------------------------------------------------------------------------
@@ -75,20 +78,18 @@ class GTPTestSoC(SoCCore):
         # GTP --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
-        gtp = GTP(qpll, tx_pads, rx_pads, sys_clk_freq,
+        self.submodules.gtp = gtp = GTP(qpll, tx_pads, rx_pads, sys_clk_freq,
             data_width       = 20,
             clock_aligner    = False,
             tx_buffer_enable = True,
             rx_buffer_enable = True)
-        self.submodules += gtp
+        gtp.add_controls()
+        self.add_csr("gtp")
 
         platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/100e6)
         platform.add_period_constraint(gtp.cd_tx.clk, 1e9/gtp.tx_clk_freq)
         platform.add_period_constraint(gtp.cd_rx.clk, 1e9/gtp.rx_clk_freq)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            gtp.cd_tx.clk,
-            gtp.cd_rx.clk)
+        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, gtp.cd_tx.clk, gtp.cd_rx.clk)
 
         # Test -------------------------------------------------------------------------------------
         counter = Signal(32)
@@ -106,24 +107,28 @@ class GTPTestSoC(SoCCore):
         for i in range(2):
             self.comb += platform.request("user_led", i).eq(gtp.decoders[1].d[i])
 
-# Load ---------------------------------------------------------------------------------------------
-
-def load():
-    from litex.build.xilinx import VivadoProgrammer
-    prog = VivadoProgrammer()
-    prog.load_bitstream("build/gateware/pcie_screamer.bit")
-    exit()
-
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    if "load" in sys.argv[1:]:
-        load()
+    parser = argparse.ArgumentParser(description="LiteICLink transceiver example on PCIe Screamer")
+    parser.add_argument("--build",     action="store_true", help="Build bitstream")
+    parser.add_argument("--load",      action="store_true", help="Load bitstream (to SRAM)")
+    parser.add_argument("--connector", default="pcie",      help="Connector: pcie (default)")
+    parser.add_argument("--linerate",  default="2.5e9",     help="Linerate")
+    args = parser.parse_args()
+
     platform = pcie_screamer.Platform()
     platform.add_extension(_transceiver_io)
-    soc     = GTPTestSoC(platform)
-    builder = Builder(soc, output_dir="build")
-    builder.build(build_name="pcie_screamer")
+    soc = GTPTestSoC(platform,
+        connector = args.connector,
+        linerate  = float(args.linerate)
+    )
+    builder = Builder(soc, csr_csv="csr.csv")
+    builder.build(run=args.build)
+
+    if args.load:
+        prog = soc.platform.create_programmer()
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()
