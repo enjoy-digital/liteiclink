@@ -3,10 +3,11 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
+import argparse
 
 from migen import *
 from migen.genlib.io import CRG
@@ -23,6 +24,15 @@ from liteiclink.transceiver.gth_ultrascale import GTHChannelPLL, GTHQuadPLL, GTH
 # IOs ----------------------------------------------------------------------------------------------
 
 _transceiver_io = [
+    # PCIe
+    ("pcie_tx", 0,
+        Subsignal("p", Pins("AC3")),
+        Subsignal("n", Pins("AC4"))
+    ),
+    ("pcie_rx", 0,
+        Subsignal("p", Pins("AB2")),
+        Subsignal("n", Pins("AB1"))
+    ),
     # SFP0
     ("sfp0_tx", 0,
         Subsignal("p", Pins("U4")),
@@ -50,22 +60,13 @@ _transceiver_io = [
         Subsignal("p", Pins("P2")),
         Subsignal("n", Pins("P1"))
     ),
-    # PCIe
-    ("pcie_tx", 0,
-        Subsignal("p", Pins("AC3")),
-        Subsignal("n", Pins("AC4"))
-    ),
-    ("pcie_rx", 0,
-        Subsignal("p", Pins("AB2")),
-        Subsignal("n", Pins("AB1"))
-    ),
 ]
 
 # GTXTestSoC ---------------------------------------------------------------------------------------
 
 class GTHTestSoC(SoCMini):
     def __init__(self, platform, connector="pcie", linerate=2.5e9):
-        assert connector in ["sfp0", "sfp1", "sma", "pcie"]
+        assert connector in ["pcie", "sfp0", "sfp1", "sma"]
         sys_clk_freq = int(125e9)
 
         # SoCMini ----------------------------------------------------------------------------------
@@ -78,27 +79,25 @@ class GTHTestSoC(SoCMini):
         # 125Mhz clock -> user_sma --> user_sma_mgt_refclk -----------------------------------------
         user_sma_clock_pads = platform.request("user_sma_clock")
         user_sma_clock      = Signal()
-        self.specials += [
-            Instance("ODDRE1",
-                i_D1=0, i_D2=1, i_SR=0,
-                i_C=ClockSignal(),
-                o_Q=user_sma_clock),
-            Instance("OBUFDS",
-                i_I=user_sma_clock,
-                o_O=user_sma_clock_pads.p,
-                o_OB=user_sma_clock_pads.n)
-        ]
+        self.specials += Instance("ODDRE1",
+            i_D1 = 0,
+            i_D2 = 1,
+            i_SR = 0,
+            i_C  = ClockSignal(),
+            o_Q  = user_sma_clock)
+        self.specials += Instance("OBUFDS",
+            i_I  = user_sma_clock,
+            o_O  = user_sma_clock_pads.p,
+            o_OB = user_sma_clock_pads.n)
 
         # GTH RefClk -------------------------------------------------------------------------------
         refclk      = Signal()
         refclk_pads = platform.request("user_sma_mgt_refclk")
-        self.specials += [
-            Instance("IBUFDS_GTE3",
-                i_CEB=0,
-                i_I=refclk_pads.p,
-                i_IB=refclk_pads.n,
-                o_O=refclk)
-        ]
+        self.specials += Instance("IBUFDS_GTE3",
+            i_CEB = 0,
+            i_I   = refclk_pads.p,
+            i_IB  = refclk_pads.n,
+            o_O   = refclk)
 
         # GTH PLL ----------------------------------------------------------------------------------
         cpll = GTHChannelPLL(refclk, 125e6, linerate)
@@ -106,21 +105,20 @@ class GTHTestSoC(SoCMini):
         self.submodules += cpll
 
         # GTH --------------------------------------------------------------------------------------
+        tx_pads = platform.request(connector + "_tx")
+        rx_pads = platform.request(connector + "_rx")
+        self.submodules.gth = gth = GTH(cpll, tx_pads, rx_pads, self.clk_freq, clock_aligner=True)
+        gth.add_controls()
+        self.add_csr("gth")
+
+        platform.add_period_constraint(gth.cd_tx.clk, 1e9/gth.tx_clk_freq)
+        platform.add_period_constraint(gth.cd_rx.clk, 1e9/gth.rx_clk_freq)
+        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, gth.cd_tx.clk, gth.cd_rx.clk)
+
         if connector == "sfp0":
             self.comb += platform.request("sfp_tx_disable_n", 0).eq(1)
         if connector == "sfp1":
             self.comb += platform.request("sfp_tx_disable_n", 1).eq(1)
-        tx_pads = platform.request(connector + "_tx")
-        rx_pads = platform.request(connector + "_rx")
-        gth = GTH(cpll, tx_pads, rx_pads, self.clk_freq, clock_aligner=True)
-        self.submodules += gth
-
-        platform.add_period_constraint(gth.cd_tx.clk, 1e9/gth.tx_clk_freq)
-        platform.add_period_constraint(gth.cd_rx.clk, 1e9/gth.rx_clk_freq)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            gth.cd_tx.clk,
-            gth.cd_rx.clk)
 
         # Test -------------------------------------------------------------------------------------
         counter = Signal(32)
@@ -151,24 +149,29 @@ class GTHTestSoC(SoCMini):
         self.sync.rx += rx_counter.eq(rx_counter + 1)
         self.comb += platform.request("user_led", 2).eq(rx_counter[26])
 
-# Load ---------------------------------------------------------------------------------------------
-
-def load():
-    from litex.build.xilinx import VivadoProgrammer
-    prog = VivadoProgrammer()
-    prog.load_bitstream("build/gateware/kcu105.bit")
-    exit()
 
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    if "load" in sys.argv[1:]:
-        load()
+    parser = argparse.ArgumentParser(description="LiteICLink transceiver example on KCU105")
+    parser.add_argument("--build",     action="store_true", help="Build bitstream")
+    parser.add_argument("--load",      action="store_true", help="Load bitstream (to SRAM)")
+    parser.add_argument("--connector", default="pcie",      help="Connector: pcie (default), sfp0, sfp1 or sma")
+    parser.add_argument("--linerate",  default="2.5e9",     help="Linerate")
+    args = parser.parse_args()
+
     platform = kcu105.Platform()
     platform.add_extension(_transceiver_io)
-    soc     = GTHTestSoC(platform)
-    builder = Builder(soc, output_dir="build")
-    builder.build(build_name="kcu105")
+    soc = GTHTestSoC(platform,
+        connector = args.connector,
+        linerate  = float(args.linerate)
+    )
+    builder = Builder(soc, csr_csv="csr.csv")
+    builder.build(run=args.build)
+
+    if args.load:
+        prog = soc.platform.create_programmer()
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()
