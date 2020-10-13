@@ -3,10 +3,11 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
+import argparse
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -24,6 +25,7 @@ from liteiclink.transceiver.serdes_ecp5 import SerDesECP5PLL, SerDesECP5
 # IOs ----------------------------------------------------------------------------------------------
 
 _transceiver_io = [
+    # PCIe
     ("pcie_tx", 0,
         Subsignal("p", Pins("W4")),
         Subsignal("n", Pins("W5")),
@@ -44,19 +46,19 @@ class _CRG(Module):
 
         # # #
 
-        # clk / rst
+        # Clk / Rst
         clk100 = platform.request("clk100")
         rst_n  = platform.request("rst_n")
         platform.add_period_constraint(clk100, 1e9/100e6)
 
-        # power on reset
+        # Power on reset
         por_count = Signal(16, reset=2**16-1)
-        por_done = Signal()
+        por_done  = Signal()
         self.comb += self.cd_por.clk.eq(ClockSignal())
         self.comb += por_done.eq(por_count == 0)
         self.sync.por += If(~por_done, por_count.eq(por_count - 1))
 
-        # pll
+        # PLL
         self.submodules.pll = pll = ECP5PLL()
         pll.register_clkin(clk100, 100e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, with_reset=False)
@@ -68,12 +70,12 @@ class _CRG(Module):
 
 class SerDesTestSoC(SoCMini):
     def __init__(self, platform, connector="pcie", linerate=2.5e9):
+        assert connector in ["pcie", "sma"]
         assert linerate in [2.5e9, 5e9]
-        assert connector in ["sma", "pcie"]
         sys_clk_freq = int(100e6)
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq)
+        SoCMini.__init__(self, platform, sys_clk_freq, with_uart=True, uart_name="bridge")
 
         # CRG --------------------------------------------------------------------------------------
         if linerate == 2.5e9:
@@ -93,11 +95,11 @@ class SerDesTestSoC(SoCMini):
             self.comb += platform.request("refclk_rst_n").eq(1)
             refclk = Signal()
             self.specials.extref0 = Instance("EXTREFB",
-                i_REFCLKP=refclk_pads.p,
-                i_REFCLKN=refclk_pads.n,
-                o_REFCLKO=refclk,
-                p_REFCK_PWDNB="0b1",
-                p_REFCK_RTERM="0b1", # 100 Ohm
+                i_REFCLKP     = refclk_pads.p,
+                i_REFCLKN     = refclk_pads.n,
+                o_REFCLKO     = refclk,
+                p_REFCK_PWDNB = "0b1",
+                p_REFCK_RTERM = "0b1", # 100 Ohm
             )
             self.extref0.attr.add(("LOC", "EXTREF0"))
 
@@ -109,11 +111,12 @@ class SerDesTestSoC(SoCMini):
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
         channel = 1 if connector == "sma" else 0
-        serdes  = SerDesECP5(serdes_pll, tx_pads, rx_pads,
-            channel       = channel,
-            data_width    = 20)
+        self.submodules.serdes = serdes = SerDesECP5(serdes_pll, tx_pads, rx_pads,
+            channel    = channel,
+            data_width = 20)
         serdes.add_stream_endpoints()
-        self.submodules += serdes
+        serdes.add_controls()
+        self.add_csr("serdes")
         platform.add_period_constraint(serdes.txoutclk, 1e9/serdes.tx_clk_freq)
         platform.add_period_constraint(serdes.rxoutclk, 1e9/serdes.rx_clk_freq)
 
@@ -159,34 +162,28 @@ class SerDesTestSoC(SoCMini):
         self.sync.tx += tx_counter.eq(rx_counter + 1)
         self.comb += platform.request("user_led", 2).eq(tx_counter[26])
 
-# Load ---------------------------------------------------------------------------------------------
-def load():
-    import os
-    f = open("ecp5-versa5g.cfg", "w")
-    f.write(
-"""
-interface ftdi
-ftdi_vid_pid 0x0403 0x6010
-ftdi_channel 0
-ftdi_layout_init 0xfff8 0xfffb
-reset_config none
-adapter_khz 25000
-jtag newtap ecp5 tap -irlen 8 -expected-id 0x81112043
-""")
-    f.close()
-    os.system("openocd -f ecp5-versa5g.cfg -c \"transport select jtag; init; svf build/gateware/versa_ecp5.svf; exit\"")
-    exit()
-
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    if "load" in sys.argv[1:]:
-        load()
+    parser = argparse.ArgumentParser(description="LiteICLink transceiver example on Versa ECP5")
+    parser.add_argument("--build",     action="store_true", help="Build bitstream")
+    parser.add_argument("--load",      action="store_true", help="Load bitstream (to SRAM)")
+    parser.add_argument("--connector", default="pcie",      help="Connector: pcie (default) or sma")
+    parser.add_argument("--linerate",  default="2.5e9",     help="Linerate")
+    args = parser.parse_args()
+
     platform = versa_ecp5.Platform(toolchain="trellis")
     platform.add_extension(_transceiver_io)
-    soc     = SerDesTestSoC(platform)
-    builder = Builder(soc, output_dir="build")
-    builder.build(build_name="versa_ecp5")
+    soc = SerDesTestSoC(platform,
+        connector = args.connector,
+        linerate  = float(args.linerate)
+    )
+    builder = Builder(soc, csr_csv="csr.csv")
+    builder.build(run=args.build)
+
+    if args.load:
+        prog = soc.platform.create_programmer()
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".svf"))
 
 if __name__ == "__main__":
     main()

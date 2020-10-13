@@ -53,6 +53,7 @@ class _CRG(Module):
         pll.register_clkin(clk, 100e6)
         pll.create_clkout(self.cd_clk125, 125e6)
 
+# GTPTestSoC ---------------------------------------------------------------------------------------
 
 class GTPTestSoC(SoCMini):
     def __init__(self, platform, connector="pcie", linerate=2.5e9):
