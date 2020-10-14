@@ -4,6 +4,8 @@
 # Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import math
+
 from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -83,7 +85,219 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 class GTYQuadPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
-	    raise NotImplementedError
+        self.clk    = Signal()
+        self.refclk = Signal()
+        self.reset  = Signal()
+        self.lock   = Signal()
+        self.config = config = self.compute_config(refclk_freq, linerate)
+
+        # # #
+
+        use_qpll0 = config["qpll"] == "qpll0"
+        use_qpll1 = config["qpll"] == "qpll1"
+
+        self.specials += \
+            Instance("GTYE4_COMMON",
+                p_AEN_QPLL0_FBDIV         = 0b1,
+                p_AEN_QPLL1_FBDIV         = 0b1,
+                p_AEN_SDM0TOGGLE          = 0b0,
+                p_AEN_SDM1TOGGLE          = 0b0,
+                p_A_SDM0TOGGLE            = 0b0,
+                p_A_SDM1DATA_HIGH         = 0b000000000,
+                p_A_SDM1DATA_LOW          = 0b0000000000000000,
+                p_A_SDM1TOGGLE            = 0b0,
+
+                p_BIAS_CFG0               = 0b0000000000000000,
+                p_BIAS_CFG1               = 0b0000000000000000,
+                p_BIAS_CFG2               = 0b0000010100100100,
+                p_BIAS_CFG3               = 0b0000000001000001,
+                p_BIAS_CFG4               = 0b0000000000010000,
+                p_BIAS_CFG_RSVD           = 0b0000000000000000,
+                p_COMMON_CFG0             = 0b0000000000000000,
+                p_COMMON_CFG1             = 0b0000000000000000,
+
+                p_POR_CFG                 = 0b0000000000000000,
+                p_PPF0_CFG                = 0b0000101100000000,  # FIXME: 12g: 0b0000011000000000, 10g: 0b0000010000000000
+                p_PPF1_CFG                = 0b0000011000000000,
+
+                p_QPLL0_CFG0              = 0b0011001100011100,
+                p_QPLL0_CFG1              = 0b1101000000111000,
+                p_QPLL0_CFG1_G3           = 0b1101000000111000,
+                p_QPLL0_CFG2              = 0b0000111111000001,  # FIXME: 0b0000111111000000,
+                p_QPLL0_CFG2_G3           = 0b0000111111000001,  # FIXME: 0b0000111111000000,
+                p_QPLL0_CFG3              = 0b0000000100100000,
+                p_QPLL0_CFG4              = 0b0000000000000001,
+                p_QPLL0_CP                = 0b0011111111,
+                p_QPLL0_CP_G3             = 0b0000001111,
+                p_QPLL0_INIT_CFG0         = 0b0000001010110010,
+                p_QPLL0_INIT_CFG1         = 0b00000000,
+                p_QPLL0_LOCK_CFG          = 0b0010010111101000,
+                p_QPLL0_LOCK_CFG_G3       = 0b0010010111101000,
+                p_QPLL0_LPF               = 0b1101111111,        # FIXME: 0b1000111111,
+                p_QPLL0_LPF_G3            = 0b0111010101,
+                p_QPLL0_PCI_EN            = 0b0,
+                p_QPLL0_RATE_SW_USE_DRP   = 0b1,
+                p_QPLL0_FBDIV             = config["n"],
+                p_QPLL0_FBDIV_G3          = 160,
+                p_QPLL0_REFCLK_DIV        = config["m"],
+                p_QPLL0CLKOUT_RATE        = config["clkout_rate"],
+                p_QPLL0_SDM_CFG0          = 0b0000000010000000,
+                p_QPLL0_SDM_CFG1          = 0b0000000000000000,
+                p_QPLL0_SDM_CFG2          = 0b0000000000000000,
+
+                p_QPLL1_CFG0              = 0b0011001100011100,
+                p_QPLL1_CFG1              = 0b1101000000111000,
+                p_QPLL1_CFG1_G3           = 0b1101000000111000,
+                p_QPLL1_CFG2              = 0b0000111111000000, # FIXME: 0b0000111111000011,
+                p_QPLL1_CFG2_G3           = 0b0000111111000000, # FIXME: 0b0000111111000011
+                p_QPLL1_CFG3              = 0b0000000100100000,
+                p_QPLL1_CFG4              = 0b0000000000000010,
+                p_QPLL1_CP                = 0b0011111111,
+                p_QPLL1_CP_G3             = 0b0001111111,
+                p_QPLL1_INIT_CFG0         = 0b0000001010110010,
+                p_QPLL1_INIT_CFG1         = 0b00000000,
+                p_QPLL1_LOCK_CFG          = 0b0010010111101000,
+                p_QPLL1_LOCK_CFG_G3       = 0b0010010111101000,
+                p_QPLL1_LPF               = 0b1100111111,       # FIXME: 0b1000011111,
+                p_QPLL1_LPF_G3            = 0b0111010100,
+                p_QPLL1_PCI_EN            = 0b0,
+                p_QPLL1_RATE_SW_USE_DRP   = 0b1,
+                p_QPLL1_FBDIV             = config["n"],
+                p_QPLL1_FBDIV_G3          = 80,
+                p_QPLL1_REFCLK_DIV        = config["m"],
+                p_QPLL1CLKOUT_RATE        = config["clkout_rate"],
+                p_QPLL1_SDM_CFG0          = 0b0000000000000000, # FIXME: 0b0000000010000000,
+                p_QPLL1_SDM_CFG1          = 0b0000000000000000,
+                p_QPLL1_SDM_CFG2          = 0b0000000000000000,
+
+                # common
+                i_GTREFCLK00       = refclk if use_qpll0 else 0,
+                i_GTREFCLK01       = refclk if use_qpll1 else 0,
+                i_GTREFCLK10       = 0,
+                i_GTREFCLK11       = 0,
+                i_QPLLRSVD1        = 0,
+                i_QPLLRSVD2        = 0,
+                i_QPLLRSVD3        = 0,
+                i_QPLLRSVD4        = 0,
+                i_BGBYPASSB        = 1,
+                i_BGMONITORENB     = 1,
+                i_BGPDB            = 1,
+                i_BGRCALOVRD       = 0b11111,
+                i_BGRCALOVRDENB    = 0b1,
+                i_RCALENB          = 1,
+
+                # qpll0
+                i_SDM0DATA         = round(config["f"]*(2**24)),
+                i_SDM0WIDTH        = 24,
+                i_SDM0RESET        = 0b0,
+                i_SDM0TOGGLE       = 0b0,
+                i_QPLL0CLKRSVD0    = 0,
+                i_QPLL0CLKRSVD1    = 0,
+                i_QPLL0LOCKDETCLK  = ClockSignal(),
+                i_QPLL0LOCKEN      = 1,
+                o_QPLL0LOCK        = self.lock   if use_qpll0 else Signal(),
+                o_QPLL0OUTCLK      = self.clk    if use_qpll0 else Signal(),
+                o_QPLL0OUTREFCLK   = self.refclk if use_qpll0 else Signal(),
+                i_QPLL0PD          = 0           if use_qpll0 else 1,
+                i_QPLL0REFCLKSEL   = 0b001,
+                i_QPLL0RESET       = self.reset,
+
+                # qpll1
+                i_SDM1DATA         = round(config["f"]*(2**24)),
+                i_SDM1WIDTH        = 24,
+                i_SDM1RESET        = 0b0,
+                i_SDM1TOGGLE       = 0b0,
+                i_QPLL1CLKRSVD0    = 0,
+                i_QPLL1CLKRSVD1    = 0,
+                i_QPLL1LOCKDETCLK  = ClockSignal(),
+                i_QPLL1LOCKEN      = 1,
+                o_QPLL1LOCK        = self.lock   if use_qpll1 else Signal(),
+                o_QPLL1OUTCLK      = self.clk    if use_qpll1 else Signal(),
+                o_QPLL1OUTREFCLK   = self.refclk if use_qpll1 else Signal(),
+                i_QPLL1PD          = 0           if use_qpll1 else 1,
+                i_QPLL1REFCLKSEL   = 0b001,
+                i_QPLL1RESET       = self.reset,
+             )
+
+    @staticmethod
+    def compute_config(refclk_freq, linerate):
+        # FIXME: cleanup.
+        assert linerate <= 32.75e9
+        for d in [1, 2, 4, 8, 16]:
+            pllclk_out = (linerate*d)/2
+
+            if linerate > 16.375e9:
+                rate = 1 # Full
+            else:
+                rate = 2 # Half
+            vco_freq = pllclk_out*rate
+            print("vco_freq:", vco_freq)
+            if 8e9 <= vco_freq <= 13e9:
+                qpll = "qpll1"
+            elif 9.8e9 <= vco_freq <= 16.375e9:
+                qpll = "qpll0"
+            else:
+                qpll = None
+            if qpll is not None:
+                for m in [1, 2, 3, 4]:
+                    n_f = (vco_freq/refclk_freq)*m
+                    if 16 <= n_f <= 160:
+                        n = math.floor(n_f)
+                        f = n_f - n  # FIXME: round((n_f - n)*(2**24))/(2**24)
+                        vco_freq_calc = refclk_freq*(n +f)/m
+                        clkout_calc   = vco_freq_calc/rate
+                        linerate_calc = clkout_calc*2/d
+                        return {"n": n, "m": m, "d": d, "f": f,
+                                "vco_freq": vco_freq_calc,
+                                "qpll": qpll,
+                                "clkin": refclk_freq,
+                                "clkout_rate": rate,
+                                "clkout": clkout_calc,
+                                "linerate": linerate_calc}
+
+        msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
+        raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
+
+    def __repr__(self):
+        config = self.config
+        r = """
+GTXQuadPLL
+===========
+  overview:
+  ---------
+       +----------------------------------------------------------------------------+
+       |                                          +------------+                    |
+       |   +-----+  +---------------------------+ |   QPLL0    |    +-+-+           |
+       |   |     |  | Phase Frequency Detector  +->    VCO     |    |   |   +-----+ |
+CLKIN +----> /M  +-->       Charge Pump         | +------------+--->+/2 +-->|     | |
+       |   |     |  |       Loop Filter         +->   QPLL1    | |  |   |   |  M  | |
+       |   +-----+  +---------------------------+ |    VCO     | |  +---+   |  U  | +---> CLKOUT
+       |              ^                           +-----+------+ +--------->|  X  | |
+       |              |   +---------------+             |                   |     | |
+       |              +---+    /N Frac    + <-----------+                   +-----+ |
+       |                  +---------------+                                         |
+       +----------------------------------------------------------------------------+
+                               +-------+
+                      CLKOUT +->  2/D  +-> LINERATE
+                               +-------+
+  config:
+  -------
+    CLKIN    = {clkin}MHz
+    CLKOUT   = CLKIN x N.Fractional / (clkout_rate x M) = {clkin}MHz x {n_f} / ({clkout_rate} x {m})
+             = {clkout}GHz
+    VCO      = {vco_freq}GHz ({qpll})
+    LINERATE = CLKOUT x 2 / D = {clkout}GHz x 2 / {d}
+             = {linerate}GHz
+""".format(clkin          = config["clkin"]/1e6,
+           n_f            = config["n"] + config["f"],
+           m              = config["m"],
+           clkout_rate    = config["clkout_rate"],
+           clkout         = config["clkout"]/1e9,
+           vco_freq       = config["vco_freq"]/1e9,
+           qpll           = config["qpll"].upper(),
+           d              = config["d"],
+           linerate       = config["linerate"]/1e9)
+        return r
 
 
 class GTY(Module, AutoCSR):
