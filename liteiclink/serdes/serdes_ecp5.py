@@ -256,9 +256,9 @@ class SerDesECP5(Module, AutoCSR):
         data_width  = 20,
         tx_polarity = 0,
         rx_polarity = 0):
-        assert (data_width == 20)
-        assert dual in [0, 1]
-        assert channel in [0, 1]
+        assert dual       in [0, 1]
+        assert channel    in [0, 1]
+        assert data_width in [20]
         self.dual    = dual
         self.channel = channel
 

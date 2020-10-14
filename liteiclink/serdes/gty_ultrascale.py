@@ -95,7 +95,7 @@ class GTY(Module, AutoCSR):
         clock_aligner_comma = 0b0101111100,
         tx_polarity         = 0,
         rx_polarity         = 0):
-        assert (data_width == 20) or (data_width == 40) or (data_width == 80)
+        assert data_width in [20, 40, 80]
 
         # TX controls
         self.tx_enable              = Signal(reset=1)

@@ -215,7 +215,7 @@ class GTH(Module, AutoCSR):
         clock_aligner_comma = 0b0101111100,
         tx_polarity         = 0,
         rx_polarity         = 0):
-        assert (data_width == 20) or (data_width == 40)
+        assert data_width in [20, 40]
 
         # TX controls
         self.tx_enable              = Signal(reset=1)

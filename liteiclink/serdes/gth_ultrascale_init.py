@@ -63,7 +63,7 @@ class GTHInit(Module):
         self.submodules += pll_reset_timer
 
         fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
-        self.submodule.fsm = fsm
+        self.submodules.fsm = fsm
 
         ready_timer = WaitTimer(int(sys_clk_freq/1000))
         self.submodules += ready_timer
