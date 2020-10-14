@@ -62,14 +62,14 @@ class GTHInit(Module):
         pll_reset_timer  = WaitTimer(pll_reset_cycles)
         self.submodules += pll_reset_timer
 
-        startup_fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
-        self.submodules += startup_fsm
+        fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
+        self.submodule.fsm = fsm
 
         ready_timer = WaitTimer(int(sys_clk_freq/1000))
         self.submodules += ready_timer
         self.comb += [
-            ready_timer.wait.eq(~self.done & ~startup_fsm.reset),
-            startup_fsm.reset.eq(self.restart | ready_timer.done)
+            ready_timer.wait.eq(~self.done & ~fsm.reset),
+            fsm.reset.eq(self.restart | ready_timer.done)
         ]
 
         if rx:
@@ -81,7 +81,7 @@ class GTHInit(Module):
         self.sync += Xxphaligndone_r.eq(Xxphaligndone)
         self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
 
-        startup_fsm.act("RESET_ALL",
+        fsm.act("RESET_ALL",
             gtXxreset.eq(1),
             self.pllreset.eq(1),
             pll_reset_timer.wait.eq(1),
@@ -89,7 +89,7 @@ class GTHInit(Module):
                 NextState("RELEASE_PLL_RESET")
             )
         )
-        startup_fsm.act("RELEASE_PLL_RESET",
+        fsm.act("RELEASE_PLL_RESET",
             gtXxreset.eq(1),
             If(plllock, NextState("RELEASE_GTH_RESET"))
         )
@@ -97,7 +97,7 @@ class GTHInit(Module):
         # (from UG476, GTH is reset on falling edge
         # of gtXxreset)
         if rx:
-            startup_fsm.act("RELEASE_GTH_RESET",
+            fsm.act("RELEASE_GTH_RESET",
                 Xxuserrdy.eq(1),
                 cdr_stable_timer.wait.eq(1),
                 If(Xxresetdone & cdr_stable_timer.done,
@@ -109,7 +109,7 @@ class GTHInit(Module):
                 )
             )
         else:
-            startup_fsm.act("RELEASE_GTH_RESET",
+            fsm.act("RELEASE_GTH_RESET",
                 Xxuserrdy.eq(1),
                 If(Xxresetdone,
                     If(buffer_enable,
@@ -120,14 +120,14 @@ class GTHInit(Module):
                 )
             )
         # Start delay alignment (pulse)
-        startup_fsm.act("ALIGN",
+        fsm.act("ALIGN",
             Xxuserrdy.eq(1),
             Xxdlysreset.eq(1),
             NextState("WAIT_ALIGN")
         )
         if rx:
             # Wait for delay alignment
-            startup_fsm.act("WAIT_ALIGN",
+            fsm.act("WAIT_ALIGN",
                 Xxuserrdy.eq(1),
                 If(Xxsyncdone,
                     NextState("READY")
@@ -135,7 +135,7 @@ class GTHInit(Module):
             )
         else:
             # Wait for delay alignment
-            startup_fsm.act("WAIT_ALIGN",
+            fsm.act("WAIT_ALIGN",
                 Xxuserrdy.eq(1),
                 If(Xxdlysresetdone,
                     NextState("WAIT_FIRST_ALIGN_DONE")
@@ -144,15 +144,15 @@ class GTHInit(Module):
 
         # Wait 2 rising edges of Xxphaligndone
         # (from UG576 in TX Buffer Bypass in Single-Lane Auto Mode)
-        startup_fsm.act("WAIT_FIRST_ALIGN_DONE",
+        fsm.act("WAIT_FIRST_ALIGN_DONE",
             Xxuserrdy.eq(1),
             If(Xxphaligndone_rising, NextState("WAIT_SECOND_ALIGN_DONE"))
         )
-        startup_fsm.act("WAIT_SECOND_ALIGN_DONE",
+        fsm.act("WAIT_SECOND_ALIGN_DONE",
             Xxuserrdy.eq(1),
             If(Xxphaligndone_rising, NextState("READY"))
         )
-        startup_fsm.act("READY",
+        fsm.act("READY",
             Xxuserrdy.eq(1),
             self.done.eq(1),
             If(self.restart, NextState("RESET_ALL"))
