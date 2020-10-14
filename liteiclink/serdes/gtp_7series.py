@@ -15,10 +15,10 @@ from litex.soc.interconnect import stream
 from litex.soc.cores.prbs import PRBSTX, PRBSRX
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
-from liteiclink.transceiver.gtp_7series_init import GTPTXInit, GTPRXInit
-from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
+from liteiclink.serdes.gtp_7series_init import GTPTXInit, GTPRXInit
+from liteiclink.serdes.clock_aligner import BruteforceClockAligner
 
-from liteiclink.transceiver.common import *
+from liteiclink.serdes.common import *
 
 class Open(Signal):
     pass

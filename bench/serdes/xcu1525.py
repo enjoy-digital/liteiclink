@@ -20,7 +20,7 @@ from litex.soc.cores.clock import USPMMCM
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
-from liteiclink.transceiver.gty_ultrascale import GTYChannelPLL, GTYQuadPLL, GTY
+from liteiclink.serdes.gty_ultrascale import GTYChannelPLL, GTYQuadPLL, GTY
 
 # IOs ----------------------------------------------------------------------------------------------
 

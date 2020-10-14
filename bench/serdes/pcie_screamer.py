@@ -21,7 +21,7 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
-from liteiclink.transceiver.gtp_7series import GTPQuadPLL, GTP
+from liteiclink.serdes.gtp_7series import GTPQuadPLL, GTP
 
 # IOs ----------------------------------------------------------------------------------------------
 

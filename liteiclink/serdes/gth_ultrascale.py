@@ -14,10 +14,10 @@ from litex.soc.interconnect import stream
 from litex.soc.cores.prbs import PRBSTX, PRBSRX
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
-from liteiclink.transceiver.gth_ultrascale_init import GTHTXInit, GTHRXInit
-from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
+from liteiclink.serdes.gth_ultrascale_init import GTHTXInit, GTHRXInit
+from liteiclink.serdes.clock_aligner import BruteforceClockAligner
 
-from liteiclink.transceiver.common import *
+from liteiclink.serdes.common import *
 
 
 class GTHChannelPLL(Module):

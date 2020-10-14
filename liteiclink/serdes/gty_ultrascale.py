@@ -13,10 +13,10 @@ from litex.soc.interconnect import stream
 from litex.soc.cores.prbs import PRBSTX, PRBSRX
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
-from liteiclink.transceiver.gty_ultrascale_init import GTYRXInit, GTYTXInit
-from liteiclink.transceiver.clock_aligner import BruteforceClockAligner
+from liteiclink.serdes.gty_ultrascale_init import GTYRXInit, GTYTXInit
+from liteiclink.serdes.clock_aligner import BruteforceClockAligner
 
-from liteiclink.transceiver.common import *
+from liteiclink.serdes.common import *
 
 
 class GTYChannelPLL(Module):

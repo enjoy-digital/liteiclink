@@ -19,7 +19,7 @@ from litex.build.generic_platform import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
-from liteiclink.transceiver.gtx_7series import GTXChannelPLL, GTXQuadPLL, GTX
+from liteiclink.serdes.gtx_7series import GTXChannelPLL, GTXQuadPLL, GTX
 
 # IOs ----------------------------------------------------------------------------------------------
 

@@ -19,7 +19,7 @@ from litex.build.generic_platform import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
-from liteiclink.transceiver.gth_ultrascale import GTHChannelPLL, GTHQuadPLL, GTH
+from liteiclink.serdes.gth_ultrascale import GTHChannelPLL, GTHQuadPLL, GTH
 
 # IOs ----------------------------------------------------------------------------------------------
 

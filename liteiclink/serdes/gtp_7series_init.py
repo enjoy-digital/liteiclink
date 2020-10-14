@@ -10,7 +10,7 @@ from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.misc import WaitTimer
 
-from liteiclink.transceiver.common import *
+from liteiclink.serdes.common import *
 
 
 __all__ = ["GTPTXInit", "GTPRXInit"]

@@ -20,7 +20,7 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 
-from liteiclink.transceiver.serdes_ecp5 import SerDesECP5PLL, SerDesECP5
+from liteiclink.serdes.serdes_ecp5 import SerDesECP5PLL, SerDesECP5
 
 # IOs ----------------------------------------------------------------------------------------------
 
