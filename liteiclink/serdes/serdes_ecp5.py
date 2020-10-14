@@ -250,8 +250,12 @@ class SerdesRXInit(Module):
 # SerDesECP5 ---------------------------------------------------------------------------------------
 
 class SerDesECP5(Module, AutoCSR):
-    def __init__(self, pll, tx_pads, rx_pads, dual=0, channel=0, data_width=20,
-        tx_polarity=0, rx_polarity=0):
+    def __init__(self, pll, tx_pads, rx_pads,
+        dual        = 0,
+        channel     = 0,
+        data_width  = 20,
+        tx_polarity = 0,
+        rx_polarity = 0):
         assert (data_width == 20)
         assert dual in [0, 1]
         assert channel in [0, 1]
