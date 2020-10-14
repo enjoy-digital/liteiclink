@@ -22,9 +22,11 @@ prbs_modes = {
     "prbs31": 0b11,
 }
 
+near_end_pma_loopback = 0b10
+
 # PRBS Test ----------------------------------------------------------------------------------------
 
-def prbs_test(mode="prbs7", duration=60):
+def prbs_test(mode="prbs7", loopback=False, duration=60):
     wb = RemoteClient()
     wb.open()
     wb.regs.ctrl_scratch.read()
@@ -37,6 +39,10 @@ def prbs_test(mode="prbs7", duration=60):
         wb.regs.serdes_rx_prbs_config.write(0)
         time.sleep(1)
 
+    # Enable Loopback
+    if loopback:
+        print("Enabling SerDes loopback...")
+        wb.regs.serdes_loopback.write(near_end_pma_loopback)
 
     # Reset SerDes
     serdes_reset()
@@ -73,17 +79,23 @@ def prbs_test(mode="prbs7", duration=60):
     # Reset SerDes
     serdes_reset()
 
+    # Disable Loopback
+    if loopback:
+        print("Disabling SerDes loopback...")
+        wb.regs.serdes_loopback.write(0)
+
     wb.close()
 
 # Run ----------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteICLink PRBS/BER test utility")
-    parser.add_argument("--mode",      default="prbs7", help="PRBS mode: prbs7 (default), prbs15 or prbs31")
-    parser.add_argument("--duration",  default="60",    help="Test duration (default=10)")
+    parser.add_argument("--mode",      default="prbs7",     help="PRBS mode: prbs7 (default), prbs15 or prbs31")
+    parser.add_argument("--duration",  default="60",        help="Test duration (default=10)")
+    parser.add_argument("--loopback",  action="store_true", help="Enable internal loopback")
     args = parser.parse_args()
 
-    prbs_test(mode=args.mode, duration=int(args.duration, 0))
+    prbs_test(mode=args.mode, loopback=args.loopback, duration=int(args.duration, 0))
 
 if __name__ == "__main__":
     main()
