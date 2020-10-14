@@ -80,17 +80,17 @@ class GTPTestSoC(SoCMini):
         # GTP --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
-        self.submodules.gtp = gtp = GTP(qpll, tx_pads, rx_pads, sys_clk_freq,
+        self.submodules.serdes = serdes = GTP(qpll, tx_pads, rx_pads, sys_clk_freq,
             data_width       = 20,
             clock_aligner    = False,
             tx_buffer_enable = True,
             rx_buffer_enable = True)
-        gtp.add_controls()
-        self.add_csr("gtp")
+        serdes.add_controls()
+        self.add_csr("serdes")
 
-        platform.add_period_constraint(gtp.cd_tx.clk, 1e9/gtp.tx_clk_freq)
-        platform.add_period_constraint(gtp.cd_rx.clk, 1e9/gtp.rx_clk_freq)
-        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, gtp.cd_tx.clk, gtp.cd_rx.clk)
+        platform.add_period_constraint(serdes.cd_tx.clk, 1e9/serdes.tx_clk_freq)
+        platform.add_period_constraint(serdes.cd_rx.clk, 1e9/serdes.rx_clk_freq)
+        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, serdes.cd_tx.clk, serdes.cd_rx.clk)
 
         # Test -------------------------------------------------------------------------------------
         counter = Signal(32)
@@ -98,15 +98,15 @@ class GTPTestSoC(SoCMini):
 
         # K28.5 and slow counter --> TX
         self.comb += [
-            gtp.encoder.k[0].eq(1),
-            gtp.encoder.d[0].eq((5 << 5) | 28),
-            gtp.encoder.k[1].eq(0),
-            gtp.encoder.d[1].eq(counter[26:]),
+            serdes.encoder.k[0].eq(1),
+            serdes.encoder.d[0].eq((5 << 5) | 28),
+            serdes.encoder.k[1].eq(0),
+            serdes.encoder.d[1].eq(counter[26:]),
         ]
 
        # RX (slow counter) --> Leds
         for i in range(2):
-            self.comb += platform.request("user_led", i).eq(gtp.decoders[1].d[i])
+            self.comb += platform.request("user_led", i).eq(serdes.decoders[1].d[i])
 
 # Build --------------------------------------------------------------------------------------------
 

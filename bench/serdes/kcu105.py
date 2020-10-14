@@ -107,13 +107,13 @@ class GTHTestSoC(SoCMini):
         # GTH --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
-        self.submodules.gth = gth = GTH(cpll, tx_pads, rx_pads, self.clk_freq, clock_aligner=True)
-        gth.add_controls()
-        self.add_csr("gth")
+        self.submodules.serdes = serdes = GTH(cpll, tx_pads, rx_pads, self.clk_freq, clock_aligner=True)
+        serdes.add_controls()
+        self.add_csr("serdes")
 
-        platform.add_period_constraint(gth.cd_tx.clk, 1e9/gth.tx_clk_freq)
-        platform.add_period_constraint(gth.cd_rx.clk, 1e9/gth.rx_clk_freq)
-        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, gth.cd_tx.clk, gth.cd_rx.clk)
+        platform.add_period_constraint(serdes.cd_tx.clk, 1e9/serdes.tx_clk_freq)
+        platform.add_period_constraint(serdes.cd_rx.clk, 1e9/serdes.rx_clk_freq)
+        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, serdes.cd_tx.clk, serdes.cd_rx.clk)
 
         if connector == "sfp0":
             self.comb += platform.request("sfp_tx_disable_n", 0).eq(1)
@@ -126,15 +126,15 @@ class GTHTestSoC(SoCMini):
 
         # K28.5 and slow counter --> TX
         self.comb += [
-            gth.encoder.k[0].eq(1),
-            gth.encoder.d[0].eq((5 << 5) | 28),
-            gth.encoder.k[1].eq(0),
-            gth.encoder.d[1].eq(counter[26:]),
+            serdes.encoder.k[0].eq(1),
+            serdes.encoder.d[0].eq((5 << 5) | 28),
+            serdes.encoder.k[1].eq(0),
+            serdes.encoder.d[1].eq(counter[26:]),
         ]
 
         # RX (slow counter) --> Leds
         for i in range(4):
-            self.comb += platform.request("user_led", 4+ i).eq(gth.decoders[1].d[i])
+            self.comb += platform.request("user_led", 4+ i).eq(serdes.decoders[1].d[i])
 
         # Leds -------------------------------------------------------------------------------------
         sys_counter = Signal(32)

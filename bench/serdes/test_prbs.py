@@ -29,11 +29,11 @@ def main():
 
     class GTYTester:
         def reset(self):
-            if hasattr(wb.regs, "gty_clock_aligner_disable"):
-                wb.regs.gty_clock_aligner_disable.write(0)
-            wb.regs.gty_tx_prbs_config.write(0)
-            wb.regs.gty_rx_prbs_config.write(0)
-            wb.regs.gty_loopback.write(0)
+            if hasattr(wb.regs, "serdes_clock_aligner_disable"):
+                wb.regs.serdes_clock_aligner_disable.write(0)
+            wb.regs.serdes_tx_prbs_config.write(0)
+            wb.regs.serdes_rx_prbs_config.write(0)
+            wb.regs.serdes_loopback.write(0)
             time.sleep(1)
 
         def prbs_test(self, config):
@@ -43,10 +43,10 @@ def main():
                 "prbs15": PRBS15,
                 "prbs31": PRBS31
             }
-            if hasattr(wb.regs, "gty_clock_aligner_disable"):
-                wb.regs.gty_clock_aligner_disable.write(1)
-            wb.regs.gty_tx_prbs_config.write(prbs_configs[config])
-            wb.regs.gty_rx_prbs_config.write(prbs_configs[config])
+            if hasattr(wb.regs, "serdes_clock_aligner_disable"):
+                wb.regs.serdes_clock_aligner_disable.write(1)
+            wb.regs.serdes_tx_prbs_config.write(prbs_configs[config])
+            wb.regs.serdes_rx_prbs_config.write(prbs_configs[config])
             errors_current = 0
             errors_last    = 0
             errors_total   = 0
@@ -54,7 +54,7 @@ def main():
             interval       = 10
             while True:
                 duration += interval
-                errors_current = (wb.regs.gty_rx_prbs_errors.read() - errors_last)
+                errors_current = (wb.regs.serdes_rx_prbs_errors.read() - errors_last)
                 errors_total  += errors_current
                 errors_last = errors_current
                 print("Errors: {:8d} / Duration: {:8d}s / BER: {:1.3e} ".format(
@@ -63,14 +63,14 @@ def main():
                     errors_total/(duration*5e9)))
                 time.sleep(interval)
 
-    gty_tester = GTYTester()
-    gty_tester.reset()
+    serdes_tester = GTYTester()
+    serdes_tester.reset()
     if "prbs7" in sys.argv[1:]:
-        gty_tester.prbs_test("prbs7")
+        serdes_tester.prbs_test("prbs7")
     elif "prbs15" in sys.argv[1:]:
-        gty_tester.prbs_test("prbs15")
+        serdes_tester.prbs_test("prbs15")
     elif "prbs31" in sys.argv[1:]:
-        gty_tester.prbs_test("prbs31")
+        serdes_tester.prbs_test("prbs31")
     else:
         print("missing test, supported: (prbs7, prbs15, prbs31)")
 

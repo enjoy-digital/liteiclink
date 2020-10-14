@@ -77,17 +77,17 @@ class GTXTestSoC(SoCMini):
         # GTX --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
-        self.submodules.gtx = gtx = GTX(pll, tx_pads, rx_pads, sys_clk_freq,
+        self.submodules.serdes = serdes = GTX(pll, tx_pads, rx_pads, sys_clk_freq,
             data_width       = 40,
             clock_aligner    = False,
             tx_buffer_enable = True,
             rx_buffer_enable = True)
-        gtx.add_controls()
-        self.add_csr("gtx")
+        serdes.add_controls()
+        self.add_csr("serdes")
 
-        platform.add_period_constraint(gtx.cd_tx.clk, 1e9/gtx.tx_clk_freq)
-        platform.add_period_constraint(gtx.cd_rx.clk, 1e9/gtx.rx_clk_freq)
-        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, gtx.cd_tx.clk, gtx.cd_rx.clk)
+        platform.add_period_constraint(serdes.cd_tx.clk, 1e9/serdes.tx_clk_freq)
+        platform.add_period_constraint(serdes.cd_rx.clk, 1e9/serdes.rx_clk_freq)
+        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, serdes.cd_tx.clk, serdes.cd_rx.clk)
 
         if connector == "sfp":
             self.comb += platform.request("sfp_tx_disable_n").eq(1)
@@ -98,15 +98,15 @@ class GTXTestSoC(SoCMini):
 
         # K28.5 and slow counter --> TX
         self.comb += [
-            gtx.encoder.k[0].eq(1),
-            gtx.encoder.d[0].eq((5 << 5) | 28),
-            gtx.encoder.k[1].eq(0),
-            gtx.encoder.d[1].eq(counter[26:]),
+            serdes.encoder.k[0].eq(1),
+            serdes.encoder.d[0].eq((5 << 5) | 28),
+            serdes.encoder.k[1].eq(0),
+            serdes.encoder.d[1].eq(counter[26:]),
         ]
 
         # RX (slow counter) --> Leds
         for i in range(4):
-            self.comb += platform.request("user_led", 4 + i).eq(gtx.decoders[1].d[i])
+            self.comb += platform.request("user_led", 4 + i).eq(serdes.decoders[1].d[i])
 
         # Leds -------------------------------------------------------------------------------------
         sys_counter = Signal(32)
