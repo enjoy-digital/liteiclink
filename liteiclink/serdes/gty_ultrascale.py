@@ -158,14 +158,14 @@ class GTY(Module, AutoCSR):
         # # #
 
         # TX init ----------------------------------------------------------------------------------
-        self.submodules.tx_init = tx_init = GTYTXInit(sys_clk_freq, buffer_enable=rx_buffer_enable)
+        self.submodules.tx_init = tx_init = GTYTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
         self.comb += [
             self.tx_ready.eq(tx_init.done),
             tx_init.restart.eq(~self.tx_enable)
         ]
 
         # RX init ----------------------------------------------------------------------------------
-        self.submodules.rx_init = rx_init = GTYRXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
+        self.submodules.rx_init = rx_init = GTYRXInit(sys_clk_freq, buffer_enable=rx_buffer_enable)
         self.comb += [
             self.rx_ready.eq(rx_init.done),
             rx_init.restart.eq(~self.rx_enable)

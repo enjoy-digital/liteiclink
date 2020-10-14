@@ -278,14 +278,14 @@ class GTH(Module, AutoCSR):
         # # #
 
         # TX init ----------------------------------------------------------------------------------
-        self.submodules.tx_init = tx_init = GTHTXInit(sys_clk_freq)
+        self.submodules.tx_init = tx_init = GTHTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
         self.comb += [
             self.tx_ready.eq(tx_init.done),
             tx_init.restart.eq(~self.tx_enable)
         ]
 
         # RX init ----------------------------------------------------------------------------------
-        self.submodules.rx_init = rx_init = GTHRXInit(self.tx_clk_freq)
+        self.submodules.rx_init = rx_init = GTHRXInit(sys_clk_freq, buffer_enable=rx_buffer_enable)
         self.comb += [
             self.rx_ready.eq(rx_init.done),
             rx_init.restart.eq(~self.rx_enable)
@@ -303,6 +303,7 @@ class GTH(Module, AutoCSR):
         drp_mux.add_interface(self.drp)
 
         # GTHE3_CHANNEL instance -------------------------------------------------------------------
+        class Open(Signal): pass
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
         rxphaligndone = Signal()
@@ -816,7 +817,7 @@ class GTH(Module, AutoCSR):
         if not tx_buffer_enable:
             tx_bufg_div = pll.config["clkin"]/self.tx_clk_freq
         else:
-            txoutclk_div = 1
+            tx_bufg_div = 1
         assert tx_bufg_div == int(tx_bufg_div)
         self.specials += [
             Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_tx.clk,
