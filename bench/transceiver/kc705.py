@@ -128,7 +128,7 @@ def main():
     parser.add_argument("--build",     action="store_true", help="Build bitstream")
     parser.add_argument("--load",      action="store_true", help="Load bitstream (to SRAM)")
     parser.add_argument("--connector", default="pcie",      help="Connector: pcie (default), sfp or sma")
-    parser.add_argument("--linerate",  default="2.5e9",     help="Linerate")
+    parser.add_argument("--linerate",  default="2.5e9",     help="Linerate (default: 2.5e9)")
     parser.add_argument("--pll",       default="cpll",      help="PLL: cpll (default) or qpll")
     args = parser.parse_args()
 
