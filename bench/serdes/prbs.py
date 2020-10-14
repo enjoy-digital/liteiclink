@@ -26,8 +26,8 @@ near_end_pma_loopback = 0b10
 
 # PRBS Test ----------------------------------------------------------------------------------------
 
-def prbs_test(mode="prbs7", loopback=False, duration=60):
-    wb = RemoteClient()
+def prbs_test(port=1234, mode="prbs7", loopback=False, duration=60):
+    wb = RemoteClient(port=port)
     wb.open()
     wb.regs.ctrl_scratch.read()
 
@@ -90,12 +90,18 @@ def prbs_test(mode="prbs7", loopback=False, duration=60):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteICLink PRBS/BER test utility")
+    parser.add_argument("--port",      default="1234",      help="Host bind port")
     parser.add_argument("--mode",      default="prbs7",     help="PRBS mode: prbs7 (default), prbs15 or prbs31")
     parser.add_argument("--duration",  default="60",        help="Test duration (default=10)")
     parser.add_argument("--loopback",  action="store_true", help="Enable internal loopback")
     args = parser.parse_args()
 
-    prbs_test(mode=args.mode, loopback=args.loopback, duration=int(args.duration, 0))
+    prbs_test(
+        port     = int(args.port, 0),
+        mode     = args.mode,
+        loopback = args.loopback,
+        duration = int(args.duration, 0)
+    )
 
 if __name__ == "__main__":
     main()
