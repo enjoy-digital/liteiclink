@@ -72,7 +72,7 @@ class _CRG(Module):
 # GTYTestSoC ---------------------------------------------------------------------------------------
 
 class GTYTestSoC(SoCMini):
-    def __init__(self, platform, connector="qsfp0", linerate=2.5e9):
+    def __init__(self, platform, connector="qsfp0", linerate=2.5e9, use_qpll=False):
         assert connector in ["qsfp0", "qsfp1"]
         sys_clk_freq = int(125e6)
 
@@ -94,14 +94,19 @@ class GTYTestSoC(SoCMini):
         self.comb += platform.request(connector + "_fs").eq(0b01)
 
         # GTY PLL ----------------------------------------------------------------------------------
-        cpll = GTYChannelPLL(refclk, 156.25e6, linerate)
-        print(cpll)
-        self.submodules += cpll
+        if use_qpll:
+            pll = GTYQuadPLL(refclk, 156.25e6, linerate)
+            print(pll)
+            self.submodules.pll = pll
+        else:
+            pll = GTYChannelPLL(refclk, 156.25e6, linerate)
+            print(pll)
+            self.submodules += pll
 
         # GTY --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
-        self.submodules.serdes = serdes = GTY(cpll, tx_pads, rx_pads, self.clk_freq,
+        self.submodules.serdes = serdes = GTY(pll, tx_pads, rx_pads, self.clk_freq,
             tx_buffer_enable = True,
             rx_buffer_enable = True,
             clock_aligner    = False)
@@ -167,13 +172,15 @@ def main():
     parser.add_argument("--load",      action="store_true", help="Load bitstream (to SRAM)")
     parser.add_argument("--connector", default="qsfp0",     help="Connector: qsfp0 (default) or qsfp1")
     parser.add_argument("--linerate",  default="2.5e9",     help="Linerate (default: 2.5e9)")
+    parser.add_argument("--pll",       default="cpll",      help="PLL: cpll (default) or qpll")
     args = parser.parse_args()
 
     platform = xcu1525.Platform()
     platform.add_extension(_transceiver_io)
     soc = GTYTestSoC(platform,
         connector = args.connector,
-        linerate  = float(args.linerate)
+        linerate  = float(args.linerate),
+        use_qpll  = args.pll == "qpll"
     )
     builder = Builder(soc, csr_csv="csr.csv")
     builder.build(run=args.build)
