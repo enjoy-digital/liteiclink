@@ -57,6 +57,7 @@ class GTXTestSoC(SoCMini):
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("clk156"), platform.request("cpu_reset"))
+        platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/156e6)
 
         # GTX RefClk -------------------------------------------------------------------------------
         refclk      = Signal()
@@ -84,7 +85,6 @@ class GTXTestSoC(SoCMini):
         gtx.add_controls()
         self.add_csr("gtx")
 
-        platform.add_period_constraint(self.crg.cd_sys.clk, platform.default_clk_period)
         platform.add_period_constraint(gtx.cd_tx.clk, 1e9/gtx.tx_clk_freq)
         platform.add_period_constraint(gtx.cd_rx.clk, 1e9/gtx.rx_clk_freq)
         self.platform.add_false_path_constraints(self.crg.cd_sys.clk, gtx.cd_tx.clk, gtx.cd_rx.clk)
