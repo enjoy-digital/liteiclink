@@ -30,6 +30,7 @@ _transceiver_io = [
         Subsignal("p", Pins("M11")),
         Subsignal("n", Pins("M10")),
     ),
+    ("qsfp0_fs", 0, Pins("AT20 AU22"), IOStandard("LVCMOS12")),
     ("qsfp0_tx", 0,
         Subsignal("p", Pins("N9")),
         Subsignal("n", Pins("N8"))
@@ -37,6 +38,21 @@ _transceiver_io = [
     ("qsfp0_rx", 0,
         Subsignal("p", Pins("N4")),
         Subsignal("n", Pins("N3"))
+    ),
+
+    # QSFP1
+    ("qsfp1_refclk", 0,
+        Subsignal("p", Pins("T11")),
+        Subsignal("n", Pins("T10")),
+    ),
+    ("qsfp1_fs", 0, Pins("AR22 AU20"), IOStandard("LVCMOS12")),
+    ("qsfp1_tx", 0,
+        Subsignal("p", Pins("U9")),
+        Subsignal("n", Pins("U8"))
+    ),
+    ("qsfp1_rx", 0,
+        Subsignal("p", Pins("U4")),
+        Subsignal("n", Pins("U3"))
     ),
 ]
 
@@ -57,7 +73,7 @@ class _CRG(Module):
 
 class GTYTestSoC(SoCMini):
     def __init__(self, platform, connector="qsfp0", linerate=2.5e9):
-        assert connector in ["qsfp0"]
+        assert connector in ["qsfp0", "qsfp1"]
         sys_clk_freq = int(125e6)
 
         # SoCMini ----------------------------------------------------------------------------------
@@ -70,10 +86,12 @@ class GTYTestSoC(SoCMini):
         refclk      = Signal()
         refclk_pads = platform.request("qsfp0_refclk")
         self.specials += Instance("IBUFDS_GTE4",
+            p_REFCLK_HROW_CK_SEL = 0,
             i_CEB = 0,
             i_I   = refclk_pads.p,
             i_IB  = refclk_pads.n,
             o_O   = refclk)
+        self.comb += platform.request(connector + "_fs").eq(0b01)
 
         # GTY PLL ----------------------------------------------------------------------------------
         cpll = GTYChannelPLL(refclk, 156.25e6, linerate)
@@ -115,13 +133,31 @@ class GTYTestSoC(SoCMini):
         self.sync.sys += sys_counter.eq(sys_counter + 1)
         self.comb += platform.request("user_led", 0).eq(sys_counter[26])
 
-        #tx_counter = Signal(32)
-        #self.sync.tx += tx_counter.eq(tx_counter + 1)
+        tx_counter = Signal(32)
+        self.sync.tx += tx_counter.eq(tx_counter + 1)
         #self.comb += platform.request("user_led", 1).eq(tx_counter[26])
 
-        #rx_counter = Signal(32)
-        #self.sync.rx += rx_counter.eq(rx_counter + 1)
+        rx_counter = Signal(32)
+        self.sync.rx += rx_counter.eq(rx_counter + 1)
         #self.comb += platform.request("user_led", 2).eq(rx_counter[26])
+
+        # Analyzer ---------------------------------------------------------------------------------
+        from litescope import LiteScopeAnalyzer
+        analyzer_signals = [
+            self.serdes.tx_init.done,
+            self.serdes.rx_init.done,
+            self.serdes.tx_init.fsm,
+            self.serdes.rx_init.fsm,
+            self.serdes.cd_tx.rst,
+            self.serdes.cd_rx.rst,
+            tx_counter,
+            rx_counter,
+        ]
+        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
+            depth        = 512,
+            clock_domain = "sys",
+            csr_csv      = "analyzer.csv")
+        self.add_csr("analyzer")
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -129,7 +165,7 @@ def main():
     parser = argparse.ArgumentParser(description="LiteICLink transceiver example on XCU1525")
     parser.add_argument("--build",     action="store_true", help="Build bitstream")
     parser.add_argument("--load",      action="store_true", help="Load bitstream (to SRAM)")
-    parser.add_argument("--connector", default="qsfp0",     help="Connector: qsfp0 (default)")
+    parser.add_argument("--connector", default="qsfp0",     help="Connector: qsfp0 (default) or qsfp1")
     parser.add_argument("--linerate",  default="2.5e9",     help="Linerate (default: 2.5e9)")
     args = parser.parse_args()
 
