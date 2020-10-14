@@ -50,7 +50,7 @@ _transceiver_io = [
 class GTXTestSoC(SoCMini):
     def __init__(self, platform, connector="pcie", linerate=2.5e9, use_qpll=False):
         assert connector in ["pcie", "sfp", "sma"]
-        sys_clk_freq = int(156e9)
+        sys_clk_freq = int(156e6)
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq, with_uart=True, uart_name="bridge")
