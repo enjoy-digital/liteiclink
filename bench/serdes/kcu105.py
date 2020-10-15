@@ -108,6 +108,7 @@ class GTHTestSoC(SoCMini):
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
         self.submodules.serdes = serdes = GTH(cpll, tx_pads, rx_pads, self.clk_freq, clock_aligner=True)
+        serdes.add_stream_endpoints()
         serdes.add_controls()
         self.add_csr("serdes")
 
@@ -126,15 +127,15 @@ class GTHTestSoC(SoCMini):
 
         # K28.5 and slow counter --> TX
         self.comb += [
-            serdes.encoder.k[0].eq(1),
-            serdes.encoder.d[0].eq((5 << 5) | 28),
-            serdes.encoder.k[1].eq(0),
-            serdes.encoder.d[1].eq(counter[26:]),
+            serdes.sink.valid.eq(1),
+            serdes.sink.ctrl.eq(0b01),
+            serdes.sink.data[0:8].eq((5 << 5) | 28),
+            serdes.sink.data[8:16].eq(counter[26:]),
         ]
 
         # RX (slow counter) --> Leds
         for i in range(4):
-            self.comb += platform.request("user_led", 4+ i).eq(serdes.decoders[1].d[i])
+            self.comb += platform.request("user_led", 4 + i).eq(serdes.source.data[i])
 
         # Leds -------------------------------------------------------------------------------------
         sys_counter = Signal(32)
@@ -148,7 +149,6 @@ class GTHTestSoC(SoCMini):
         rx_counter = Signal(32)
         self.sync.rx += rx_counter.eq(rx_counter + 1)
         self.comb += platform.request("user_led", 2).eq(rx_counter[26])
-
 
 # Build --------------------------------------------------------------------------------------------
 

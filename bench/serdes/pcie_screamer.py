@@ -85,6 +85,7 @@ class GTPTestSoC(SoCMini):
             clock_aligner    = False,
             tx_buffer_enable = True,
             rx_buffer_enable = True)
+        serdes.add_stream_endpoints()
         serdes.add_controls()
         self.add_csr("serdes")
 
@@ -98,15 +99,15 @@ class GTPTestSoC(SoCMini):
 
         # K28.5 and slow counter --> TX
         self.comb += [
-            serdes.encoder.k[0].eq(1),
-            serdes.encoder.d[0].eq((5 << 5) | 28),
-            serdes.encoder.k[1].eq(0),
-            serdes.encoder.d[1].eq(counter[26:]),
+            serdes.sink.valid.eq(1),
+            serdes.sink.ctrl.eq(0b01),
+            serdes.sink.data[0:8].eq((5 << 5) | 28),
+            serdes.sink.data[8:16].eq(counter[26:]),
         ]
 
-       # RX (slow counter) --> Leds
+        # RX (slow counter) --> Leds
         for i in range(2):
-            self.comb += platform.request("user_led", i).eq(serdes.decoders[1].d[i])
+            self.comb += platform.request("user_led", i).eq(serdes.source.data[i])
 
 # Build --------------------------------------------------------------------------------------------
 
