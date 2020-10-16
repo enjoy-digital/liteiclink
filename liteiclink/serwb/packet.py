@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from math import ceil
@@ -13,6 +13,18 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
+# Layouts ------------------------------------------------------------------------------------------
+
+def phy_description(dw):
+    layout = [("data", dw)]
+    return stream.EndpointDescription(layout)
+
+
+def user_description(dw):
+    layout = [("data", 32), ("length", 32)]
+    return stream.EndpointDescription(layout)
+
+# Header -------------------------------------------------------------------------------------------
 
 class HeaderField:
     def __init__(self, byte, offset, width):
@@ -67,34 +79,21 @@ class Header:
                 r.append(field.eq(signal[start:end]))
         return r
 
-def phy_description(dw):
-    layout = [("data", dw)]
-    return stream.EndpointDescription(layout)
-
-
-def user_description(dw):
-    layout = [
-        ("data", 32),
-        ("length", 32)
-    ]
-    return stream.EndpointDescription(layout)
-
+# Packetizer ---------------------------------------------------------------------------------------
 
 class Packetizer(Module):
     def __init__(self):
-        self.sink = sink = stream.Endpoint(user_description(32))
+        self.sink   = sink   = stream.Endpoint(user_description(32))
         self.source = source = stream.Endpoint(phy_description(32))
 
         # # #
 
         # Packet description
-        #   - preamble : 4 bytes
-        #   - length   : 4 bytes
-        #   - payload
+        #   - Preamble : 4 bytes
+        #   - Length   : 4 bytes
+        #   - Payload
 
-        fsm = FSM(reset_state="PREAMBLE")
-        self.submodules += fsm
-
+        self.submodules.fsm = fsm = FSM(reset_state="PREAMBLE")
         fsm.act("PREAMBLE",
             If(sink.valid,
                 source.valid.eq(1),
@@ -120,28 +119,26 @@ class Packetizer(Module):
             )
         )
 
+# Depacketizer -------------------------------------------------------------------------------------
 
 class Depacketizer(Module):
     def __init__(self, clk_freq, timeout=10):
-        self.sink = sink = stream.Endpoint(phy_description(32))
+        self.sink   = sink   = stream.Endpoint(phy_description(32))
         self.source = source = stream.Endpoint(user_description(32))
 
         # # #
 
-        count = Signal(len(source.length))
+        count  = Signal(len(source.length))
         length = Signal(len(source.length))
 
         # Packet description
-        #   - preamble : 4 bytes
-        #   - length   : 4 bytes
-        #   - payload
+        #   - Preamble : 4 bytes
+        #   - Length   : 4 bytes
+        #   - Payload
 
-        fsm = FSM(reset_state="PREAMBLE")
-        self.submodules += fsm
+        self.submodules.timer = timer = WaitTimer(clk_freq*timeout)
 
-        timer = WaitTimer(clk_freq*timeout)
-        self.submodules += timer
-
+        self.submodules.fsm = fsm = FSM(reset_state="PREAMBLE")
         fsm.act("PREAMBLE",
             sink.ready.eq(1),
             If(sink.valid &

@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -14,13 +14,15 @@ from litex.soc.cores.code_8b10b import Encoder, Decoder
 from liteiclink.serwb.scrambler import Scrambler, Descrambler
 
 
+# Line Coding (8b10b) ------------------------------------------------------------------------------
+
 def K(x, y):
     return (y << 5) | x
 
 
 class _8b10bEncoder(Module):
     def __init__(self):
-        self.sink = sink = stream.Endpoint([("d", 32), ("k", 4)])
+        self.sink   = sink   = stream.Endpoint([("d", 32), ("k", 4)])
         self.source = source = stream.Endpoint([("data", 40)])
 
         # # #
@@ -28,14 +30,14 @@ class _8b10bEncoder(Module):
         encoder = CEInserter()(Encoder(4, True))
         self.submodules += encoder
 
-        # control
+        # Control
         self.comb += [
             source.valid.eq(sink.valid),
             sink.ready.eq(source.ready),
             encoder.ce.eq(source.valid & source.ready)
         ]
 
-        # datapath
+        # Datapath
         for i in range(4):
             self.comb += [
                 encoder.k[i].eq(sink.k[i]),
@@ -46,7 +48,7 @@ class _8b10bEncoder(Module):
 
 class _8b10bDecoder(Module):
     def __init__(self):
-        self.sink = sink = stream.Endpoint([("data", 40)])
+        self.sink   = sink   = stream.Endpoint([("data", 40)])
         self.source = source = stream.Endpoint([("d", 32), ("k", 4)])
 
         # # #
@@ -54,14 +56,14 @@ class _8b10bDecoder(Module):
         decoders = [CEInserter()(Decoder(True)) for _ in range(4)]
         self.submodules += decoders
 
-        # control
+        # Control
         self.comb += [
             source.valid.eq(sink.valid),
             sink.ready.eq(source.ready)
         ]
         self.comb += [decoders[i].ce.eq(source.valid & source.ready) for i in range(4)]
 
-        # datapath
+        # Datapath
         for i in range(4):
             self.comb += [
                 decoders[i].input.eq(sink.data[10*i:10*(i+1)]),
@@ -69,11 +71,12 @@ class _8b10bDecoder(Module):
                 source.d[8*i:8*(i+1)].eq(decoders[i].d)
             ]
 
+# BitSlip ------------------------------------------------------------------------------------------
 
 class _Bitslip(Module):
     def __init__(self):
-        self.value = value = Signal(6)
-        self.sink = sink = stream.Endpoint([("data", 40)])
+        self.value  = value  = Signal(6)
+        self.sink   = sink   = stream.Endpoint([("data", 40)])
         self.source = source = stream.Endpoint([("data", 40)])
 
         # # #
@@ -81,7 +84,7 @@ class _Bitslip(Module):
         bitslip = CEInserter()(BitSlip(40))
         self.submodules += bitslip
 
-        # control
+        # Control
         self.comb += [
             source.valid.eq(sink.valid),
             sink.ready.eq(source.ready),
@@ -89,18 +92,19 @@ class _Bitslip(Module):
             bitslip.ce.eq(source.valid & source.ready)
         ]
 
-        # datapath
+        # Datapath
         self.comb += [
             bitslip.i.eq(sink.data),
             source.data.eq(bitslip.o)
         ]
 
+# TXDatapath ---------------------------------------------------------------------------------------
 
 class TXDatapath(Module):
     def __init__(self, phy_dw, with_scrambling=True):
-        self.idle = idle = Signal()
-        self.comma = comma = Signal()
-        self.sink = sink = stream.Endpoint([("data", 32)])
+        self.idle   = idle   = Signal()
+        self.comma  = comma  = Signal()
+        self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", phy_dw)])
 
         # # #
@@ -148,32 +152,33 @@ class TXDatapath(Module):
             converter.source.connect(source)
         ]
 
+# RXDatapath ---------------------------------------------------------------------------------------
 
 class RXDatapath(Module):
     def __init__(self, phy_dw, with_scrambling=True):
         self.bitslip_value = bitslip_value = Signal(6)
-        self.sink = sink = stream.Endpoint([("data", phy_dw)])
-        self.source = source = stream.Endpoint([("data", 32)])
-        self.idle = idle = Signal()
-        self.comma = comma = Signal()
+        self.sink          = sink   = stream.Endpoint([("data", phy_dw)])
+        self.source        = source = stream.Endpoint([("data", 32)])
+        self.idle          = idle   = Signal()
+        self.comma         = comma  = Signal()
 
         # # #
 
-        # converter
+        # Converter
         self.submodules.converter = converter = stream.Converter(phy_dw, 40)
 
-        # bitslip
+        # Bitslip
         self.submodules.bitslip = bitslip = _Bitslip()
         self.comb += bitslip.value.eq(bitslip_value)
 
-        # line coding
+        # Line Coding
         self.submodules.decoder = decoder = _8b10bDecoder()
 
-        # descrambler
+        # Descrambler
         if with_scrambling:
             self.submodules.descrambler = descrambler = Descrambler()
 
-        # dataflow
+        # Dataflow
         self.comb += [
             sink.connect(converter.sink),
             converter.source.connect(bitslip.sink),
@@ -190,7 +195,7 @@ class RXDatapath(Module):
                 source.data.eq(decoder.source.d)
             ]
 
-        # idle decoding
+        # Idle decoding
         idle_timer = WaitTimer(32)
         self.submodules += idle_timer
         self.sync += [
@@ -199,8 +204,9 @@ class RXDatapath(Module):
             ),
             idle.eq(idle_timer.done)
         ]
-        # comma decoding
-        self.sync += \
+        # Comma decoding
+        self.sync += [
             If(decoder.source.valid,
                 comma.eq((decoder.source.k == 1) & (decoder.source.d == K(28, 5)))
             )
+        ]

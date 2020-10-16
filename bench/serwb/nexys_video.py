@@ -101,12 +101,12 @@ class SerWBTestSoC(SoCMini):
         # SerWB simple test with a SerWB Master added as a Slave peripheral to the SoC and connected
         # to a SerWB Slave with a SRAM attached. Access to this SRAM is then tested from the main
         # SoC through SerWB:
-        #                 +------+   +------+   +------+
-        #                 |      |   |      |   |      |
-        #             +---+SerWB +--->SerWB +---> Test |
-        #    SoC's Bus    |Master|   |Slave |   | SRAM |
-        #             <---+      <---+      <---+      |
-        #                 +------+   +------+   +------+
+        #                   +--------+    +------+    +------+    +------+
+        #                   |        |    |      |    |      |    |      |
+        #                   |  Test  +----+SerWB +---->SerWB +----> Test |
+        #                   |   SoC  | WB |Master|    |Slave | WB | SRAM |
+        #                   |        +<---+      <----+      <----+      |
+        #                   +--------+    +------+    +------+    +------+
         # ------------------------------------------------------------------------------------------
 
         # Enable

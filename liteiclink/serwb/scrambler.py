@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from functools import reduce
@@ -11,10 +11,12 @@ from migen import *
 
 from litex.soc.interconnect import stream
 
+# Helpers ------------------------------------------------------------------------------------------
 
 def K(x, y):
     return (y << 5) | x
 
+# Scrambler Unit -----------------------------------------------------------------------------------
 
 @ResetInserter()
 @CEInserter()
@@ -35,10 +37,11 @@ class _Scrambler(Module):
 
         self.sync += state.eq(Cat(*curval[:n_state]))
 
+# Scrambler ----------------------------------------------------------------------------------------
 
 class Scrambler(Module):
     def __init__(self, sync_interval=2**10):
-        self.sink = sink = stream.Endpoint([("data", 32)])
+        self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("d", 32), ("k", 4)])
 
         # # #
@@ -46,7 +49,7 @@ class Scrambler(Module):
         # Scrambler
         self.submodules.scrambler = scrambler = _Scrambler(32)
 
-        # Insert K29.7 SYNC character every "sync_interval" cycles
+        # Insert K29.7 SYNC character every "sync_interval" cycles.
         count = Signal(max=sync_interval)
         self.sync += If(source.ready, count.eq(count + 1))
         self.comb += [
@@ -66,10 +69,11 @@ class Scrambler(Module):
             )
         ]
 
+# Descrambler --------------------------------------------------------------------------------------
 
 class Descrambler(Module):
     def __init__(self):
-        self.sink = sink = stream.Endpoint([("d", 32), ("k", 4)])
+        self.sink   = sink   = stream.Endpoint([("d", 32), ("k", 4)])
         self.source = source = stream.Endpoint([("data", 32)])
 
         # # #
@@ -78,7 +82,7 @@ class Descrambler(Module):
         self.submodules.descrambler = descrambler = _Scrambler(32)
         self.comb += descrambler.i.eq(sink.d)
 
-        # Detect K29.7 SYNC character and synchronize Descrambler
+        # Detect K29.7 SYNC character and synchronize Descrambler.
         self.comb += \
             If(sink.valid,
                 If((sink.k == 0b1) & (sink.d == K(29,7)),

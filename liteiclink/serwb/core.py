@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -14,33 +14,32 @@ from liteiclink.serwb.etherbone import Etherbone
 
 class SERWBCore(Module):
     def __init__(self, phy, clk_freq, mode):
-        # etherbone
+        # Etherbone --------------------------------------------------------------------------------
         self.submodules.etherbone = etherbone = Etherbone(mode)
 
-        # bus
+        # Bus --------------------------------------------------------------------------------------
         self.bus = etherbone.wishbone.bus
 
-        # packetizer / depacketizer
+        # Packetizer / Depacketizer ----------------------------------------------------------------
         depacketizer = Depacketizer(clk_freq)
-        packetizer = Packetizer()
+        packetizer   = Packetizer()
         self.submodules += depacketizer, packetizer
 
-        # fifos
+        # Buffering --------------------------------------------------------------------------------
         tx_fifo = stream.SyncFIFO([("data", 32)], 8, buffered=True)
         rx_fifo = stream.SyncFIFO([("data", 32)], 8, buffered=True)
         self.submodules += tx_fifo, rx_fifo
 
-        # modules connection
+        # Data flow --------------------------------------------------------------------------------
         self.comb += [
-            # core --> phy
+            # Phy <--> Core
             packetizer.source.connect(tx_fifo.sink),
             tx_fifo.source.connect(phy.sink),
 
-            # phy --> core
             phy.source.connect(rx_fifo.sink),
             rx_fifo.source.connect(depacketizer.sink),
 
-            # etherbone <--> core
+            # Etherbone <--> Core
             depacketizer.source.connect(etherbone.sink),
             etherbone.source.connect(packetizer.sink)
         ]
