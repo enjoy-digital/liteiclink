@@ -18,10 +18,12 @@ from litex.soc.interconnect.csr import *
 from litex.build.generic_platform import *
 from litex.boards.platforms import nexys_video as nexys
 
-from litex.soc.interconnect import wishbone
+from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
-from litex.soc.cores.uart import UARTWishboneBridge
+
+from litex.soc.cores.clock import S7PLL, S7IDELAYCTRL
+from litex.soc.interconnect import wishbone
 
 from liteiclink.serwb.phy import SERWBPHY
 from liteiclink.serwb.genphy import SERWBPHY as SERWBLowSpeedPHY
@@ -56,54 +58,31 @@ serwb_io = [
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
-    def __init__(self, platform):
-        self.clock_domains.cd_sys    = ClockDomain()
-        self.clock_domains.cd_sys4x  = ClockDomain()
-        self.clock_domains.cd_clk200 = ClockDomain()
+    def __init__(self, platform, sys_clk_freq):
+        self.clock_domains.cd_sys       = ClockDomain()
+        self.clock_domains.cd_sys4x     = ClockDomain(reset_less=True)
+        self.clock_domains.cd_idelay    = ClockDomain()
 
-        clk100 = platform.request("clk100")
-        reset  = ~platform.request("cpu_reset")
+        # # #
 
-        pll_locked = Signal()
-        pll_fb     = Signal()
-        pll_sys4x  = Signal()
-        pll_clk200 = Signal()
-        self.specials += [
-            Instance("MMCME2_BASE",
-                p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
+        self.submodules.pll = pll = S7PLL(speedgrade=-1)
+        self.comb += pll.reset.eq(~platform.request("cpu_reset"))
+        pll.register_clkin(platform.request("clk100"), 100e6)
+        pll.create_clkout(self.cd_sys,       sys_clk_freq)
+        pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
+        pll.create_clkout(self.cd_idelay,    200e6)
 
-                # VCO @ 1GHz
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                p_CLKFBOUT_MULT_F=10, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=clk100, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+        self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_idelay)
 
-                # 500MHz
-                p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys4x,
+# SerWBTestSoC ------------------------------------------------------------------------------------
 
-                # 200MHz
-                p_CLKOUT1_DIVIDE=5, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=pll_clk200
-            ),
-            Instance("BUFR", p_BUFR_DIVIDE="4", i_I=pll_sys4x, o_O=self.cd_sys.clk),
-            Instance("BUFIO", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
-            Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
-            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | reset),
-            AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | reset)
-        ]
+class SerWBTestSoC(SoCMini):
+    mem_map = {
+        "serwb": 0x30000000,
+    }
+    mem_map.update(SoCMini.mem_map)
 
-        reset_counter = Signal(4, reset=15)
-        ic_reset = Signal(reset=1)
-        self.sync.clk200 += \
-            If(reset_counter != 0,
-                reset_counter.eq(reset_counter - 1)
-            ).Else(
-                ic_reset.eq(0)
-            )
-        self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
-
-# BaseSoC ------------------------------------------------------------------------------------------
-
-class BaseSoC(SoCMini):
-    def __init__(self, platform):
+    def __init__(self, platform, low_speed=True, with_analyzer=True):
         sys_clk_freq = int(125e6)
 
         # SoCMini ----------------------------------------------------------------------------------
@@ -115,46 +94,39 @@ class BaseSoC(SoCMini):
             uart_name      = "bridge")
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = _CRG(platform)
+        self.submodules.crg = _CRG(platform, sys_clk_freq)
 
-# SERDESTestSoC ------------------------------------------------------------------------------------
-
-class SERDESTestSoC(BaseSoC):
-    csr_map = {
-        "serwb_master_phy": 20,
-        "serwb_slave_phy":  21,
-        "serwb_test":       22,
-        "analyzer":         23
-    }
-    csr_map.update(BaseSoC.csr_map)
-
-    mem_map = {
-        "serwb": 0x30000000,
-    }
-    mem_map.update(BaseSoC.mem_map)
-
-    def __init__(self, platform, low_speed=True, with_analyzer=True):
-        BaseSoC.__init__(self, platform)
 
         # SerWB ------------------------------------------------------------------------------------
-        phy_cls = SERWBLowSpeedPHY if low_speed else SERWBPHY
+        # SerWB simple test with a SerWB Master added as a Slave peripheral to the SoC and connected
+        # to a SerWB Slave with a SRAM attached. Access to this SRAM is then tested from the main
+        # SoC through SerWB:
+        #                 +------+   +------+   +------+
+        #                 |      |   |      |   |      |
+        #             +---+SerWB +--->SerWB +---> Test |
+        #    SoC's Bus    |Master|   |Slave |   | SRAM |
+        #             <---+      <---+      <---+      |
+        #                 +------+   +------+   +------+
+        # ------------------------------------------------------------------------------------------
 
         # Enable
         self.comb += platform.request("serwb_enable").eq(1)
 
+        phy_cls = SERWBLowSpeedPHY if low_speed else SERWBPHY
+
         # Master
-        self.submodules.serwb_master_phy = phy_cls(platform.device, platform.request("serwb_master"), mode="master")
+        self.submodules.serwb_master_phy = phy_cls(
+		    device = platform.device,
+		    pads   = platform.request("serwb_master"),
+		    mode   = "master")
+        self.add_csr("serwb_master_phy")
 
         # Slave
-        self.submodules.serwb_slave_phy = phy_cls(platform.device, platform.request("serwb_slave"), mode="slave")
-
-        # Status leds
-        self.comb += [
-            platform.request("user_led", 4).eq(self.serwb_master_phy.init.ready),
-            platform.request("user_led", 5).eq(self.serwb_master_phy.init.error),
-            platform.request("user_led", 6).eq(self.serwb_slave_phy.init.ready),
-            platform.request("user_led", 7).eq(self.serwb_slave_phy.init.error),
-        ]
+        self.submodules.serwb_slave_phy = phy_cls(
+            device = platform.device,
+            pads   = platform.request("serwb_slave"),
+            mode   ="slave")
+        self.add_csr("serwb_slave_phy")
 
         # Wishbone Slave
         serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave")
@@ -164,12 +136,20 @@ class SERDESTestSoC(BaseSoC):
         serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master")
         self.submodules += serwb_slave_core
 
-        # Wishbone Test Memory
-        self.register_mem("serwb", self.mem_map["serwb"], serwb_master_core.etherbone.wishbone.bus, 8192)
+        # Wishbone SRAM
         self.submodules.serwb_sram = wishbone.SRAM(8192, init=[i for i in range(8192//4)])
+        self.bus.add_slave("serwb", self.serwb_sram.bus, SoCRegion(origin=0x30000000, size=8192))
         self.comb += serwb_slave_core.etherbone.wishbone.bus.connect(self.serwb_sram.bus)
 
-        # Analyzer
+        # Leds -------------------------------------------------------------------------------------
+        self.comb += [
+            platform.request("user_led", 0).eq(self.serwb_master_phy.init.ready),
+            platform.request("user_led", 1).eq(self.serwb_master_phy.init.error),
+            platform.request("user_led", 2).eq(self.serwb_slave_phy.init.ready),
+            platform.request("user_led", 3).eq(self.serwb_slave_phy.init.error),
+        ]
+
+        # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
             converter_group = [
                 self.serwb_master_phy.serdes.tx.datapath.converter.sink,
@@ -213,19 +193,22 @@ class SERDESTestSoC(BaseSoC):
                 2 : control_group
             }
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
+            self.add_csr("analyzer")
 
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteICLink example design on Nexys Video")
-    parser.add_argument("--build",  action="store_true", help="Build bitstream")
-    parser.add_argument("--load",   action="store_true", help="Load bitstream (to SRAM)")
+    parser.add_argument("--build",         action="store_true", help="Build bitstream")
+    parser.add_argument("--load",          action="store_true", help="Load bitstream (to SRAM)")
+    parser.add_argument("--low-speed",     action="store_true", help="Use Low-Speed PHY")
+    parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer")
     args = parser.parse_args()
 
     platform = nexys.Platform()
     platform.add_extension(serwb_io)
-    soc      = SERDESTestSoC(platform)
-    builder  = Builder(soc, csr_csv="csr.csv")
+    soc     = SerWBTestSoC(platform, low_speed=args.low_speed, with_analyzer=args.with_analyzer)
+    builder = Builder(soc, csr_csv="csr.csv")
     builder.build(run=args.build)
 
     if args.load:
