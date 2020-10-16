@@ -212,7 +212,7 @@ class SERDESTestSoC(BaseSoC):
                 1 : encoder_group,
                 2 : control_group
             }
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="test/analyzer.csv")
+            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -225,7 +225,7 @@ def main():
     platform = nexys.Platform()
     platform.add_extension(serwb_io)
     soc      = SERDESTestSoC(platform)
-    builder  = Builder(soc, csr_csv="test/csr.csv")
+    builder  = Builder(soc, csr_csv="csr.csv")
     builder.build(run=args.build)
 
     if args.load:
