@@ -34,7 +34,7 @@ from litescope import LiteScopeAnalyzer
 # IOs ----------------------------------------------------------------------------------------------
 
 serwb_io = [
-    # hdmi loopback
+    # HDMI loopback
     ("serwb_master", 0,
         Subsignal("clk_p", Pins("T1"), IOStandard("TMDS_33")), # hdmi_out clk
         Subsignal("clk_n", Pins("U1"), IOStandard("TMDS_33")), # hdmi_out clk
@@ -88,7 +88,7 @@ class SerWBTestSoC(SoCMini):
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
             csr_data_width = 32,
-            ident          = "LiteICLink example design on Nexys Video",
+            ident          = "LiteICLink SerWB bench on Nexys Video",
             ident_version  = True,
             with_uart      = True,
             uart_name      = "bridge")
@@ -203,7 +203,7 @@ class SerWBTestSoC(SoCMini):
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteICLink example design on Nexys Video")
+    parser = argparse.ArgumentParser(description="LiteICLink SerWB bench on Nexys Video")
     parser.add_argument("--build",         action="store_true", help="Build bitstream")
     parser.add_argument("--load",          action="store_true", help="Load bitstream (to SRAM)")
     parser.add_argument("--low-speed",     action="store_true", help="Use Low-Speed PHY")
