@@ -17,6 +17,9 @@ class SERWBCore(Module):
         # etherbone
         self.submodules.etherbone = etherbone = Etherbone(mode)
 
+        # bus
+        self.bus = etherbone.wishbone.bus
+
         # packetizer / depacketizer
         depacketizer = Depacketizer(clk_freq)
         packetizer = Packetizer()
