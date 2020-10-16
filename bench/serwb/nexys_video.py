@@ -116,9 +116,9 @@ class SerWBTestSoC(SoCMini):
 
         # Master
         self.submodules.serwb_master_phy = phy_cls(
-		    device = platform.device,
-		    pads   = platform.request("serwb_master"),
-		    mode   = "master")
+            device = platform.device,
+            pads   = platform.request("serwb_master"),
+            mode   = "master")
         self.add_csr("serwb_master_phy")
 
         # Slave
@@ -137,9 +137,9 @@ class SerWBTestSoC(SoCMini):
         self.submodules += serwb_slave_core
 
         # Wishbone SRAM
-        self.submodules.serwb_sram = wishbone.SRAM(8192, init=[i for i in range(8192//4)])
-        self.bus.add_slave("serwb", self.serwb_sram.bus, SoCRegion(origin=0x30000000, size=8192))
-        self.comb += serwb_slave_core.etherbone.wishbone.bus.connect(self.serwb_sram.bus)
+        self.submodules.serwb_sram = wishbone.SRAM(8192)
+        self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
+        self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
 
         # Leds -------------------------------------------------------------------------------------
         self.comb += [
@@ -151,6 +151,10 @@ class SerWBTestSoC(SoCMini):
 
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
+            wishbone_group = [
+                serwb_master_core.bus,
+                serwb_slave_core.bus,
+            ]
             converter_group = [
                 self.serwb_master_phy.serdes.tx.datapath.converter.sink,
                 self.serwb_master_phy.serdes.tx.datapath.converter.source,
@@ -188,9 +192,10 @@ class SerWBTestSoC(SoCMini):
             ]
 
             analyzer_signals = {
-                0 : converter_group,
-                1 : encoder_group,
-                2 : control_group
+                0 : wishbone_group,
+                1 : converter_group,
+                2 : encoder_group,
+                3 : control_group
             }
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
             self.add_csr("analyzer")
