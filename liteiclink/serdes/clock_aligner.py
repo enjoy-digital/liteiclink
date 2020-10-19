@@ -28,6 +28,7 @@ from migen.genlib.cdc import MultiReg, PulseSynchronizer
 #
 # Warning: Xilinx transceivers are LSB first, and comma needs to be flipped
 # compared to the usual 8b10b binary representation.
+
 class BruteforceClockAligner(Module):
     def __init__(self, comma, tx_clk_freq, check_period=6e-3):
         self.rxdata = Signal(20)

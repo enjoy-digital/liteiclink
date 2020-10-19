@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from math import ceil
@@ -13,6 +13,7 @@ from migen.genlib.misc import WaitTimer
 
 __all__ = ["GTXTXInit", "GTXRXInit"]
 
+# GTX Init -----------------------------------------------------------------------------------------
 
 class GTXInit(Module):
     def __init__(self, sys_clk_freq, buffer_enable):
@@ -89,8 +90,7 @@ class GTXInit(Module):
                 NextState("WAIT-INIT-DELAY")
             )
         )
-        # Wait 500ns after configuration before releasing
-        # GTX reset (to follow AR43482)
+        # Wait 500ns after configuration before releasing GTX reset (to follow AR43482)
         init_delay = WaitTimer(int(500e-9*sys_clk_freq))
         self.submodules += init_delay
         self.comb += init_delay.wait.eq(1)
@@ -106,8 +106,7 @@ class GTXInit(Module):
                 NextState("WAIT-CDR-LOCK")
             )
         )
-        # Wait for clock recovery lock (only
-        # needed for RX but we also do it for TX
+        # Wait for clock recovery lock (only needed for RX but we also do it for TX
         cdr_lock_timer = WaitTimer(1024)
         self.submodules += cdr_lock_timer
         fsm.act("WAIT-CDR-LOCK",
@@ -132,8 +131,7 @@ class GTXInit(Module):
                 NextState("WAIT-FIRST-ALIGN-DONE")
             )
         )
-        # Align done after 2 rising edges of Xxphaligndone
-        # (UG476 / buffer bypass config mode)
+        # Align done after 2 rising edges of Xxphaligndone (UG476 / buffer bypass config mode)
         fsm.act("WAIT-FIRST-ALIGN-DONE",
             Xxuserrdy.eq(1),
             If(Xxphaligndone_rising,
@@ -162,10 +160,11 @@ class GTXInit(Module):
             fsm.reset.eq(self.restart | watchdog.done)
         ]
 
+# GTX TX Init --------------------------------------------------------------------------------------
 
 class GTXTXInit(GTXInit):
     pass
 
-
+# GTX RX Init --------------------------------------------------------------------------------------
 class GTXRXInit(GTXInit):
     pass

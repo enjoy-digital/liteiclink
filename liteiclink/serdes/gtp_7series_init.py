@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from math import ceil
@@ -15,6 +15,7 @@ from liteiclink.serdes.common import *
 
 __all__ = ["GTPTXInit", "GTPRXInit"]
 
+# GTP TX Init --------------------------------------------------------------------------------------
 
 class GTPTXInit(Module):
     def __init__(self, sys_clk_freq, buffer_enable):
@@ -103,8 +104,7 @@ class GTPTXInit(Module):
                 NextState("WAIT-INIT-DELAY")
             )
         )
-        # Wait 500ns after configuration before releasing
-        # GTP reset (to follow AR43482)
+        # Wait 500ns after configuration before releasing GTP reset (to follow AR43482)
         init_delay = WaitTimer(int(500e-9*sys_clk_freq))
         self.submodules += init_delay
         self.comb += init_delay.wait.eq(1)
@@ -138,8 +138,7 @@ class GTPTXInit(Module):
                 NextState("WAIT-FIRST-ALIGN-DONE")
             )
         )
-        # Align done after 2 rising edges of Xxphaligndone
-        # (UG482 / buffer bypass config mode)
+        # Align done after 2 rising edges of Xxphaligndone (UG482 / buffer bypass config mode)
         fsm.act("WAIT-FIRST-ALIGN-DONE",
             txuserrdy.eq(1),
             txphalign.eq(1),
@@ -171,6 +170,7 @@ class GTPTXInit(Module):
             fsm.reset.eq(self.restart | watchdog.done)
         ]
 
+# GTP RX Init --------------------------------------------------------------------------------------
 
 class GTPRXInit(Module):
     def __init__(self, sys_clk_freq, buffer_enable):
@@ -243,8 +243,7 @@ class GTPRXInit(Module):
             gtrxpd.eq(1),
             NextState("DRP_READ_ISSUE")
         )
-        # Wait 500ns after configuration before releasing
-        # GTP reset (to follow AR43482)
+        # Wait 500ns after configuration before releasing GTP reset (to follow AR43482)
         init_delay = WaitTimer(int(500e-9*sys_clk_freq))
         self.submodules += init_delay
         self.comb += init_delay.wait.eq(1)

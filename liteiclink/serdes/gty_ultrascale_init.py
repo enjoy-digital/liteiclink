@@ -13,7 +13,7 @@ from migen.genlib.misc import WaitTimer
 
 __all__ = ["GTYTXInit", "GTYRXInit"]
 
-
+# GTY Init -----------------------------------------------------------------------------------------
 
 class GTYInit(Module):
     def __init__(self, sys_clk_freq, rx, buffer_enable):
@@ -93,8 +93,7 @@ class GTYInit(Module):
             gtXxreset.eq(1),
             If(plllock, NextState("RELEASE_GTY_RESET"))
         )
-        # Release GTY reset and wait for GTY resetdone
-        # (from UG578, GTY is reset on falling edge
+        # Release GTY reset and wait for GTY resetdone (from UG578, GTY is reset on falling edge
         # of gtXxreset)
         if rx:
             fsm.act("RELEASE_GTY_RESET",
@@ -142,8 +141,8 @@ class GTYInit(Module):
                 )
             )
 
-        # Wait 2 rising edges of Xxphaligndone
-        # (from UG576 in TX Buffer Bypass in Single-Lane Auto Mode)
+        # Wait 2 rising edges of Xxphaligndone (from UG576 in TX Buffer Bypass in Single-Lane Auto
+        # Mode)
         fsm.act("WAIT_FIRST_ALIGN_DONE",
             Xxuserrdy.eq(1),
             If(Xxphaligndone_rising, NextState("WAIT_SECOND_ALIGN_DONE"))
@@ -158,11 +157,13 @@ class GTYInit(Module):
             If(self.restart, NextState("RESET_ALL"))
         )
 
+# GTY TX Init --------------------------------------------------------------------------------------
 
 class GTYTXInit(GTYInit):
     def __init__(self, sys_clk_freq, buffer_enable=False):
         GTYInit.__init__(self, sys_clk_freq, rx=False, buffer_enable=buffer_enable)
 
+# GTY RX Init --------------------------------------------------------------------------------------
 
 class GTYRXInit(GTYInit):
     def __init__(self, sys_clk_freq, buffer_enable=False):

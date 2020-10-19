@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2017 Sebastien Bourdeauducq <sb@m-labs.hk>
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -20,8 +20,7 @@ from liteiclink.serdes.clock_aligner import BruteforceClockAligner
 
 from liteiclink.serdes.common import *
 
-class Open(Signal):
-    pass
+# GTP Quad PLL -------------------------------------------------------------------------------------
 
 class GTPQuadPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate, channel=0, shared=False):
@@ -100,12 +99,12 @@ class GTPQuadPLL(Module):
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
-        for n1 in 4, 5:
-            for n2 in 1, 2, 3, 4, 5:
-                for m in 1, 2:
+        for n1 in [4, 5]:
+            for n2 in [1, 2, 3, 4, 5]:
+                for m in [1, 2]:
                     vco_freq = refclk_freq*(n1*n2)/m
                     if 1.6e9 <= vco_freq <= 3.3e9:
-                        for d in 1, 2, 4, 8, 16:
+                        for d in [1, 2, 4, 8, 16]:
                             current_linerate = vco_freq*2/d
                             if current_linerate == linerate:
                                 return {"n1": n1, "n2": n2, "m": m, "d": d,
@@ -153,6 +152,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
            linerate = config["linerate"]/1e9)
         return r
 
+# GTP ----------------------------------------------------------------------------------------------
 
 class GTP(Module, AutoCSR):
     def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq,
@@ -248,7 +248,7 @@ class GTP(Module, AutoCSR):
             rx_init.restart.eq(~self.rx_enable)
         ]
 
-        # PLL ----------------------------------------------------------------------------------
+        # PLL --------------------------------------------------------------------------------------
         self.comb += [
             tx_init.plllock.eq(qpll.lock),
             rx_init.plllock.eq(qpll.lock),
@@ -261,10 +261,10 @@ class GTP(Module, AutoCSR):
         drp_mux.add_interface(self.drp)
 
         # GTPE2_CHANNEL instance -------------------------------------------------------------------
+        class Open(Signal): pass
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
         rxphaligndone = Signal()
-
         self.gtp_params = dict(
             # Simulation-Only Attributes
             p_SIM_RECEIVER_DETECT_PASS   = "TRUE",

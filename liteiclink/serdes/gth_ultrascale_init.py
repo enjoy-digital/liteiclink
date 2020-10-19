@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from math import ceil
@@ -13,7 +13,7 @@ from migen.genlib.misc import WaitTimer
 
 __all__ = ["GTHTXInit", "GTHRXInit"]
 
-
+# GTH Init -----------------------------------------------------------------------------------------
 
 class GTHInit(Module):
     def __init__(self, sys_clk_freq, rx, buffer_enable):
@@ -93,8 +93,7 @@ class GTHInit(Module):
             gtXxreset.eq(1),
             If(plllock, NextState("RELEASE_GTH_RESET"))
         )
-        # Release GTH reset and wait for GTH resetdone
-        # (from UG476, GTH is reset on falling edge
+        # Release GTH reset and wait for GTH resetdone (from UG476, GTH is reset on falling edge
         # of gtXxreset)
         if rx:
             fsm.act("RELEASE_GTH_RESET",
@@ -142,8 +141,8 @@ class GTHInit(Module):
                 )
             )
 
-        # Wait 2 rising edges of Xxphaligndone
-        # (from UG576 in TX Buffer Bypass in Single-Lane Auto Mode)
+        # Wait 2 rising edges of Xxphaligndone (from UG576 in TX Buffer Bypass in Single-Lane Auto
+        # Mode)
         fsm.act("WAIT_FIRST_ALIGN_DONE",
             Xxuserrdy.eq(1),
             If(Xxphaligndone_rising, NextState("WAIT_SECOND_ALIGN_DONE"))
@@ -158,11 +157,13 @@ class GTHInit(Module):
             If(self.restart, NextState("RESET_ALL"))
         )
 
+# GTH TX Init --------------------------------------------------------------------------------------
 
 class GTHTXInit(GTHInit):
     def __init__(self, sys_clk_freq, buffer_enable=False):
         GTHInit.__init__(self, sys_clk_freq, rx=False, buffer_enable=buffer_enable)
 
+# GTH RX Init --------------------------------------------------------------------------------------
 
 class GTHRXInit(GTHInit):
     def __init__(self, sys_clk_freq, buffer_enable=False):

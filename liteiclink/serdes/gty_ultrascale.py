@@ -20,6 +20,7 @@ from liteiclink.serdes.clock_aligner import BruteforceClockAligner
 
 from liteiclink.serdes.common import *
 
+# GTY Channel PLL ----------------------------------------------------------------------------------
 
 class GTYChannelPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
@@ -30,9 +31,9 @@ class GTYChannelPLL(Module):
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
-        for n1 in 4, 5:
-            for n2 in 1, 2, 3, 4, 5:
-                for m in 1, 2:
+        for n1 in [4, 5]:
+            for n2 in [1, 2, 3, 4, 5]:
+                for m in [1, 2]:
                     vco_freq = refclk_freq*(n1*n2)/m
                     if 2.0e9 <= vco_freq <= 6.25e9:
                         for d in 1, 2, 4, 8: # CHECKME: 16, 32 not supported when using CPLL.
@@ -82,6 +83,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
            linerate = self.config["linerate"]/1e9)
         return r
 
+# GTY Quad PLL -------------------------------------------------------------------------------------
 
 class GTYQuadPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
@@ -299,6 +301,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+--->+/2 +-->|   
            linerate       = config["linerate"]/1e9)
         return r
 
+# GTY ----------------------------------------------------------------------------------------------
 
 class GTY(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq,

@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -19,8 +19,7 @@ from liteiclink.serdes.clock_aligner import BruteforceClockAligner
 
 from liteiclink.serdes.common import *
 
-class Open(Signal):
-    pass
+# GTX Channel PLL ----------------------------------------------------------------------------------
 
 class GTXChannelPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
@@ -31,12 +30,12 @@ class GTXChannelPLL(Module):
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
-        for n1 in 4, 5:
-            for n2 in 1, 2, 3, 4, 5:
-                for m in 1, 2:
+        for n1 in [4, 5]:
+            for n2 in [1, 2, 3, 4, 5]:
+                for m in [1, 2]:
                     vco_freq = refclk_freq*(n1*n2)/m
                     if 1.6e9 <= vco_freq <= 3.3e9:
-                        for d in 1, 2, 4, 8, 16:
+                        for d in [1, 2, 4, 8, 16]:
                             current_linerate = vco_freq*2/d
                             if current_linerate == linerate:
                                 return {"n1": n1, "n2": n2, "m": m, "d": d,
@@ -83,6 +82,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
            linerate = self.config["linerate"]/1e9)
         return r
 
+# GTX Quad PLL -------------------------------------------------------------------------------------
 
 class GTXQuadPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
@@ -144,8 +144,8 @@ class GTXQuadPLL(Module):
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
-        for n in 16, 20, 32, 40, 64, 66, 80, 100:
-            for m in 1, 2, 3, 4:
+        for n in [16, 20, 32, 40, 64, 66, 80, 100]:
+            for m in [1, 2, 3, 4]:
                 vco_freq = refclk_freq*n/m
                 if 5.93e9 <= vco_freq <= 8e9:
                     vco_band = "lower"
@@ -205,6 +205,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
            linerate = self.config["linerate"]/1e9)
         return r
 
+# GTX ----------------------------------------------------------------------------------------------
 
 class GTX(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq,
@@ -316,6 +317,7 @@ class GTX(Module, AutoCSR):
         drp_mux.add_interface(self.drp)
 
         # GTXE2_CHANNEL instance -------------------------------------------------------------------
+        class Open(Signal): pass
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
         self.gtx_params = dict(

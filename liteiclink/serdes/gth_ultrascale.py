@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2017 Sebastien Bourdeauducq <sb@m-labs.hk>
 # SPDX-License-Identifier: BSD-2-Clause
 
@@ -19,6 +19,7 @@ from liteiclink.serdes.clock_aligner import BruteforceClockAligner
 
 from liteiclink.serdes.common import *
 
+# GTH Channel PLL ----------------------------------------------------------------------------------
 
 class GTHChannelPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
@@ -29,12 +30,12 @@ class GTHChannelPLL(Module):
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
-        for n1 in 4, 5:
-            for n2 in 1, 2, 3, 4, 5:
-                for m in 1, 2:
+        for n1 in [4, 5]:
+            for n2 in [1, 2, 3, 4, 5]:
+                for m in [1, 2]:
                     vco_freq = refclk_freq*(n1*n2)/m
                     if 2.0e9 <= vco_freq <= 6.25e9:
-                        for d in 1, 2, 4, 8, 16:
+                        for d in [1, 2, 4, 8, 16]:
                             current_linerate = vco_freq*2/d
                             if current_linerate == linerate:
                                 return {"n1": n1, "n2": n2, "m": m, "d": d,
@@ -81,13 +82,14 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
            linerate = self.config["linerate"]/1e9)
         return r
 
+# GTH Quad PLL -------------------------------------------------------------------------------------
 
 class GTHQuadPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
-        self.clk = Signal()
+        self.clk    = Signal()
         self.refclk = Signal()
-        self.reset = Signal()
-        self.lock = Signal()
+        self.reset  = Signal()
+        self.lock   = Signal()
         self.config = config = self.compute_config(refclk_freq, linerate)
 
         # # #
@@ -142,9 +144,8 @@ class GTHQuadPLL(Module):
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
-        for n in [16, 20, 32, 40, 60, 64, 66, 75, 80, 84,
-                  90, 96, 100, 112, 120, 125, 150, 160]:
-            for m in 1, 2, 3, 4:
+        for n in [16, 20, 32, 40, 60, 64, 66, 75, 80, 84, 90, 96, 100, 112, 120, 125, 150, 160]:
+            for m in [1, 2, 3, 4]:
                 vco_freq = refclk_freq*n/m
                 if 8e9 <= vco_freq <= 13e9:
                     qpll = "qpll1"
@@ -153,7 +154,7 @@ class GTHQuadPLL(Module):
                 else:
                     qpll = None
                 if qpll is not None:
-                    for d in 1, 2, 4, 8, 16:
+                    for d in [1, 2, 4, 8, 16]:
                         current_linerate = (vco_freq/2)*2/d
                         if current_linerate == linerate:
                             return {"n": n, "m": m, "d": d,
@@ -205,6 +206,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
            linerate = config["linerate"]/1e9)
         return r
 
+# GTH ----------------------------------------------------------------------------------------------
 
 class GTH(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq,
@@ -295,7 +297,7 @@ class GTH(Module, AutoCSR):
             rx_init.restart.eq(~self.rx_enable)
         ]
 
-        # PLL ----------------------------------------------------------------------------------
+        # PLL --------------------------------------------------------------------------------------
         self.comb += [
             tx_init.plllock.eq(pll.lock),
             rx_init.plllock.eq(pll.lock),
