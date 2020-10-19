@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import unittest
@@ -20,6 +20,7 @@ from liteiclink.serwb.core import SERWBCore
 
 from litex.soc.interconnect.wishbone import SRAM
 
+# Fake Init/Serdes/PHY -----------------------------------------------------------------------------
 
 class FakeInit(Module):
     def __init__(self):
@@ -29,11 +30,11 @@ class FakeInit(Module):
 class FakeSerdes(Module):
     def __init__(self):
         self.tx_ce = Signal()
-        self.tx_k = Signal(4)
-        self.tx_d = Signal(32)
+        self.tx_k  = Signal(4)
+        self.tx_d  = Signal(32)
         self.rx_ce = Signal()
-        self.rx_k = Signal(4)
-        self.rx_d = Signal(32)
+        self.rx_k  = Signal(4)
+        self.rx_d  = Signal(32)
 
         # # #
 
@@ -47,51 +48,55 @@ class FakeSerdes(Module):
 
 class FakePHY(Module):
     def __init__(self):
-        self.sink = sink = stream.Endpoint([("data", 32)])
+        self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
 
         # # #
 
-        self.submodules.init = FakeInit()
+        self.submodules.init   = FakeInit()
         self.submodules.serdes = FakeSerdes()
 
-        # tx dataflow
-        self.comb += \
+        # TX dataflow
+        self.comb += [
             If(self.init.ready,
                 sink.ready.eq(self.serdes.tx_ce),
                 If(sink.valid,
                     self.serdes.tx_d.eq(sink.data)
                 )
             )
+        ]
 
-        # rx dataflow
-        self.comb += \
+        # RX dataflow
+        self.comb += [
             If(self.init.ready,
                 source.valid.eq(self.serdes.rx_ce),
                 source.data.eq(self.serdes.rx_d)
             )
+        ]
 
+# DUT Scrambler ------------------------------------------------------------------------------------
 
 class DUTScrambler(Module):
     def __init__(self):
-        self.submodules.scrambler = scrambler.Scrambler(sync_interval=16)
+        self.submodules.scrambler   = scrambler.Scrambler(sync_interval=16)
         self.submodules.descrambler = scrambler.Descrambler()
         self.comb += self.scrambler.source.connect(self.descrambler.sink)
 
+# DUT Core -----------------------------------------------------------------------------------------
 
 class DUTCore(Module):
     def __init__(self, **kwargs):
-        # wishbone slave
-        phy_slave = FakePHY()
+        # Wishbone slave
+        phy_slave   = FakePHY()
         serwb_slave = SERWBCore(phy_slave, int(1e6), "slave")
         self.submodules += phy_slave, serwb_slave
 
-        # wishbone master
-        phy_master = FakePHY()
+        # Wishbone master
+        phy_master   = FakePHY()
         serwb_master = SERWBCore(phy_master, int(1e6), "master")
         self.submodules += phy_master, serwb_master
 
-        # connect phy
+        # Connect phy
         self.comb += [
             phy_master.serdes.rx_ce.eq(phy_slave.serdes.tx_ce),
             phy_master.serdes.rx_k.eq(phy_slave.serdes.tx_k),
@@ -102,30 +107,31 @@ class DUTCore(Module):
             phy_slave.serdes.rx_d.eq(phy_master.serdes.tx_d)
         ]
 
-        # add wishbone sram to wishbone master
+        # Add wishbone sram to wishbone master
         sram = SRAM(1024, bus=serwb_master.etherbone.wishbone.bus)
         self.submodules += sram
 
-        # expose wishbone slave
+        # Expose wishbone slave
         self.wishbone = serwb_slave.etherbone.wishbone.bus
 
+# Test SERWB Core ----------------------------------------------------------------------------------
 
 class TestSERWBCore(unittest.TestCase):
     def test_scrambler(self):
         def generator(dut, rand_level=50):
-            # prepare test
-            prng = random.Random(42)
-            i = 0
+            # Prepare test
+            prng      = random.Random(42)
+            i         = 0
             last_data = -1
-            # test loop
+            # Test loop
             while i != 256:
-                # stim
+                # Stim
                 yield dut.scrambler.sink.valid.eq(1)
                 if (yield dut.scrambler.sink.valid) & (yield dut.scrambler.sink.ready):
                     i += 1
                 yield dut.scrambler.sink.data.eq(i)
 
-                # check
+                # Check
                 yield dut.descrambler.source.ready.eq(prng.randrange(100) > rand_level)
                 if (yield dut.descrambler.source.valid) & (yield dut.descrambler.source.ready):
                     current_data = (yield dut.descrambler.source.data)
@@ -133,7 +139,7 @@ class TestSERWBCore(unittest.TestCase):
                         dut.errors += 1
                     last_data = current_data
 
-                # cycle
+                # Cycle
                 yield
 
         dut = DUTScrambler()
@@ -143,22 +149,22 @@ class TestSERWBCore(unittest.TestCase):
 
     def test_serwb(self):
         def generator(dut):
-            # prepare test
-            prng = random.Random(42)
-            data_base = 0x100
+            # Prepare test
+            prng        = random.Random(42)
+            data_base   = 0x100
             data_length = 4
-            datas_w = [prng.randrange(2**32) for i in range(data_length)]
-            datas_r = []
+            datas_w     = [prng.randrange(2**32) for i in range(data_length)]
+            datas_r     = []
 
-            # write
+            # Write
             for i in range(data_length):
                 yield from dut.wishbone.write(data_base + i, datas_w[i])
 
-            # read
+            # Read
             for i in range(data_length):
                 datas_r.append((yield from dut.wishbone.read(data_base + i)))
 
-            # check
+            # Check
             for i in range(data_length):
                 if datas_r[i] != datas_w[i]:
                     dut.errors += 1

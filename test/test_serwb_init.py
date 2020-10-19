@@ -15,27 +15,28 @@ from litex.gen.sim import *
 from liteiclink.serwb import scrambler
 from liteiclink.serwb.phy import _SerdesMasterInit, _SerdesSlaveInit
 
+# Serdes Model -------------------------------------------------------------------------------------
 
 class SerdesModel(Module):
     def __init__(self, taps, mode="slave"):
-        self.tx = Module()
-        self.rx = Module()
+        self.tx               = Module()
+        self.rx               = Module()
 
-        self.tx.idle = Signal()
-        self.tx.comma = Signal()
-        self.rx.idle = Signal()
-        self.rx.comma = Signal()
+        self.tx.idle          = Signal()
+        self.tx.comma         = Signal()
+        self.rx.idle          = Signal()
+        self.rx.comma         = Signal()
 
         self.rx.bitslip_value = Signal(6)
-        self.rx.delay_rst = Signal()
-        self.rx.delay_inc = Signal()
+        self.rx.delay_rst     = Signal()
+        self.rx.delay_inc     = Signal()
 
-        self.valid_bitslip = Signal(6)
-        self.valid_delays = Signal(taps)
+        self.valid_bitslip    = Signal(6)
+        self.valid_delays     = Signal(taps)
 
         # # #
 
-        delay = Signal(max=taps)
+        delay   = Signal(max=taps)
         bitslip = Signal(6)
 
         valid_delays = Array(Signal() for i in range(taps))
@@ -87,18 +88,21 @@ class SerdesModel(Module):
             )
             fsm.act("READY")
 
+# DUT Master ---------------------------------------------------------------------------------------
 
 class DUTMaster(Module):
     def __init__(self, taps=32):
         self.submodules.serdes = SerdesModel(taps, mode="master")
         self.submodules.init = _SerdesMasterInit(self.serdes, taps, timeout=1)
 
+# DUT Slave ----------------------------------------------------------------------------------------
 
 class DUTSlave(Module):
     def __init__(self, taps=32):
         self.submodules.serdes = SerdesModel(taps, mode="slave")
         self.submodules.init = _SerdesSlaveInit(self.serdes, taps, timeout=1)
 
+# TestSERWBInit ------------------------------------------------------------------------------------
 
 def generator(test, dut, valid_bitslip, valid_delays, check_success):
     yield dut.serdes.valid_bitslip.eq(valid_bitslip)
@@ -107,12 +111,12 @@ def generator(test, dut, valid_bitslip, valid_delays, check_success):
                (yield dut.init.error)):
         yield
     if check_success:
-        ready = (yield dut.init.ready)
-        error = (yield dut.init.error)
+        ready     = (yield dut.init.ready)
+        error     = (yield dut.init.error)
         delay_min = (yield dut.init.delay_min)
         delay_max = (yield dut.init.delay_max)
-        delay = (yield dut.init.delay)
-        bitslip = (yield dut.init.bitslip)
+        delay     = (yield dut.init.delay)
+        bitslip   = (yield dut.init.bitslip)
         test.assertEqual(ready, 1)
         test.assertEqual(error, 0)
         test.assertEqual(delay_min, 4)
@@ -124,7 +128,6 @@ def generator(test, dut, valid_bitslip, valid_delays, check_success):
         error = (yield dut.init.error)
         test.assertEqual(ready, 0)
         test.assertEqual(error, 1)
-
 
 class TestSERWBInit(unittest.TestCase):
     def test_master_init_success(self):
