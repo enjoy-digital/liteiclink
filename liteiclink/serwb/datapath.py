@@ -20,10 +20,11 @@ def K(x, y):
     return (y << 5) | x
 
 
-class _8b10bEncoder(Module):
+class _8b10bEncoder(stream.PipelinedActor):
     def __init__(self):
         self.sink   = sink   = stream.Endpoint([("d", 32), ("k", 4)])
         self.source = source = stream.Endpoint([("data", 40)])
+        stream.PipelinedActor.__init__(self, latency=3)
 
         # # #
 
@@ -31,11 +32,7 @@ class _8b10bEncoder(Module):
         self.submodules += encoder
 
         # Control
-        self.comb += [
-            source.valid.eq(sink.valid),
-            sink.ready.eq(source.ready),
-            encoder.ce.eq(source.valid & source.ready)
-        ]
+        self.comb += encoder.ce.eq(self.pipe_ce)
 
         # Datapath
         for i in range(4):
@@ -46,10 +43,11 @@ class _8b10bEncoder(Module):
             ]
 
 
-class _8b10bDecoder(Module):
+class _8b10bDecoder(stream.PipelinedActor):
     def __init__(self):
         self.sink   = sink   = stream.Endpoint([("data", 40)])
         self.source = source = stream.Endpoint([("d", 32), ("k", 4)])
+        stream.PipelinedActor.__init__(self, latency=2)
 
         # # #
 
@@ -57,11 +55,7 @@ class _8b10bDecoder(Module):
         self.submodules += decoders
 
         # Control
-        self.comb += [
-            source.valid.eq(sink.valid),
-            sink.ready.eq(source.ready)
-        ]
-        self.comb += [decoders[i].ce.eq(source.valid & source.ready) for i in range(4)]
+        self.comb += [decoders[i].ce.eq(self.pipe_ce) for i in range(4)]
 
         # Datapath
         for i in range(4):
@@ -71,13 +65,15 @@ class _8b10bDecoder(Module):
                 source.d[8*i:8*(i+1)].eq(decoders[i].d)
             ]
 
+
 # BitSlip ------------------------------------------------------------------------------------------
 
-class _Bitslip(Module):
+class _Bitslip(stream.PipelinedActor):
     def __init__(self):
         self.value  = value  = Signal(6)
         self.sink   = sink   = stream.Endpoint([("data", 40)])
         self.source = source = stream.Endpoint([("data", 40)])
+        stream.PipelinedActor.__init__(self, latency=2)
 
         # # #
 
@@ -85,18 +81,12 @@ class _Bitslip(Module):
         self.submodules += bitslip
 
         # Control
-        self.comb += [
-            source.valid.eq(sink.valid),
-            sink.ready.eq(source.ready),
-            bitslip.value.eq(value),
-            bitslip.ce.eq(source.valid & source.ready)
-        ]
+        self.comb += bitslip.value.eq(value)
+        self.comb += bitslip.ce.eq(self.pipe_ce)
 
         # Datapath
-        self.comb += [
-            bitslip.i.eq(sink.data),
-            source.data.eq(bitslip.o)
-        ]
+        self.comb += bitslip.i.eq(sink.data)
+        self.comb += source.data.eq(bitslip.o)
 
 # TXDatapath ---------------------------------------------------------------------------------------
 
