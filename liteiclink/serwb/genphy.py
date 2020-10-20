@@ -25,7 +25,10 @@ class _SerdesClocking(Module):
         # In Master mode, generate the clock with 180° phase shift so that Slave can use this clock
         # to sample data.
         if mode == "master":
-            self.specials += DDROutput(0, 1, self.refclk)
+            if hasattr(pads, "sim"):
+                self.comb += self.refclk.eq(~ClockSignal())
+            else:
+                self.specials += DDROutput(0, 1, self.refclk)
             if hasattr(pads, "clk_p"):
                 self.specials += DifferentialOutput(self.refclk, pads.clk_p, pads.clk_n)
             else:
