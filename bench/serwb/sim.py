@@ -58,7 +58,108 @@ class Platform(SimPlatform):
     def __init__(self):
         SimPlatform.__init__(self, "SIM", _io)
 
-# SoCLinux -----------------------------------------------------------------------------------------
+# SerWBMinSoC --------------------------------------------------------------------------------------
+
+class SerWBMinSoC(SoCMini):
+    def __init__(self):
+        platform     = Platform()
+        sys_clk_freq = int(1e6)
+
+        self.comb += platform.trace.eq(1)
+
+        # SoCMini ----------------------------------------------------------------------------------
+        SoCMini.__init__(self, platform, clk_freq=sys_clk_freq)
+
+        # CRG --------------------------------------------------------------------------------------
+        self.submodules.crg = CRG(platform.request("sys_clk"))
+
+        # SerWB ------------------------------------------------------------------------------------
+
+        # Pads
+        serwb_master_pads = Record([("sim", 1), ("clk", 1), ("tx", 1), ("rx", 1)])
+        serwb_slave_pads  = Record([("sim", 1), ("clk", 1), ("tx", 1), ("rx", 1)])
+        self.comb += [
+            serwb_slave_pads.clk.eq(serwb_master_pads.clk),
+            serwb_slave_pads.rx.eq(serwb_master_pads.tx),
+            serwb_master_pads.rx.eq(serwb_slave_pads.tx),
+        ]
+
+        # Master
+        serwb_master_phy = SERWBPHY(
+            device       = platform.device,
+            pads         = serwb_master_pads,
+            mode         = "master",
+            init_timeout = 128)
+        self.submodules += serwb_master_phy
+
+        # Slave
+        serwb_slave_phy = SERWBPHY(
+            device       = platform.device,
+            pads         = serwb_slave_pads,
+            mode         ="slave",
+            init_timeout = 128)
+        self.submodules += serwb_slave_phy
+
+        # Simulation Timer
+        timer = Signal(32)
+        self.sync += timer.eq(timer + 1)
+
+
+        # Simulation Gen/Check
+        class EndpointCounterGenerator(Module):
+            def __init__(self, name, ready, endpoint):
+                counter = Signal(32)
+                self.sync += [
+                    endpoint.valid.eq(ready),
+                    If(endpoint.valid & endpoint.ready,
+                        endpoint.data.eq(endpoint.data + 1)
+                    )
+                ]
+
+        class EndpointCounterChecker(Module):
+            def __init__(self, name, ready, endpoint):
+                last_data = Signal(32, reset=2**32-1)
+                self.sync += [
+                    endpoint.ready.eq(ready),
+                    If(endpoint.valid & endpoint.ready,
+                        #Display("[%08d] {} %08x".format(name), timer, endpoint.data),
+                        If((endpoint.data - 1) != last_data,
+                            Display("[%08d] {} check error.".format(name), timer)
+                        ),
+                        last_data.eq(endpoint.data),
+                    )
+                ]
+
+        ready = serwb_master_phy.init.ready & serwb_slave_phy.init.ready
+
+        # Master gen/check
+        self.submodules += EndpointCounterGenerator("Master", ready=ready, endpoint=serwb_master_phy.sink)
+        self.submodules += EndpointCounterChecker("Master",  ready=ready, endpoint=serwb_master_phy.source)
+
+        # Slave gen/check
+        self.submodules += EndpointCounterGenerator("Slave",  ready=ready, endpoint=serwb_slave_phy.sink)
+        self.submodules += EndpointCounterChecker("Slave",  ready=ready, endpoint=serwb_slave_phy.source)
+
+
+        # Simulation Status
+        serwb_master_phy.init.fsm.finalize()
+        serwb_slave_phy.init.fsm.finalize()
+        for phy, fsm in [
+            ["master",  serwb_master_phy.init.fsm],
+            ["slave ",  serwb_slave_phy.init.fsm]]:
+            for state, value in fsm.encoding.items():
+                self.sync += [
+                    If(fsm.next_state != fsm.state,
+                        If(fsm.next_state == value,
+                            Display("[%08d] {} entering {} state.".format(phy.upper(), state), timer)
+                        )
+                    )
+                ]
+
+        # Simulation End
+        self.sync += If(timer > 10000, Finish())
+
+# SerWBSoC -----------------------------------------------------------------------------------------
 
 class SerWBSoC(SoCCore):
     def __init__(self):
@@ -102,8 +203,8 @@ class SerWBSoC(SoCCore):
         # ------------------------------------------------------------------------------------------
 
         # Pads
-        serwb_master_pads = Record([("clk", 1), ("tx", 1), ("rx", 1)])
-        serwb_slave_pads  = Record([("clk", 1), ("tx", 1), ("rx", 1)])
+        serwb_master_pads = Record([("sim", 1), ("clk", 1), ("tx", 1), ("rx", 1)])
+        serwb_slave_pads  = Record([("sim", 1), ("clk", 1), ("tx", 1), ("rx", 1)])
         self.comb += [
             serwb_slave_pads.clk.eq(serwb_master_pads.clk),
             serwb_slave_pads.rx.eq(serwb_master_pads.tx),
@@ -112,16 +213,18 @@ class SerWBSoC(SoCCore):
 
         # Master
         self.submodules.serwb_master_phy = SERWBPHY(
-            device = platform.device,
-            pads   = serwb_master_pads,
-            mode   = "master")
+            device       = platform.device,
+            pads         = serwb_master_pads,
+            mode         = "master",
+            init_timeout = 128)
         self.add_csr("serwb_master_phy")
 
         # Slave
         self.submodules.serwb_slave_phy = SERWBPHY(
-            device = platform.device,
-            pads   = serwb_slave_pads,
-            mode   ="slave")
+            device       = platform.device,
+            pads         = serwb_slave_pads,
+            mode         ="slave",
+            init_timeout = 128)
         self.add_csr("serwb_slave_phy")
 
         # Wishbone Slave
@@ -137,10 +240,12 @@ class SerWBSoC(SoCCore):
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
         self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
 
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="SerWB LiteX/Verilator Simulation")
+    parser.add_argument("--min",         action="store_true", help="Run Minimal simulation (SerSBMinSoC)")
     parser.add_argument("--trace",       action="store_true", help="Enable VCD tracing")
     parser.add_argument("--trace-start", default="0",         help="Cycle to start VCD tracing")
     parser.add_argument("--trace-end",   default="-1",        help="Cycle to end VCD tracing")
@@ -148,10 +253,11 @@ def main():
 
     sim_config = SimConfig()
     sim_config.add_clocker("sys_clk", freq_hz=1e6)
-    sim_config.add_module("serial2console", "serial")
-    sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
+    if not args.min:
+        sim_config.add_module("serial2console", "serial")
+        sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
 
-    soc     = SerWBSoC()
+    soc     = SerWBMinSoC() if args.min else SerWBSoC()
     builder = Builder(soc, csr_csv="csr.csv")
     builder.build(sim_config=sim_config,
         trace       = True,
