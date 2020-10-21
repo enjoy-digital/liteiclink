@@ -13,9 +13,13 @@ from liteiclink.serwb.etherbone import Etherbone
 
 
 class SERWBCore(Module):
-    def __init__(self, phy, clk_freq, mode, fifo_depth=8):
+    def __init__(self, phy, clk_freq, mode,
+        etherbone_buffer_depth = 4,
+        tx_buffer_depth        = 8,
+        rx_buffer_depth        = 8):
+
         # Etherbone --------------------------------------------------------------------------------
-        self.submodules.etherbone = etherbone = Etherbone(mode)
+        self.submodules.etherbone = etherbone = Etherbone(mode, etherbone_buffer_depth)
 
         # Bus --------------------------------------------------------------------------------------
         self.bus = etherbone.wishbone.bus
@@ -26,8 +30,8 @@ class SERWBCore(Module):
         self.submodules += depacketizer, packetizer
 
         # Buffering --------------------------------------------------------------------------------
-        tx_fifo = stream.SyncFIFO([("data", 32)], fifo_depth, buffered=True)
-        rx_fifo = stream.SyncFIFO([("data", 32)], fifo_depth, buffered=True)
+        tx_fifo = stream.SyncFIFO([("data", 32)], tx_buffer_depth, buffered=True)
+        rx_fifo = stream.SyncFIFO([("data", 32)], rx_buffer_depth, buffered=True)
         self.submodules += tx_fifo, rx_fifo
 
         # Data flow --------------------------------------------------------------------------------

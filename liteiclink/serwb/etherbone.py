@@ -504,6 +504,7 @@ class _EtherboneRecordReceiver(Module):
 
 class _EtherboneRecordSender(Module):
     def __init__(self, buffer_depth=4):
+        assert buffer_depth >= 1
         self.sink = sink = stream.Endpoint(etherbone_mmap_description(32))
         self.source = source = stream.Endpoint(etherbone_record_description(32))
 
@@ -553,7 +554,8 @@ class _EtherboneRecordSender(Module):
 
 
 class _EtherboneRecord(Module):
-    def __init__(self):
+    def __init__(self, buffer_depth=4):
+        assert buffer_depth >= 1
         self.sink = sink = stream.Endpoint(etherbone_packet_user_description(32))
         self.source = source = stream.Endpoint(etherbone_packet_user_description(32))
 
@@ -561,14 +563,14 @@ class _EtherboneRecord(Module):
 
         # receive record, decode it and generate mmap stream
         self.submodules.depacketizer = depacketizer = _EtherboneRecordDepacketizer()
-        self.submodules.receiver = receiver = _EtherboneRecordReceiver()
+        self.submodules.receiver = receiver = _EtherboneRecordReceiver(buffer_depth)
         self.comb += [
             sink.connect(depacketizer.sink),
             depacketizer.source.connect(receiver.sink)
         ]
 
         # receive mmap stream, encode it and send records
-        self.submodules.sender = sender = _EtherboneRecordSender()
+        self.submodules.sender = sender = _EtherboneRecordSender(buffer_depth)
         self.submodules.packetizer = packetizer = _EtherboneRecordPacketizer()
         self.comb += [
             sender.source.connect(packetizer.sink),
@@ -724,14 +726,14 @@ class _EtherboneWishboneSlave(Module):
 # etherbone
 
 class Etherbone(Module):
-    def __init__(self, mode="master"):
+    def __init__(self, mode="master", buffer_depth=4):
         self.sink = sink = stream.Endpoint(user_description(32))
         self.source = source = stream.Endpoint(user_description(32))
 
         # # #
 
         self.submodules.packet = _EtherbonePacket(source, sink)
-        self.submodules.record = _EtherboneRecord()
+        self.submodules.record = _EtherboneRecord(buffer_depth)
         if mode == "master":
             self.submodules.wishbone = _EtherboneWishboneMaster()
         elif mode == "slave":
