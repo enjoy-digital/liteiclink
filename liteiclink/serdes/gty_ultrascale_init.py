@@ -58,14 +58,14 @@ class GTYInit(Module):
         ]
 
         # PLL reset must be at least 2us
-        pll_reset_cycles = ceil(2000*sys_clk_freq/1000000000)
+        pll_reset_cycles = ceil(2e-6*sys_clk_freq)
         pll_reset_timer  = WaitTimer(pll_reset_cycles)
         self.submodules += pll_reset_timer
 
         fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
         self.submodules.fsm = fsm
 
-        ready_timer = WaitTimer(int(sys_clk_freq/100))
+        ready_timer = WaitTimer(int(10e-3*sys_clk_freq))
         self.submodules += ready_timer
         self.comb += [
             ready_timer.wait.eq(~self.done & ~fsm.reset),
