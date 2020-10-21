@@ -76,10 +76,9 @@ class SerWBMinSoC(SoCMini):
         # SerWB ------------------------------------------------------------------------------------
 
         # Pads
-        serwb_master_pads = Record([("sim", 1), ("clk", 1), ("tx", 1), ("rx", 1)])
-        serwb_slave_pads  = Record([("sim", 1), ("clk", 1), ("tx", 1), ("rx", 1)])
+        serwb_master_pads = Record([("tx", 1), ("rx", 1)])
+        serwb_slave_pads  = Record([("tx", 1), ("rx", 1)])
         self.comb += [
-            serwb_slave_pads.clk.eq(serwb_master_pads.clk),
             serwb_slave_pads.rx.eq(serwb_master_pads.tx),
             serwb_master_pads.rx.eq(serwb_slave_pads.tx),
         ]
@@ -203,10 +202,9 @@ class SerWBSoC(SoCCore):
         # ------------------------------------------------------------------------------------------
 
         # Pads
-        serwb_master_pads = Record([("sim", 1), ("clk", 1), ("tx", 1), ("rx", 1)])
-        serwb_slave_pads  = Record([("sim", 1), ("clk", 1), ("tx", 1), ("rx", 1)])
+        serwb_master_pads = Record([("tx", 1), ("rx", 1)])
+        serwb_slave_pads  = Record([("tx", 1), ("rx", 1)])
         self.comb += [
-            serwb_slave_pads.clk.eq(serwb_master_pads.clk),
             serwb_slave_pads.rx.eq(serwb_master_pads.tx),
             serwb_master_pads.rx.eq(serwb_slave_pads.tx),
         ]
