@@ -55,7 +55,7 @@ class SerWBTestSoC(SoCMini):
     }
     mem_map.update(SoCMini.mem_map)
 
-    def __init__(self, platform, with_analyzer=False):
+    def __init__(self, platform, loopback=False, with_analyzer=False):
         sys_clk_freq = int(24e6)
 
         # SoCMini ----------------------------------------------------------------------------------
@@ -81,17 +81,27 @@ class SerWBTestSoC(SoCMini):
         #                   +--------+    +------+    +------+    +------+
         # ------------------------------------------------------------------------------------------
 
+        # Pads
+        if loopback:
+            serwb_master_pads = Record([("tx", 1), ("rx", 1)])
+            serwb_slave_pads  = Record([("tx", 1), ("rx", 1)])
+            self.comb += serwb_slave_pads.rx.eq(serwb_master_pads.tx)
+            self.comb += serwb_master_pads.rx.eq(serwb_slave_pads.tx)
+        else:
+            serwb_master_pads = platform.request("serwb_master")
+            serwb_slave_pads  = platform.request("serwb_slave")
+
         # Master
         self.submodules.serwb_master_phy = SERWBPHY(
             device = platform.device,
-            pads   = platform.request("serwb_master"),
+            pads   = serwb_master_pads,
             mode   = "master")
         self.add_csr("serwb_master_phy")
 
         # Slave
         self.submodules.serwb_slave_phy = SERWBPHY(
             device = platform.device,
-            pads   = platform.request("serwb_slave"),
+            pads   = serwb_slave_pads,
             mode   ="slave")
         self.add_csr("serwb_slave_phy")
 
@@ -128,6 +138,7 @@ def main():
     parser = argparse.ArgumentParser(description="LiteICLink SerWB bench on iCEBreaker")
     parser.add_argument("--build",         action="store_true", help="Build bitstream")
     parser.add_argument("--load",          action="store_true", help="Load bitstream (to SRAM)")
+    parser.add_argument("--loopback",      action="store_true", help="Loopback SerWB in FPGA (no IOs)")
     parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer")
     args = parser.parse_args()
 
