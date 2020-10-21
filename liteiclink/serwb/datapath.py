@@ -9,62 +9,9 @@ from migen.genlib.io import *
 from migen.genlib.misc import BitSlip, WaitTimer
 
 from litex.soc.interconnect import stream
-from litex.soc.cores.code_8b10b import Encoder, Decoder
+from litex.soc.cores.code_8b10b import K, StreamEncoder, StreamDecoder
 
 from liteiclink.serwb.scrambler import Scrambler, Descrambler
-
-
-# Line Coding (8b10b) ------------------------------------------------------------------------------
-
-def K(x, y):
-    return (y << 5) | x
-
-
-class _8b10bEncoder(stream.PipelinedActor):
-    def __init__(self):
-        self.sink   = sink   = stream.Endpoint([("d", 32), ("k", 4)])
-        self.source = source = stream.Endpoint([("data", 40)])
-        stream.PipelinedActor.__init__(self, latency=3)
-
-        # # #
-
-        encoder = CEInserter()(Encoder(4, True))
-        self.submodules += encoder
-
-        # Control
-        self.comb += encoder.ce.eq(self.pipe_ce)
-
-        # Datapath
-        for i in range(4):
-            self.comb += [
-                encoder.k[i].eq(sink.k[i]),
-                encoder.d[i].eq(sink.d[8*i:8*(i+1)]),
-                source.data[10*i:10*(i+1)].eq(encoder.output[i])
-            ]
-
-
-class _8b10bDecoder(stream.PipelinedActor):
-    def __init__(self):
-        self.sink   = sink   = stream.Endpoint([("data", 40)])
-        self.source = source = stream.Endpoint([("d", 32), ("k", 4)])
-        stream.PipelinedActor.__init__(self, latency=2)
-
-        # # #
-
-        decoders = [CEInserter()(Decoder(True)) for _ in range(4)]
-        self.submodules += decoders
-
-        # Control
-        self.comb += [decoders[i].ce.eq(self.pipe_ce) for i in range(4)]
-
-        # Datapath
-        for i in range(4):
-            self.comb += [
-                decoders[i].input.eq(sink.data[10*i:10*(i+1)]),
-                source.k[i].eq(decoders[i].k),
-                source.d[8*i:8*(i+1)].eq(decoders[i].d)
-            ]
-
 
 # BitSlip ------------------------------------------------------------------------------------------
 
@@ -99,17 +46,17 @@ class TXDatapath(Module):
 
         # # #
 
-        # scrambler
+        # Scrambler
         if with_scrambling:
             self.submodules.scrambler = scrambler = Scrambler()
 
-        # line coding
-        self.submodules.encoder = encoder = _8b10bEncoder()
+        # Line coding
+        self.submodules.encoder = encoder = StreamEncoder(nwords=4)
 
-        # converter
+        # Converter
         self.submodules.converter = converter = stream.Converter(40, phy_dw)
 
-        # dataflow
+        # Dataflow
         if with_scrambling:
             self.comb += [
                 sink.connect(scrambler.sink),
@@ -162,7 +109,7 @@ class RXDatapath(Module):
         self.comb += bitslip.value.eq(bitslip_value)
 
         # Line Coding
-        self.submodules.decoder = decoder = _8b10bDecoder()
+        self.submodules.decoder = decoder = StreamDecoder(nwords=4)
 
         # Descrambler
         if with_scrambling:
