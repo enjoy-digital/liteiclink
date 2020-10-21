@@ -74,10 +74,10 @@ class SerWBTestSoC(SoCMini):
         # to a SerWB Slave with a SRAM attached. Access to this SRAM is then tested from the main
         # SoC through SerWB:
         #                   +--------+    +------+    +------+    +------+
-        #                   |        |    |      |    |      |    |      |
-        #                   |  Test  +----+SerWB +---->SerWB +----> Test |
+        #                   |        |    |      +-ck->      |    |      |
+        #                   |  Test  +----+SerWB +-tx->SerWB +----> Test |
         #                   |   SoC  | WB |Master|    |Slave | WB | SRAM |
-        #                   |        +<---+      <----+      <----+      |
+        #                   |        +<---+      <-rx-+      <----+      |
         #                   +--------+    +------+    +------+    +------+
         # ------------------------------------------------------------------------------------------
 

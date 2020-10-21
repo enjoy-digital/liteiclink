@@ -78,10 +78,8 @@ class SerWBMinSoC(SoCMini):
         # Pads
         serwb_master_pads = Record([("tx", 1), ("rx", 1)])
         serwb_slave_pads  = Record([("tx", 1), ("rx", 1)])
-        self.comb += [
-            serwb_slave_pads.rx.eq(serwb_master_pads.tx),
-            serwb_master_pads.rx.eq(serwb_slave_pads.tx),
-        ]
+        self.comb += serwb_slave_pads.rx.eq(serwb_master_pads.tx)
+        self.comb += serwb_master_pads.rx.eq(serwb_slave_pads.tx)
 
         # Master
         serwb_master_phy = SERWBPHY(
@@ -194,20 +192,18 @@ class SerWBSoC(SoCCore):
         # to a SerWB Slave with a SRAM attached. Access to this SRAM is then tested from the main
         # SoC through SerWB:
         #                   +--------+    +------+    +------+    +------+
-        #                   |        |    |      |    |      |    |      |
-        #                   |  Test  +----+SerWB +---->SerWB +----> Test |
+        #                   |        |    |      +-ck->      |    |      |
+        #                   |  Test  +----+SerWB +-tx->SerWB +----> Test |
         #                   |   SoC  | WB |Master|    |Slave | WB | SRAM |
-        #                   |        +<---+      <----+      <----+      |
+        #                   |        +<---+      <-rx-+      <----+      |
         #                   +--------+    +------+    +------+    +------+
         # ------------------------------------------------------------------------------------------
 
         # Pads
         serwb_master_pads = Record([("tx", 1), ("rx", 1)])
         serwb_slave_pads  = Record([("tx", 1), ("rx", 1)])
-        self.comb += [
-            serwb_slave_pads.rx.eq(serwb_master_pads.tx),
-            serwb_master_pads.rx.eq(serwb_slave_pads.tx),
-        ]
+        self.comb += serwb_slave_pads.rx.eq(serwb_master_pads.tx)
+        self.comb += serwb_master_pads.rx.eq(serwb_slave_pads.tx)
 
         # Master
         self.submodules.serwb_master_phy = SERWBPHY(
