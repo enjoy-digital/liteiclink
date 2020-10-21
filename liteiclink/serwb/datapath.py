@@ -67,11 +67,37 @@ class TXDatapath(Module):
             converter.source.connect(source)
         ]
 
+# RXAligner ----------------------------------------------------------------------------------------
+
+class RXAligner(Module):
+    def __init__(self, phy_dw, shift=None):
+        self.shift  = Signal() if shift is None else shift
+        self.sink   = sink   = stream.Endpoint([("data", phy_dw)])
+        self.source = source = stream.Endpoint([("data", phy_dw)])
+
+        # # #
+
+        _shift = Signal()
+        self.sync += [
+            If(self.shift,
+                _shift.eq(1),
+            ).Elif(sink.valid & sink.ready,
+                _shift.eq(0),
+            )
+        ]
+
+        self.comb += sink.connect(source)
+        self.comb += If(_shift,
+            source.valid.eq(0),
+            sink.ready.eq(1)
+        )
+
+
 # RXDatapath ---------------------------------------------------------------------------------------
 
 class RXDatapath(Module):
     def __init__(self, phy_dw, with_scrambling=False):
-        self.shift  = shift = Signal(6)
+        self.shift  = shift  = Signal(6)
         self.sink   = sink   = stream.Endpoint([("data", phy_dw)])
         self.source = source = stream.Endpoint([("data", 32)])
         self.idle   = idle   = Signal()
@@ -79,12 +105,11 @@ class RXDatapath(Module):
 
         # # #
 
+        # Aligner
+        self.submodules.aligner = aligner = RXAligner(phy_dw, shift)
+
         # Converter
         self.submodules.converter = converter = stream.Converter(phy_dw, 40)
-
-        # Shifter
-        self.submodules.shifter = shifter = stream.Shifter(dw=40)
-        self.comb += shifter.shift.eq(shift)
 
         # Line Coding
         self.submodules.decoder = decoder = StreamDecoder(nwords=4)
@@ -95,10 +120,10 @@ class RXDatapath(Module):
 
         # Dataflow
         self.comb += [
-            sink.connect(converter.sink),
-            converter.source.connect(shifter.sink),
-            shifter.source.connect(decoder.sink)
-        ]
+            sink.connect(aligner.sink),
+            aligner.source.connect(converter.sink),
+            converter.source.connect(decoder.sink),
+         ]
         if with_scrambling:
             self.comb += [
                 decoder.source.connect(descrambler.sink),

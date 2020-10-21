@@ -186,12 +186,12 @@ class _SerdesMasterInit(Module):
             ),
             serdes.tx.comma.eq(1)
         )
-        self.comb += serdes.rx.shift.eq(shift)
         fsm.act("INC-SHIFT",
             NextState("WAIT-STABLE"),
             If(shift == (40 - 1),
                 NextState("ERROR")
             ).Else(
+                serdes.rx.shift.eq(1),
                 NextValue(shift, shift + 1)
             ),
             serdes.tx.comma.eq(1)
@@ -249,12 +249,12 @@ class _SerdesSlaveInit(Module, AutoCSR):
             ),
             serdes.tx.idle.eq(1)
         )
-        self.comb += serdes.rx.shift.eq(shift)
         fsm.act("INC-SHIFT",
             NextState("WAIT-STABLE"),
             If(shift == (40 - 1),
                 NextState("ERROR")
             ).Else(
+                serdes.rx.shift.eq(1),
                 NextValue(shift, shift + 1)
             ),
             serdes.tx.idle.eq(1)
