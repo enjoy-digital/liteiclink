@@ -16,6 +16,23 @@ from litex import RemoteClient
 
 from litescope import LiteScopeAnalyzerDriver
 
+# Identifier Test ----------------------------------------------------------------------------------
+
+def ident_test(port):
+    wb = RemoteClient(port=port)
+    wb.open()
+
+    fpga_identifier = ""
+
+    for i in range(256):
+        c = chr(wb.read(wb.bases.identifier_mem + 4*i) & 0xff)
+        fpga_identifier += c
+        if c == "\0":
+            break
+
+    print(fpga_identifier)
+
+    wb.close()
 
 # Init Test ----------------------------------------------------------------------------------------
 
@@ -126,11 +143,15 @@ def sram_test(port):
 def main():
     parser = argparse.ArgumentParser(description="LiteICLink SerWB test utility")
     parser.add_argument("--port",  default="1234",      help="Host bind port")
+    parser.add_argument("--ident", action="store_true", help="Read FPGA identifier")
     parser.add_argument("--init",  action="store_true", help="Initialize SerWB Link")
     parser.add_argument("--sram",  action="store_true", help="Test SRAM access over SerWB")
     args = parser.parse_args()
 
     port = int(args.port, 0)
+
+    if args.ident:
+        ident_test(port=port)
 
     if args.init:
         init_test(port=port)
