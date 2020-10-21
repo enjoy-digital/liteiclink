@@ -103,11 +103,17 @@ class SerWBTestSoC(SoCMini):
         self.add_csr("serwb_slave_phy")
 
         # Wishbone Slave
-        serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave", fifo_depth=0)
+        serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave",
+            etherbone_buffer_depth = 1,
+            tx_buffer_depth        = 0,
+            rx_buffer_depth        = 0)
         self.submodules += serwb_master_core
 
         # Wishbone Master
-        serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master", fifo_depth=0)
+        serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master",
+            etherbone_buffer_depth = 1,
+            tx_buffer_depth        = 0,
+            rx_buffer_depth        = 0)
         self.submodules += serwb_slave_core
 
         # Wishbone SRAM
