@@ -39,7 +39,7 @@ class _SerdesMasterInit(Module):
         self.delay_min_found = delay_min_found = Signal()
         self.delay_max       = delay_max       = Signal(max=taps)
         self.delay_max_found = delay_max_found = Signal()
-        self.bitslip         = bitslip         = Signal(max=40)
+        self.shift           = shift           = Signal(max=40)
 
         # Timer
         self.submodules.timer = timer = WaitTimer(timeout)
@@ -53,7 +53,7 @@ class _SerdesMasterInit(Module):
             NextValue(delay_max,       0),
             NextValue(delay_max_found, 0),
             serdes.rx.delay_rst.eq(1),
-            NextValue(bitslip, 0),
+            NextValue(shift, 0),
             NextState("RESET-SLAVE"),
             serdes.tx.idle.eq(1)
         )
@@ -92,7 +92,7 @@ class _SerdesMasterInit(Module):
                         NextValue(delay_min_found, 1)
                     )
                 ).Else(
-                    NextState("INC-DELAY-BITSLIP")
+                    NextState("INC-DELAY-SHIFT")
                 ),
             ).Else(
                 If(~serdes.rx.comma,
@@ -100,23 +100,23 @@ class _SerdesMasterInit(Module):
                     NextValue(delay_max_found, 1),
                     NextState("CHECK-SAMPLING-WINDOW")
                 ).Else(
-                    NextState("INC-DELAY-BITSLIP")
+                    NextState("INC-DELAY-SHIFT")
                 )
             ),
             serdes.tx.comma.eq(1)
         )
-        self.comb += serdes.rx.bitslip_value.eq(bitslip)
-        fsm.act("INC-DELAY-BITSLIP",
+        self.comb += serdes.rx.shift.eq(shift)
+        fsm.act("INC-DELAY-SHIFT",
             NextState("WAIT-STABLE"),
             If(delay == (taps - 1),
-                If(bitslip == (40 - 1),
+                If(shift == (40 - 1),
                     NextState("ERROR")
                 ).Else(
                     NextValue(delay_min_found, 0),
                     NextValue(delay_min,       0),
                     NextValue(delay_max_found, 0),
                     NextValue(delay_max,       0),
-                    NextValue(bitslip, bitslip + 1)
+                    NextValue(shift, shift + 1)
                 ),
                 NextValue(delay, 0),
                 serdes.rx.delay_rst.eq(1)
@@ -171,7 +171,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
         self.delay_min_found = delay_min_found = Signal()
         self.delay_max       = delay_max       = Signal(max=taps)
         self.delay_max_found = delay_max_found = Signal()
-        self.bitslip         = bitslip         = Signal(max=40)
+        self.shift         = shift         = Signal(max=40)
 
         # Timer
         self.submodules.timer = timer = WaitTimer(timeout)
@@ -185,7 +185,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
             NextValue(delay_max,       0),
             NextValue(delay_max_found, 0),
             serdes.rx.delay_rst.eq(1),
-            NextValue(bitslip, 0),
+            NextValue(shift, 0),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
@@ -211,7 +211,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
                         NextValue(delay_min_found, 1)
                     )
                 ).Else(
-                    NextState("INC-DELAY-BITSLIP")
+                    NextState("INC-DELAY-SHIFT")
                 ),
             ).Else(
                 If(~serdes.rx.comma,
@@ -219,23 +219,23 @@ class _SerdesSlaveInit(Module, AutoCSR):
                     NextValue(delay_max_found, 1),
                     NextState("CHECK-SAMPLING-WINDOW")
                 ).Else(
-                    NextState("INC-DELAY-BITSLIP")
+                    NextState("INC-DELAY-SHIFT")
                 )
             ),
             serdes.tx.idle.eq(1)
         )
-        self.comb += serdes.rx.bitslip_value.eq(bitslip)
-        fsm.act("INC-DELAY-BITSLIP",
+        self.comb += serdes.rx.shift.eq(shift)
+        fsm.act("INC-DELAY-SHIFT",
             NextState("WAIT-STABLE"),
             If(delay == (taps - 1),
-                If(bitslip == (40 - 1),
+                If(shift == (40 - 1),
                     NextState("ERROR")
                 ).Else(
                     NextValue(delay_min_found, 0),
                     NextValue(delay_min,       0),
                     NextValue(delay_max_found, 0),
                     NextValue(delay_max,       0),
-                    NextValue(bitslip, bitslip + 1)
+                    NextValue(shift, shift + 1)
                 ),
                 NextValue(delay, 0),
                 serdes.rx.delay_rst.eq(1)
@@ -298,7 +298,7 @@ class _SerdesControl(Module, AutoCSR):
         self.delay_min       = CSRStatus(9)
         self.delay_max_found = CSRStatus()
         self.delay_max       = CSRStatus(9)
-        self.bitslip         = CSRStatus(6)
+        self.shift           = CSRStatus(6)
 
         self.prbs_error  = Signal()
         self.prbs_start  = CSR()
@@ -326,7 +326,7 @@ class _SerdesControl(Module, AutoCSR):
             self.delay_min.status.eq(init.delay_min),
             self.delay_max_found.status.eq(init.delay_max_found),
             self.delay_max.status.eq(init.delay_max),
-            self.bitslip.status.eq(init.bitslip)
+            self.shift.status.eq(init.shift)
         ]
 
         # PRBS

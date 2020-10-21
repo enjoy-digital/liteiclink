@@ -100,7 +100,7 @@ class _KUSerdesRX(Module):
         # Control
         self.delay_rst     = Signal()
         self.delay_inc     = Signal()
-        self.bitslip_value = bitslip_value = Signal(6)
+        self.shift = shift = Signal(6)
 
         # Status
         self.idle  = idle = Signal()
@@ -156,7 +156,7 @@ class _KUSerdesRX(Module):
         self.comb += [
             datapath.sink.valid.eq(1),
             datapath.sink.data.eq(data_deserialized),
-            datapath.bitslip_value.eq(bitslip_value),
+            datapath.shift.eq(shift),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
             comma.eq(datapath.comma)

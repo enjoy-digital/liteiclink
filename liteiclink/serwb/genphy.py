@@ -75,7 +75,7 @@ class _SerdesTX(Module):
 class _SerdesRX(Module):
     def __init__(self, pads):
         # Control
-        self.bitslip_value = bitslip_value = Signal(6)
+        self.shift = shift = Signal(6)
 
         # Status
         self.idle  = idle  = Signal()
@@ -100,7 +100,7 @@ class _SerdesRX(Module):
         self.comb += [
             datapath.sink.valid.eq(1),
             datapath.sink.data.eq(data_d),
-            datapath.bitslip_value.eq(bitslip_value),
+            datapath.shift.eq(self.shift),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
             comma.eq(datapath.comma)
@@ -137,8 +137,8 @@ class _SerdesMasterInit(Module):
 
         # # #
 
-        # Bitslip
-        self.bitslip = bitslip = Signal(max=40)
+        # Shift
+        self.shift = shift = Signal(max=40)
 
         # Timer
         self.submodules.timer = timer = WaitTimer(timeout)
@@ -146,7 +146,7 @@ class _SerdesMasterInit(Module):
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-            NextValue(bitslip, 0),
+            NextValue(shift, 0),
             NextState("RESET-SLAVE"),
             serdes.tx.idle.eq(1)
         )
@@ -182,17 +182,17 @@ class _SerdesMasterInit(Module):
                     NextState("READY")
                 )
             ).Else(
-                NextState("INC-BITSLIP")
+                NextState("INC-SHIFT")
             ),
             serdes.tx.comma.eq(1)
         )
-        self.comb += serdes.rx.bitslip_value.eq(bitslip)
-        fsm.act("INC-BITSLIP",
+        self.comb += serdes.rx.shift.eq(shift)
+        fsm.act("INC-SHIFT",
             NextState("WAIT-STABLE"),
-            If(bitslip == (40 - 1),
+            If(shift == (40 - 1),
                 NextState("ERROR")
             ).Else(
-                NextValue(bitslip, bitslip + 1)
+                NextValue(shift, shift + 1)
             ),
             serdes.tx.comma.eq(1)
         )
@@ -213,8 +213,8 @@ class _SerdesSlaveInit(Module, AutoCSR):
 
         # # #
 
-        # Bitslip
-        self.bitslip = bitslip = Signal(max=40)
+        # Shift
+        self.shift = shift = Signal(max=40)
 
         # Timer
         self.submodules.timer = timer = WaitTimer(timeout)
@@ -222,7 +222,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
         # FSM
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-            NextValue(bitslip, 0),
+            NextValue(shift, 0),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
@@ -245,17 +245,17 @@ class _SerdesSlaveInit(Module, AutoCSR):
                     NextState("SEND-PATTERN")
                 )
             ).Else(
-                NextState("INC-BITSLIP")
+                NextState("INC-SHIFT")
             ),
             serdes.tx.idle.eq(1)
         )
-        self.comb += serdes.rx.bitslip_value.eq(bitslip)
-        fsm.act("INC-BITSLIP",
+        self.comb += serdes.rx.shift.eq(shift)
+        fsm.act("INC-SHIFT",
             NextState("WAIT-STABLE"),
-            If(bitslip == (40 - 1),
+            If(shift == (40 - 1),
                 NextState("ERROR")
             ).Else(
-                NextValue(bitslip, bitslip + 1)
+                NextValue(shift, shift + 1)
             ),
             serdes.tx.idle.eq(1)
         )
@@ -284,7 +284,7 @@ class _SerdesControl(Module, AutoCSR):
         self.ready = CSRStatus()
         self.error = CSRStatus()
 
-        self.bitslip = CSRStatus(6)
+        self.shift = CSRStatus(6)
 
         self.prbs_error  = Signal()
         self.prbs_start  = CSR()
@@ -307,7 +307,7 @@ class _SerdesControl(Module, AutoCSR):
         self.comb += [
             self.ready.status.eq(init.ready),
             self.error.status.eq(init.error),
-            self.bitslip.status.eq(init.bitslip)
+            self.shift.status.eq(init.shift)
         ]
 
         # PRBS

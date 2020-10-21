@@ -6,34 +6,12 @@
 
 from migen import *
 from migen.genlib.io import *
-from migen.genlib.misc import BitSlip, WaitTimer
+from migen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import stream
 from litex.soc.cores.code_8b10b import K, StreamEncoder, StreamDecoder
 
 from liteiclink.serwb.scrambler import Scrambler, Descrambler
-
-# BitSlip ------------------------------------------------------------------------------------------
-
-class _Bitslip(stream.PipelinedActor):
-    def __init__(self):
-        self.value  = value  = Signal(6)
-        self.sink   = sink   = stream.Endpoint([("data", 40)])
-        self.source = source = stream.Endpoint([("data", 40)])
-        stream.PipelinedActor.__init__(self, latency=2)
-
-        # # #
-
-        bitslip = CEInserter()(BitSlip(40))
-        self.submodules += bitslip
-
-        # Control
-        self.comb += bitslip.value.eq(value)
-        self.comb += bitslip.ce.eq(self.pipe_ce)
-
-        # Datapath
-        self.comb += bitslip.i.eq(sink.data)
-        self.comb += source.data.eq(bitslip.o)
 
 # TXDatapath ---------------------------------------------------------------------------------------
 
@@ -93,20 +71,20 @@ class TXDatapath(Module):
 
 class RXDatapath(Module):
     def __init__(self, phy_dw, with_scrambling=False):
-        self.bitslip_value = bitslip_value = Signal(6)
-        self.sink          = sink   = stream.Endpoint([("data", phy_dw)])
-        self.source        = source = stream.Endpoint([("data", 32)])
-        self.idle          = idle   = Signal()
-        self.comma         = comma  = Signal()
+        self.shift  = shift = Signal(6)
+        self.sink   = sink   = stream.Endpoint([("data", phy_dw)])
+        self.source = source = stream.Endpoint([("data", 32)])
+        self.idle   = idle   = Signal()
+        self.comma  = comma  = Signal()
 
         # # #
 
         # Converter
         self.submodules.converter = converter = stream.Converter(phy_dw, 40)
 
-        # Bitslip
-        self.submodules.bitslip = bitslip = _Bitslip()
-        self.comb += bitslip.value.eq(bitslip_value)
+        # Shifter
+        self.submodules.shifter = shifter = stream.Shifter(dw=40)
+        self.comb += shifter.shift.eq(shift)
 
         # Line Coding
         self.submodules.decoder = decoder = StreamDecoder(nwords=4)
@@ -118,8 +96,8 @@ class RXDatapath(Module):
         # Dataflow
         self.comb += [
             sink.connect(converter.sink),
-            converter.source.connect(bitslip.sink),
-            bitslip.source.connect(decoder.sink)
+            converter.source.connect(shifter.sink),
+            shifter.source.connect(decoder.sink)
         ]
         if with_scrambling:
             self.comb += [

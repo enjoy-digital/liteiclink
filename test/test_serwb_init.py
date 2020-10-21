@@ -27,7 +27,7 @@ class SerdesModel(Module):
         self.rx.idle          = Signal()
         self.rx.comma         = Signal()
 
-        self.rx.bitslip_value = Signal(6)
+        self.rx.shift         = Signal(6)
         self.rx.delay_rst     = Signal()
         self.rx.delay_inc     = Signal()
 
@@ -44,7 +44,7 @@ class SerdesModel(Module):
             self.comb += valid_delays[taps-1-i].eq(self.valid_delays[i])
 
         self.sync += [
-            bitslip.eq(self.rx.bitslip_value),
+            bitslip.eq(self.rx.shift),
             If(self.rx.delay_rst,
                 delay.eq(0)
             ).Elif(self.rx.delay_inc,

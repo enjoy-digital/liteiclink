@@ -53,7 +53,7 @@ def init_test(port):
         print("delay_max_found: {:d}".format(wb.regs.serwb_master_phy_control_delay_max_found.read()))
         print("delay_max: {:d}".format(wb.regs.serwb_master_phy_control_delay_max.read()))
         print("delay: {:d}".format(wb.regs.serwb_master_phy_control_delay.read()))
-    print("bitslip: {:d}".format(wb.regs.serwb_master_phy_control_bitslip.read()))
+    print("bitslip: {:d}".format(wb.regs.serwb_master_phy_control_shift.read()))
     print("ready: {:d}".format(wb.regs.serwb_master_phy_control_ready.read()))
     print("error: {:d}".format(wb.regs.serwb_master_phy_control_error.read()))
     print("")
@@ -67,7 +67,7 @@ def init_test(port):
         print("delay_max_found: {:d}".format(wb.regs.serwb_slave_phy_control_delay_max_found.read()))
         print("delay_max: {:d}".format(wb.regs.serwb_slave_phy_control_delay_max.read()))
         print("delay: {:d}".format(wb.regs.serwb_slave_phy_control_delay.read()))
-    print("bitslip: {:d}".format(wb.regs.serwb_slave_phy_control_bitslip.read()))
+    print("bitslip: {:d}".format(wb.regs.serwb_slave_phy_control_shift.read()))
     print("ready: {:d}".format(wb.regs.serwb_slave_phy_control_ready.read()))
     print("error: {:d}".format(wb.regs.serwb_slave_phy_control_error.read()))
 
