@@ -36,36 +36,28 @@ class TXDatapath(Module):
 
         # Dataflow
         if with_scrambling:
-            self.comb += [
-                sink.connect(scrambler.sink),
-                If(comma,
-                    encoder.sink.valid.eq(1),
-                    encoder.sink.k.eq(1),
-                    encoder.sink.d.eq(K(28,5))
-                ).Else(
-                    scrambler.source.connect(encoder.sink)
-                )
-            ]
+            self.comb += sink.connect(scrambler.sink)
+            self.comb += scrambler.source.connect(encoder.sink)
         else:
-            self.comb += [
-                If(comma,
-                    encoder.sink.valid.eq(1),
-                    encoder.sink.k.eq(1),
-                    encoder.sink.d.eq(K(28,5))
-                ).Else(
-                    sink.connect(encoder.sink, omit={"data"}),
-                    encoder.sink.d.eq(sink.data)
-                ),
-            ]
-        self.comb += [
-            If(idle,
-                converter.sink.valid.eq(1),
-                converter.sink.data.eq(0)
-            ).Else(
-                encoder.source.connect(converter.sink),
-            ),
-            converter.source.connect(source)
-        ]
+            self.comb += sink.connect(encoder.sink, omit={"data"}),
+            self.comb += encoder.sink.d.eq(sink.data)
+        self.comb += encoder.source.connect(converter.sink)
+        self.comb += converter.source.connect(source)
+
+        # Send K28.5 if comma asserted.
+        self.comb += If(comma,
+            sink.ready.eq(0),
+            encoder.sink.valid.eq(1),
+            encoder.sink.k.eq(0b1),
+            encoder.sink.d.eq(K(28,5)),
+        )
+
+        # Send Idle if idle asserted.
+        self.comb += If(idle,
+            sink.ready.eq(0),
+            converter.sink.valid.eq(1),
+            converter.sink.data.eq(0),
+        )
 
 # RXAligner ----------------------------------------------------------------------------------------
 
@@ -125,28 +117,27 @@ class RXDatapath(Module):
             converter.source.connect(decoder.sink),
          ]
         if with_scrambling:
-            self.comb += [
-                decoder.source.connect(descrambler.sink),
-                descrambler.source.connect(source)
-            ]
+            self.comb += decoder.source.connect(descrambler.sink)
+            self.comb += descrambler.source.connect(source)
         else:
-            self.comb += [
-                decoder.source.connect(source, omit={"d", "k"}),
-                source.data.eq(decoder.source.d)
-            ]
+            self.comb += decoder.source.connect(source, omit={"d", "k"})
+            self.comb += source.data.eq(decoder.source.d)
 
-        # Idle decoding
+        # Decode Idle
         idle_timer = WaitTimer(32)
         self.submodules += idle_timer
-        self.sync += [
-            If(converter.source.valid,
-                idle_timer.wait.eq((converter.source.data == 0) | (converter.source.data == (2**40-1)))
-            ),
-            idle.eq(idle_timer.done)
-        ]
-        # Comma decoding
-        self.sync += [
-            If(decoder.source.valid,
-                comma.eq((decoder.source.k == 1) & (decoder.source.d == K(28, 5)))
+        self.sync += If(converter.source.valid,
+            idle_timer.wait.eq(
+                (converter.source.data == 0) |
+                (converter.source.data == (2**40-1))
             )
-        ]
+        )
+        self.comb += idle.eq(idle_timer.done)
+
+        # Decode Comma
+        self.sync += If(decoder.source.valid,
+            comma.eq(
+                (decoder.source.k == 1) &
+                (decoder.source.d == K(28, 5))
+            )
+        )
