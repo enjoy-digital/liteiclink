@@ -151,52 +151,25 @@ class SerWBTestSoC(SoCMini):
 
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
-            wishbone_group = [
-                serwb_master_core.bus,
-                serwb_slave_core.bus,
-            ]
-            converter_group = [
-                self.serwb_master_phy.serdes.tx.datapath.converter.sink,
-                self.serwb_master_phy.serdes.tx.datapath.converter.source,
-                self.serwb_slave_phy.serdes.tx.datapath.converter.sink,
-                self.serwb_slave_phy.serdes.tx.datapath.converter.source,
-
-                self.serwb_master_phy.serdes.rx.datapath.converter.sink,
-                self.serwb_master_phy.serdes.rx.datapath.converter.source,
-                self.serwb_slave_phy.serdes.rx.datapath.converter.sink,
-                self.serwb_slave_phy.serdes.rx.datapath.converter.source
-            ]
-            encoder_group = [
-                self.serwb_master_phy.serdes.tx.datapath.encoder.sink,
-                self.serwb_master_phy.serdes.tx.datapath.encoder.source,
-                self.serwb_slave_phy.serdes.tx.datapath.encoder.sink,
-                self.serwb_slave_phy.serdes.tx.datapath.encoder.source,
-
-                self.serwb_master_phy.serdes.rx.datapath.decoder.sink,
-                self.serwb_master_phy.serdes.rx.datapath.decoder.source,
-                self.serwb_slave_phy.serdes.rx.datapath.decoder.sink,
-                self.serwb_slave_phy.serdes.rx.datapath.decoder.source
-            ]
-            control_group = [
-                self.serwb_master_phy.serdes.reset,
-                self.serwb_master_phy.serdes.tx.idle,
-                self.serwb_master_phy.serdes.tx.comma,
-                self.serwb_master_phy.serdes.rx.idle,
+            analyzer_signals = [
+                self.serwb_master_phy.init.fsm,
+                self.serwb_master_phy.serdes.rx.data,
                 self.serwb_master_phy.serdes.rx.comma,
+                self.serwb_master_phy.serdes.rx.idle,
+                self.serwb_master_phy.serdes.tx.data,
+                self.serwb_master_phy.serdes.tx.comma,
+                self.serwb_master_phy.serdes.tx.idle,
+                self.serwb_master_phy.serdes.rx.datapath.decoder.source,
 
-                self.serwb_slave_phy.serdes.reset,
-                self.serwb_slave_phy.serdes.tx.idle,
-                self.serwb_slave_phy.serdes.tx.comma,
-                self.serwb_slave_phy.serdes.rx.idle,
+                self.serwb_slave_phy.init.fsm,
+                self.serwb_slave_phy.serdes.rx.data,
                 self.serwb_slave_phy.serdes.rx.comma,
+                self.serwb_slave_phy.serdes.rx.idle,
+                self.serwb_slave_phy.serdes.tx.data,
+                self.serwb_slave_phy.serdes.tx.comma,
+                self.serwb_slave_phy.serdes.tx.idle,
+                self.serwb_slave_phy.serdes.rx.datapath.decoder.source,
             ]
-
-            analyzer_signals = {
-                0 : wishbone_group,
-                1 : converter_group,
-                2 : encoder_group,
-                3 : control_group
-            }
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
             self.add_csr("analyzer")
 

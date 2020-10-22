@@ -39,8 +39,8 @@ serwb_io = [
 
     ("serwb_slave", 0,
         Subsignal("clk", Pins("pmodb:0"), IOStandard("LVCMOS33")),
-        Subsignal("tx",  Pins("pmodb:2"), IOStandard("LVCMOS33")),
-        Subsignal("rx",  Pins("pmodb:1"), IOStandard("LVCMOS33")),
+        Subsignal("tx",  Pins("pmodb:1"), IOStandard("LVCMOS33")),
+        Subsignal("rx",  Pins("pmodb:2"), IOStandard("LVCMOS33")),
     ),
 ]
 
@@ -131,7 +131,25 @@ class SerWBTestSoC(SoCMini):
 
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
-            analyzer_signals = [] # TODO
+            analyzer_signals = [
+                self.serwb_master_phy.init.fsm,
+                self.serwb_master_phy.serdes.rx.data,
+                self.serwb_master_phy.serdes.rx.comma,
+                self.serwb_master_phy.serdes.rx.idle,
+                self.serwb_master_phy.serdes.tx.data,
+                self.serwb_master_phy.serdes.tx.comma,
+                self.serwb_master_phy.serdes.tx.idle,
+                self.serwb_master_phy.serdes.rx.datapath.decoder.source,
+
+                self.serwb_slave_phy.init.fsm,
+                self.serwb_slave_phy.serdes.rx.data,
+                self.serwb_slave_phy.serdes.rx.comma,
+                self.serwb_slave_phy.serdes.rx.idle,
+                self.serwb_slave_phy.serdes.tx.data,
+                self.serwb_slave_phy.serdes.tx.comma,
+                self.serwb_slave_phy.serdes.tx.idle,
+                self.serwb_slave_phy.serdes.rx.datapath.decoder.source,
+            ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
             self.add_csr("analyzer")
 
