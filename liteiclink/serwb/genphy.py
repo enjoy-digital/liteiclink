@@ -63,7 +63,7 @@ class _SerdesTX(Module):
         ]
 
         # Output data (on rising edge of sys_clk)
-        data = Signal()
+        self.data = data = Signal()
         self.sync += data.eq(datapath.source.data)
         if hasattr(pads, "tx_p"):
             self.specials += DifferentialOutput(data, pads.tx_p, pads.tx_n)
@@ -87,19 +87,20 @@ class _SerdesRX(Module):
         # # #
 
         # Input data (on rising edge of sys_clk)
-        data   = Signal()
+        self.data = data = Signal()
         data_d = Signal()
         if hasattr(pads, "rx_p"):
+            _data = Signal()
             self.specials += DifferentialInput(pads.rx_p, pads.rx_n, data)
+            self.sync += data.eq(_data)
         else:
-            self.comb += data.eq(pads.rx)
-        self.sync += data_d.eq(data)
+            self.sync += data.eq(pads.rx)
 
         # Datapath
         self.submodules.datapath = datapath = RXDatapath(1)
         self.comb += [
             datapath.sink.valid.eq(1),
-            datapath.sink.data.eq(data_d),
+            datapath.sink.data.eq(data),
             datapath.shift.eq(self.shift),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
