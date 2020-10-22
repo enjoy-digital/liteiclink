@@ -29,7 +29,7 @@ design flow by generating the verilog rtl that you will use as a standard core.
 
 [> Features
 -----------
-SERWB:
+SerWB:
   - Wishbone over 3 LVDS I/Os (high speed) or 3 Single-Ended I/Os (low speed).
   - Artix7, Kintex7, Kintex Ultrascale high-speed PHYs.
   - Vendor agnostic low-speed PHY.
@@ -38,23 +38,25 @@ SERWB:
   - Automatic sampling window adjustement at startup.
   - Encapsulated Etherbone protocol with buffered writes.
 
-Transceiver:
+SerDes:
   - Artix7 GTP support.
   - Kintex7 GTX support.
   - Ultrascale GTH support.
+  - Ultrascale+ GTY support.
   - Lattice ECP5 support.
 
 [> FPGA Proven
 ---------------
 LiteICLink is already used in commercial and open-source designs:
+- Software Defined Radio boards for CPRI/JESD204B: http://enjoy-digital.fr/
+- USB3 Pipe: https://github.com/enjoy-digital/usb3_pipe
 - ARTIQ: https://m-labs.hk/artiq/
 - and others commercial designs...
 
 [> Possible improvements
 ------------------------
-- add transceivers support.
-- add support for Altera PHYs.
-- add support for Lattice PHYs.
+- add support for Altera SerDes.
+- add support for Lattice Crosslink NX SerDes.
 - add more documentation
 - ... See below Support and consulting :)
 
