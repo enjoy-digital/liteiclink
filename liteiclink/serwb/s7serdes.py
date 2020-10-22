@@ -118,7 +118,7 @@ class _S7SerdesRX(Module):
         # Control
         self.delay_rst     = Signal()
         self.delay_inc     = Signal()
-        self.shift = shift = Signal(6)
+        self.shift         = Signal()
 
         # Status
         self.idle  = idle = Signal()
@@ -128,6 +128,9 @@ class _S7SerdesRX(Module):
         self.source = source = stream.Endpoint([("data", 32)])
 
         # # #
+
+        _shift = Signal(3)
+        self.sync += If(self.shift, _shift.eq(_shift + 1))
 
         # Data input (DDR with sys4x)
         data_nodelay      = Signal()
@@ -167,7 +170,7 @@ class _S7SerdesRX(Module):
                 i_CLK     = ClockSignal("sys4x"),
                 i_CLKB    =~ClockSignal("sys4x"),
                 i_CLKDIV  = ClockSignal("sys"),
-                i_BITSLIP = 0,
+                i_BITSLIP = self.shift,
                 o_Q8      = data[0],
                 o_Q7      = data[1],
                 o_Q6      = data[2],
@@ -184,7 +187,7 @@ class _S7SerdesRX(Module):
         self.comb += [
             datapath.sink.valid.eq(1),
             datapath.sink.data.eq(data),
-            datapath.shift.eq(shift),
+            datapath.shift.eq(self.shift & (_shift == 0b111)),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
             comma.eq(datapath.comma)
