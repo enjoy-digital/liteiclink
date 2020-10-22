@@ -91,7 +91,7 @@ class _SerdesRX(Module):
         data_d = Signal()
         if hasattr(pads, "rx_p"):
             _data = Signal()
-            self.specials += DifferentialInput(pads.rx_p, pads.rx_n, data)
+            self.specials += DifferentialInput(pads.rx_p, pads.rx_n, _data)
             self.sync += data.eq(_data)
         else:
             self.sync += data.eq(pads.rx)

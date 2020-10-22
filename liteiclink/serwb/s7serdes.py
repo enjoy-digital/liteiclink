@@ -83,7 +83,9 @@ class _S7SerdesTX(Module):
         ]
 
         # Data output (DDR with sys4x)
-        data = Signal()
+        self.data = data = Signal(8)
+        data_serialized  = Signal()
+        self.comb += data.eq(datapath.source.data)
         self.specials += [
             Instance("OSERDESE2",
                 p_DATA_WIDTH     = 8,
@@ -96,17 +98,17 @@ class _S7SerdesTX(Module):
                 i_RST    = ResetSignal("sys"),
                 i_CLK    = ClockSignal("sys4x"),
                 i_CLKDIV = ClockSignal("sys"),
-                i_D1     = datapath.source.data[0],
-                i_D2     = datapath.source.data[1],
-                i_D3     = datapath.source.data[2],
-                i_D4     = datapath.source.data[3],
-                i_D5     = datapath.source.data[4],
-                i_D6     = datapath.source.data[5],
-                i_D7     = datapath.source.data[6],
-                i_D8     = datapath.source.data[7],
-                o_OQ     = data,
+                i_D1     = data[0],
+                i_D2     = data[1],
+                i_D3     = data[2],
+                i_D4     = data[3],
+                i_D5     = data[4],
+                i_D6     = data[5],
+                i_D7     = data[6],
+                i_D8     = data[7],
+                o_OQ     = data_serialized,
             ),
-            DifferentialOutput(data, pads.tx_p, pads.tx_n)
+            DifferentialOutput(data_serialized, pads.tx_p, pads.tx_n)
         ]
 
 # S7 SerDes RX -------------------------------------------------------------------------------------
@@ -130,7 +132,7 @@ class _S7SerdesRX(Module):
         # Data input (DDR with sys4x)
         data_nodelay      = Signal()
         data_delayed      = Signal()
-        data_deserialized = Signal(8)
+        self.data = data  = Signal(8)
         self.specials += [
             DifferentialInput(pads.rx_p, pads.rx_n, data_nodelay),
             Instance("IDELAYE2",
@@ -162,17 +164,18 @@ class _S7SerdesRX(Module):
                 i_DDLY    = data_delayed,
                 i_CE1     = 1,
                 i_RST     = ResetSignal("sys"),
-                i_CLK     = ClockSignal("sys4x"), i_CLKB=~ClockSignal("sys4x"),
+                i_CLK     = ClockSignal("sys4x"),
+                i_CLKB    =~ClockSignal("sys4x"),
                 i_CLKDIV  = ClockSignal("sys"),
-                i_SHIFT = 0,
-                o_Q8      = data_deserialized[0],
-                o_Q7      = data_deserialized[1],
-                o_Q6      = data_deserialized[2],
-                o_Q5      = data_deserialized[3],
-                o_Q4      = data_deserialized[4],
-                o_Q3      = data_deserialized[5],
-                o_Q2      = data_deserialized[6],
-                o_Q1      = data_deserialized[7],
+                i_BITSLIP = 0,
+                o_Q8      = data[0],
+                o_Q7      = data[1],
+                o_Q6      = data[2],
+                o_Q5      = data[3],
+                o_Q4      = data[4],
+                o_Q3      = data[5],
+                o_Q2      = data[6],
+                o_Q1      = data[7],
             )
         ]
 
@@ -180,7 +183,7 @@ class _S7SerdesRX(Module):
         self.submodules.datapath = datapath = RXDatapath(8)
         self.comb += [
             datapath.sink.valid.eq(1),
-            datapath.sink.data.eq(data_deserialized),
+            datapath.sink.data.eq(data),
             datapath.shift.eq(shift),
             datapath.source.connect(source),
             idle.eq(datapath.idle),

@@ -75,7 +75,9 @@ class _KUSerdesTX(Module):
         ]
 
         # Output Data (DDR with sys4x)
-        data = Signal()
+        self.data = data = Signal(8)
+        data_serialized  = Signal()
+        self.comb += data.eq(datapath.source.data)
         self.specials += [
               Instance("OSERDESE3",
                 p_DATA_WIDTH         = 8,
@@ -87,10 +89,10 @@ class _KUSerdesTX(Module):
                 i_RST    = ResetSignal("sys"),
                 i_CLK    = ClockSignal("sys4x"),
                 i_CLKDIV = ClockSignal("sys"),
-                i_D      = datapath.source.data,
-                o_OQ     = data,
+                i_D      = data,
+                o_OQ     = data_serialized,
             ),
-            DifferentialOutput(data, pads.tx_p, pads.tx_n)
+            DifferentialOutput(data_serialized, pads.tx_p, pads.tx_n)
         ]
 
 # KU SerDes RX -------------------------------------------------------------------------------------
@@ -114,7 +116,7 @@ class _KUSerdesRX(Module):
         # Data input (DDR with sys4x)
         data_nodelay      = Signal()
         data_delayed      = Signal()
-        data_deserialized = Signal(8)
+        self.data = data  = Signal(8)
         self.specials += [
             DifferentialInput(pads.rx_p, pads.rx_n, data_nodelay),
             Instance("IDELAYE3",
@@ -147,7 +149,7 @@ class _KUSerdesRX(Module):
                 i_CLK    = ClockSignal("sys4x"),
                 i_CLK_B  = ClockSignal("sys4x"), # Locally inverted
                 i_CLKDIV = ClockSignal("sys"),
-                o_Q      = data_deserialized
+                o_Q      = data
             )
         ]
 
@@ -155,7 +157,7 @@ class _KUSerdesRX(Module):
         self.submodules.datapath = datapath = RXDatapath(8)
         self.comb += [
             datapath.sink.valid.eq(1),
-            datapath.sink.data.eq(data_deserialized),
+            datapath.sink.data.eq(data),
             datapath.shift.eq(shift),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
