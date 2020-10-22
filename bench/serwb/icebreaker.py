@@ -26,8 +26,6 @@ from litex.soc.cores.up5kspram import Up5kSPRAM
 from liteiclink.serwb.genphy import SERWBPHY
 from liteiclink.serwb.core import SERWBCore
 
-from litescope import LiteScopeAnalyzer
-
 kB = 1024
 
 # IOs ----------------------------------------------------------------------------------------------
@@ -42,8 +40,8 @@ serwb_io = [
 
     ("serwb_slave", 0,
         Subsignal("clk", Pins("PMOD1B:0"), IOStandard("LVCMOS33")),
-        Subsignal("tx",  Pins("PMOD1B:2"), IOStandard("LVCMOS33")),
-        Subsignal("rx",  Pins("PMOD1B:1"), IOStandard("LVCMOS33")),
+        Subsignal("tx",  Pins("PMOD1B:1"), IOStandard("LVCMOS33")),
+        Subsignal("rx",  Pins("PMOD1B:2"), IOStandard("LVCMOS33")),
     ),
 ]
 
@@ -132,12 +130,6 @@ class SerWBTestSoC(SoCMini):
             platform.request("user_led", 3).eq(self.serwb_slave_phy.init.error),
         ]
 
-        # Analyzer ---------------------------------------------------------------------------------
-        if with_analyzer:
-            analyzer_signals = [] # TODO
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
-            self.add_csr("analyzer")
-
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -145,13 +137,12 @@ def main():
     parser.add_argument("--build",         action="store_true", help="Build bitstream")
     parser.add_argument("--load",          action="store_true", help="Load bitstream (to SRAM)")
     parser.add_argument("--loopback",      action="store_true", help="Loopback SerWB in FPGA (no IOs)")
-    parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer")
     args = parser.parse_args()
 
     platform = icebreaker.Platform()
     platform.add_extension(icebreaker.break_off_pmod)
     platform.add_extension(serwb_io)
-    soc     = SerWBTestSoC(platform, with_analyzer=args.with_analyzer)
+    soc     = SerWBTestSoC(platform)
     builder = Builder(soc, csr_csv="csr.csv")
     builder.build(run=args.build)
 
