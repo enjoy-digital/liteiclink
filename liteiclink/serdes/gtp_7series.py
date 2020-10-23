@@ -1032,7 +1032,7 @@ class GTP(Module, AutoCSR):
                 source.data[8*i:8*(i+1)].eq(self.decoders[i].d),
             ]
 
-    def add_base_control(self):
+    def add_base_control(self, auto_enable=True):
         if hasattr(self, "clock_aligner"):
             self._clock_aligner_disable  = CSRStorage(fields=[
                 CSRField("disable", size=1, values=[
@@ -1044,7 +1044,7 @@ class GTP(Module, AutoCSR):
                 CSRField("enable", size=1, values=[
                     ("``0b0``", "TX disabled."),
                     ("``0b1``", "TX enabled.")
-                ], reset=0b1)
+                ], reset=int(auto_enable))
             ])
         self._tx_ready = CSRStatus(fields=[
                 CSRField("ready", size=1, values=[
@@ -1068,7 +1068,7 @@ class GTP(Module, AutoCSR):
                 CSRField("enable", size=1, values=[
                     ("``0b0``", "RX disabled."),
                     ("``0b1``", "RX enabled.")
-                ], reset=0b1)
+                ], reset=int(auto_enable))
             ])
         self._rx_ready = CSRStatus(fields=[
                 CSRField("ready", size=1, values=[
@@ -1155,8 +1155,8 @@ class GTP(Module, AutoCSR):
             i_TXPRECURSORINV  = self._tx_precursor_inv.storage,
         )
 
-    def add_controls(self):
-        self.add_base_control()
+    def add_controls(self, auto_enable=True):
+        self.add_base_control(auto_enable)
         self.add_prbs_control()
         self.add_loopback_control()
         self.add_polarity_control()
