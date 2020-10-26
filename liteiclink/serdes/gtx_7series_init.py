@@ -17,23 +17,23 @@ __all__ = ["GTXTXInit", "GTXRXInit"]
 
 class GTXInit(Module):
     def __init__(self, sys_clk_freq, buffer_enable):
-        self.done            = Signal()
-        self.restart         = Signal()
+        self.done            = Signal() # o
+        self.restart         = Signal() # i
 
         # GTX signals
-        self.plllock         = Signal()
-        self.pllreset        = Signal()
-        self.gtXxreset       = Signal()
-        self.gtXxpd          = Signal()
-        self.Xxresetdone     = Signal()
-        self.Xxdlysreset     = Signal()
-        self.Xxdlysresetdone = Signal()
-        self.Xxphaligndone   = Signal()
-        self.Xxuserrdy       = Signal()
+        self.plllock         = Signal() # i
+        self.pllreset        = Signal() # o
+        self.gtXxreset       = Signal() # o
+        self.gtXxpd          = Signal() # o
+        self.Xxresetdone     = Signal() # i
+        self.Xxdlysreset     = Signal() # o
+        self.Xxdlysresetdone = Signal() # i
+        self.Xxphaligndone   = Signal() # i
+        self.Xxuserrdy       = Signal() # o
 
         # DRP (optional)
-        self.drp_start       = Signal()
-        self.drp_done        = Signal(reset=1)
+        self.drp_start       = Signal()        # o
+        self.drp_done        = Signal(reset=1) # i
 
         # # #
 

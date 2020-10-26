@@ -19,27 +19,27 @@ __all__ = ["GTPTXInit", "GTPRXInit"]
 
 class GTPTXInit(Module):
     def __init__(self, sys_clk_freq, buffer_enable):
-        self.done            = Signal()
-        self.restart         = Signal()
+        self.done            = Signal() # o
+        self.restart         = Signal() # i
 
         # GTP signals
-        self.plllock         = Signal()
-        self.pllreset        = Signal()
-        self.gttxreset       = Signal()
-        self.gttxpd          = Signal()
-        self.txresetdone     = Signal()
-        self.txdlysreset     = Signal()
-        self.txdlysresetdone = Signal()
-        self.txphinit        = Signal()
-        self.txphinitdone    = Signal()
-        self.txphalign       = Signal()
-        self.txphaligndone   = Signal()
-        self.txdlyen         = Signal()
-        self.txuserrdy       = Signal()
+        self.plllock         = Signal() # i
+        self.pllreset        = Signal() # o
+        self.gttxreset       = Signal() # o
+        self.gttxpd          = Signal() # o
+        self.txresetdone     = Signal() # i
+        self.txdlysreset     = Signal() # o
+        self.txdlysresetdone = Signal() # i
+        self.txphinit        = Signal() # o
+        self.txphinitdone    = Signal() # i
+        self.txphalign       = Signal() # o
+        self.txphaligndone   = Signal() # i
+        self.txdlyen         = Signal() # o
+        self.txuserrdy       = Signal() # o
 
         # DRP (optional)
-        self.drp_start       = Signal()
-        self.drp_done        = Signal(reset=1)
+        self.drp_start       = Signal()        # o
+        self.drp_done        = Signal(reset=1) # i
 
         # # #
 

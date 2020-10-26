@@ -17,19 +17,19 @@ __all__ = ["GTYTXInit", "GTYRXInit"]
 
 class GTYInit(Module):
     def __init__(self, sys_clk_freq, rx, buffer_enable):
-        self.done            = Signal()
-        self.restart         = Signal()
+        self.done            = Signal() # o
+        self.restart         = Signal() # i
 
-        # GTY signals
-        self.plllock         = Signal()
-        self.pllreset        = Signal()
-        self.gtXxreset       = Signal()
-        self.Xxresetdone     = Signal()
-        self.Xxdlysreset     = Signal()
-        self.Xxdlysresetdone = Signal()
-        self.Xxphaligndone   = Signal()
-        self.Xxsyncdone      = Signal()
-        self.Xxuserrdy       = Signal()
+        # GTH signals
+        self.plllock         = Signal() # i
+        self.pllreset        = Signal() # o
+        self.gtXxreset       = Signal() # o
+        self.Xxresetdone     = Signal() # i
+        self.Xxdlysreset     = Signal() # o
+        self.Xxdlysresetdone = Signal() # i
+        self.Xxphaligndone   = Signal() # i
+        self.Xxsyncdone      = Signal() # i
+        self.Xxuserrdy       = Signal() # o
 
         # # #
 
