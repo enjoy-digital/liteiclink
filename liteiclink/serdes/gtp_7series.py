@@ -809,7 +809,7 @@ class GTP(Module, AutoCSR):
             # TX Initialization and Reset Ports
             i_CFGRESET             = 0,
             i_GTTXRESET            = tx_init.gttxreset,
-            #o_PCSRSVDOUT          = Open(),
+            o_PCSRSVDOUT           = Open(),
             i_TXUSERRDY            = tx_init.txuserrdy,
 
             # TX Phase Interpolator PPM Controller Ports
@@ -824,7 +824,7 @@ class GTP(Module, AutoCSR):
             i_RESETOVRD            = 0,
 
             # Transmit Ports
-            #o_TXPMARESETDONE      = Open(),
+            o_TXPMARESETDONE       = Open(),
 
             # Transmit Ports - Configurable Driver Ports
             i_PMARSVDIN0           = 0b0,
