@@ -97,50 +97,49 @@ class GTHQuadPLL(Module):
         use_qpll0 = config["qpll"] == "qpll0"
         use_qpll1 = config["qpll"] == "qpll1"
 
-        self.specials += \
-            Instance("GTHE3_COMMON",
-                # common
-                i_GTREFCLK00       = refclk,
-                i_GTREFCLK01       = refclk,
-                i_QPLLRSVD1        = 0,
-                i_QPLLRSVD2        = 0,
-                i_QPLLRSVD3        = 0,
-                i_QPLLRSVD4        = 0,
-                i_BGBYPASSB        = 1,
-                i_BGMONITORENB     = 1,
-                i_BGPDB            = 1,
-                i_BGRCALOVRD       = 0b11111,
-                i_BGRCALOVRDENB    = 0b1,
-                i_RCALENB          = 1,
+        self.specials += Instance("GTHE3_COMMON",
+            # Common
+            i_GTREFCLK00       = refclk,
+            i_GTREFCLK01       = refclk,
+            i_QPLLRSVD1        = 0,
+            i_QPLLRSVD2        = 0,
+            i_QPLLRSVD3        = 0,
+            i_QPLLRSVD4        = 0,
+            i_BGBYPASSB        = 1,
+            i_BGMONITORENB     = 1,
+            i_BGPDB            = 1,
+            i_BGRCALOVRD       = 0b11111,
+            i_BGRCALOVRDENB    = 0b1,
+            i_RCALENB          = 1,
 
-                # qpll0
-                p_QPLL0_FBDIV      = config["n"],
-                p_QPLL0_REFCLK_DIV = config["m"],
-                i_QPLL0CLKRSVD0    = 0,
-                i_QPLL0CLKRSVD1    = 0,
-                i_QPLL0LOCKDETCLK  = ClockSignal(),
-                i_QPLL0LOCKEN      = 1,
-                o_QPLL0LOCK        = self.lock if use_qpll0 else Signal(),
-                o_QPLL0OUTCLK      = self.clk if use_qpll0 else Signal(),
-                o_QPLL0OUTREFCLK   = self.refclk if use_qpll0 else Signal(),
-                i_QPLL0PD          = 0 if use_qpll0 else 1,
-                i_QPLL0REFCLKSEL   = 0b001,
-                i_QPLL0RESET       = self.reset,
+            # QPLL0
+            p_QPLL0_FBDIV      = config["n"],
+            p_QPLL0_REFCLK_DIV = config["m"],
+            i_QPLL0CLKRSVD0    = 0,
+            i_QPLL0CLKRSVD1    = 0,
+            i_QPLL0LOCKDETCLK  = ClockSignal(),
+            i_QPLL0LOCKEN      = 1,
+            o_QPLL0LOCK        = self.lock if use_qpll0 else Signal(),
+            o_QPLL0OUTCLK      = self.clk if use_qpll0 else Signal(),
+            o_QPLL0OUTREFCLK   = self.refclk if use_qpll0 else Signal(),
+            i_QPLL0PD          = 0 if use_qpll0 else 1,
+            i_QPLL0REFCLKSEL   = 0b001,
+            i_QPLL0RESET       = self.reset,
 
-                # qpll1
-                p_QPLL1_FBDIV      = config["n"],
-                p_QPLL1_REFCLK_DIV = config["m"],
-                i_QPLL1CLKRSVD0    = 0,
-                i_QPLL1CLKRSVD1    = 0,
-                i_QPLL1LOCKDETCLK  = ClockSignal(),
-                i_QPLL1LOCKEN      = 1,
-                o_QPLL1LOCK        = self.lock if use_qpll1 else Signal(),
-                o_QPLL1OUTCLK      = self.clk if use_qpll1 else Signal(),
-                o_QPLL1OUTREFCLK   = self.refclk if use_qpll1 else Signal(),
-                i_QPLL1PD          = 0 if use_qpll1 else 1,
-                i_QPLL1REFCLKSEL   = 0b001,
-                i_QPLL1RESET       = self.reset,
-             )
+            # QPLL1
+            p_QPLL1_FBDIV      = config["n"],
+            p_QPLL1_REFCLK_DIV = config["m"],
+            i_QPLL1CLKRSVD0    = 0,
+            i_QPLL1CLKRSVD1    = 0,
+            i_QPLL1LOCKDETCLK  = ClockSignal(),
+            i_QPLL1LOCKEN      = 1,
+            o_QPLL1LOCK        = self.lock if use_qpll1 else Signal(),
+            o_QPLL1OUTCLK      = self.clk if use_qpll1 else Signal(),
+            o_QPLL1OUTREFCLK   = self.refclk if use_qpll1 else Signal(),
+            i_QPLL1PD          = 0 if use_qpll1 else 1,
+            i_QPLL1REFCLKSEL   = 0b001,
+            i_QPLL1RESET       = self.reset,
+        )
 
     @staticmethod
     def compute_config(refclk_freq, linerate):

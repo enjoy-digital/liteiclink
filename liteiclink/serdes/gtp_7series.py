@@ -578,349 +578,349 @@ class GTP(Module, AutoCSR):
         )
         self.gtp_params.update(
             # CPLL Ports
-            i_GTRSVD                = 0b0000000000000000,
-            i_PCSRSVDIN             = 0b0000000000000000,
-            i_TSTIN                 = 0b11111111111111111111,
+            i_GTRSVD               = 0b0000000000000000,
+            i_PCSRSVDIN            = 0b0000000000000000,
+            i_TSTIN                = 0b11111111111111111111,
 
             # Channel - DRP Ports
-            i_DRPADDR               = drp_mux.addr,
-            i_DRPCLK                = drp_mux.clk,
-            i_DRPDI                 = drp_mux.di,
-            o_DRPDO                 = drp_mux.do,
-            i_DRPEN                 = drp_mux.en,
-            o_DRPRDY                = drp_mux.rdy,
-            i_DRPWE                 = drp_mux.we,
+            i_DRPADDR              = drp_mux.addr,
+            i_DRPCLK               = drp_mux.clk,
+            i_DRPDI                = drp_mux.di,
+            o_DRPDO                = drp_mux.do,
+            i_DRPEN                = drp_mux.en,
+            o_DRPRDY               = drp_mux.rdy,
+            i_DRPWE                = drp_mux.we,
 
             # Clocking Ports
-            i_RXSYSCLKSEL           = 0b00 if qpll.channel == 0 else 0b11,
-            i_TXSYSCLKSEL           = 0b00 if qpll.channel == 0 else 0b11,
+            i_RXSYSCLKSEL          = 0b00 if qpll.channel == 0 else 0b11,
+            i_TXSYSCLKSEL          = 0b00 if qpll.channel == 0 else 0b11,
 
             # FPGA TX Interface Datapath Configuration
-            i_TX8B10BEN             = 0,
+            i_TX8B10BEN            = 0,
 
             # GTPE2_CHANNEL Clocking Ports
-            i_PLL0CLK               = qpll.clk if qpll.channel == 0 else 0,
-            i_PLL0REFCLK            = qpll.refclk if qpll.channel == 0 else 0,
-            i_PLL1CLK               = qpll.clk if qpll.channel == 1 else 0,
-            i_PLL1REFCLK            = qpll.refclk if qpll.channel == 1 else 0,
+            i_PLL0CLK              = qpll.clk if qpll.channel == 0 else 0,
+            i_PLL0REFCLK           = qpll.refclk if qpll.channel == 0 else 0,
+            i_PLL1CLK              = qpll.clk if qpll.channel == 1 else 0,
+            i_PLL1REFCLK           = qpll.refclk if qpll.channel == 1 else 0,
 
             # Loopback Ports
-            i_LOOPBACK              = self.loopback,
+            i_LOOPBACK             = self.loopback,
 
             # PCI Express Ports
-            o_PHYSTATUS             = Open(),
-            i_RXRATE                = 0,
-            o_RXVALID               = Open(),
+            o_PHYSTATUS            = Open(),
+            i_RXRATE               = 0,
+            o_RXVALID              = Open(),
 
             # PMA Reserved Ports
-            i_PMARSVDIN3            = 0b0,
-            i_PMARSVDIN4            = 0b0,
+            i_PMARSVDIN3           = 0b0,
+            i_PMARSVDIN4           = 0b0,
 
             # Power-Down Ports
-            i_RXPD                  = Cat(rx_init.gtrxpd, rx_init.gtrxpd),
-            i_TXPD                  = 0b00,
+            i_RXPD                 = Cat(rx_init.gtrxpd, rx_init.gtrxpd),
+            i_TXPD                 = 0b00,
 
             # RX 8B/10B Decoder Ports
-            i_SETERRSTATUS          = 0,
+            i_SETERRSTATUS         = 0,
 
             # RX Initialization and Reset Ports
-            i_EYESCANRESET          = 0,
-            i_RXUSERRDY             = rx_init.rxuserrdy,
+            i_EYESCANRESET         = 0,
+            i_RXUSERRDY            = rx_init.rxuserrdy,
 
             # RX Margin Analysis Ports
-            o_EYESCANDATAERROR      = Open(),
-            i_EYESCANMODE           = 0,
-            i_EYESCANTRIGGER        = 0,
+            o_EYESCANDATAERROR     = Open(),
+            i_EYESCANMODE          = 0,
+            i_EYESCANTRIGGER       = 0,
 
             # Receive Ports
-            i_CLKRSVD0              = 0,
-            i_CLKRSVD1              = 0,
-            i_DMONFIFORESET         = 0,
-            i_DMONITORCLK           = 0,
-            o_RXPMARESETDONE        = rx_init.rxpmaresetdone,
-            i_SIGVALIDCLK           = 0,
+            i_CLKRSVD0             = 0,
+            i_CLKRSVD1             = 0,
+            i_DMONFIFORESET        = 0,
+            i_DMONITORCLK          = 0,
+            o_RXPMARESETDONE       = rx_init.rxpmaresetdone,
+            i_SIGVALIDCLK          = 0,
 
             # Receive Ports - CDR Ports
-            i_RXCDRFREQRESET        = 0,
-            i_RXCDRHOLD             = 0,
-            o_RXCDRLOCK             = Open(),
-            i_RXCDROVRDEN           = 0,
-            i_RXCDRRESET            = 0,
-            i_RXCDRRESETRSV         = 0,
-            i_RXOSCALRESET          = 0,
-            i_RXOSINTCFG            = 0b0010,
-            o_RXOSINTDONE           = Open(),
-            i_RXOSINTHOLD           = 0,
-            i_RXOSINTOVRDEN         = 0,
-            i_RXOSINTPD             = 0,
-            o_RXOSINTSTARTED        = Open(),
-            i_RXOSINTSTROBE         = 0,
-            o_RXOSINTSTROBESTARTED  = Open(),
-            i_RXOSINTTESTOVRDEN     = 0,
+            i_RXCDRFREQRESET       = 0,
+            i_RXCDRHOLD            = 0,
+            o_RXCDRLOCK            = Open(),
+            i_RXCDROVRDEN          = 0,
+            i_RXCDRRESET           = 0,
+            i_RXCDRRESETRSV        = 0,
+            i_RXOSCALRESET         = 0,
+            i_RXOSINTCFG           = 0b0010,
+            o_RXOSINTDONE          = Open(),
+            i_RXOSINTHOLD          = 0,
+            i_RXOSINTOVRDEN        = 0,
+            i_RXOSINTPD            = 0,
+            o_RXOSINTSTARTED       = Open(),
+            i_RXOSINTSTROBE        = 0,
+            o_RXOSINTSTROBESTARTED = Open(),
+            i_RXOSINTTESTOVRDEN    = 0,
 
             # Receive Ports - Clock Correction Ports
-            o_RXCLKCORCNT           = Open(),
+            o_RXCLKCORCNT          = Open(),
 
             # Receive Ports - FPGA RX Interface Datapath Configuration
-            i_RX8B10BEN             = 0,
+            i_RX8B10BEN            = 0,
 
             # Receive Ports - FPGA RX Interface Ports
-            o_RXDATA                = Cat(*[rxdata[10*i:10*i+8] for i in range(nwords)]),
-            i_RXUSRCLK              = ClockSignal("rx"),
-            i_RXUSRCLK2             = ClockSignal("rx"),
+            o_RXDATA               = Cat(*[rxdata[10*i:10*i+8] for i in range(nwords)]),
+            i_RXUSRCLK             = ClockSignal("rx"),
+            i_RXUSRCLK2            = ClockSignal("rx"),
 
             # Receive Ports - Pattern Checker Ports
-            o_RXPRBSERR             = Open(),
-            i_RXPRBSSEL             = 0,
+            o_RXPRBSERR            = Open(),
+            i_RXPRBSSEL            = 0,
 
             # Receive Ports - Pattern Checker ports
-            i_RXPRBSCNTRESET        = 0,
+            i_RXPRBSCNTRESET       = 0,
 
             # Receive Ports - RX 8B/10B Decoder Ports
-            o_RXCHARISCOMMA         = Open(),
-            o_RXCHARISK             = Cat(*[rxdata[10*i+8] for i in range(nwords)]),
-            o_RXDISPERR             = Cat(*[rxdata[10*i+9] for i in range(nwords)]),
-            o_RXNOTINTABLE          = Open(),
+            o_RXCHARISCOMMA        = Open(),
+            o_RXCHARISK            = Cat(*[rxdata[10*i+8] for i in range(nwords)]),
+            o_RXDISPERR            = Cat(*[rxdata[10*i+9] for i in range(nwords)]),
+            o_RXNOTINTABLE         = Open(),
 
             # Receive Ports - RX AFE Ports
-            i_GTPRXN                = rx_pads.n,
-            i_GTPRXP                = rx_pads.p,
-            i_PMARSVDIN2            = 0b0,
-            o_PMARSVDOUT0           = Open(),
-            o_PMARSVDOUT1           = Open(),
+            i_GTPRXN               = rx_pads.n,
+            i_GTPRXP               = rx_pads.p,
+            i_PMARSVDIN2           = 0b0,
+            o_PMARSVDOUT0          = Open(),
+            o_PMARSVDOUT1          = Open(),
 
             # Receive Ports - RX Buffer Bypass Ports
-            i_RXBUFRESET            = 0,
-            o_RXBUFSTATUS           = Open(),
-            i_RXDDIEN               = 0 if rx_buffer_enable else 1,
-            i_RXDLYBYPASS           = 1 if rx_buffer_enable else 0,
-            i_RXDLYEN               = 0,
-            i_RXDLYOVRDEN           = 0,
-            i_RXDLYSRESET           = rx_init.rxdlysreset,
-            o_RXDLYSRESETDONE       = rx_init.rxdlysresetdone,
-            i_RXPHALIGN             = 0,
-            o_RXPHALIGNDONE         = rxphaligndone,
-            i_RXPHALIGNEN           = 0,
-            i_RXPHDLYPD             = 0,
-            i_RXPHDLYRESET          = 0,
-            o_RXPHMONITOR           = Open(),
-            i_RXPHOVRDEN            = 0,
-            o_RXPHSLIPMONITOR       = Open(),
-            o_RXSTATUS              = Open(),
-            i_RXSYNCALLIN           = rxphaligndone,
-            o_RXSYNCDONE            = rx_init.rxsyncdone,
-            i_RXSYNCIN              = 0,
-            i_RXSYNCMODE            = 0 if rx_buffer_enable else 1,
-            o_RXSYNCOUT             = Open(),
+            i_RXBUFRESET           = 0,
+            o_RXBUFSTATUS          = Open(),
+            i_RXDDIEN              = 0 if rx_buffer_enable else 1,
+            i_RXDLYBYPASS          = 1 if rx_buffer_enable else 0,
+            i_RXDLYEN              = 0,
+            i_RXDLYOVRDEN          = 0,
+            i_RXDLYSRESET          = rx_init.rxdlysreset,
+            o_RXDLYSRESETDONE      = rx_init.rxdlysresetdone,
+            i_RXPHALIGN            = 0,
+            o_RXPHALIGNDONE        = rxphaligndone,
+            i_RXPHALIGNEN          = 0,
+            i_RXPHDLYPD            = 0,
+            i_RXPHDLYRESET         = 0,
+            o_RXPHMONITOR          = Open(),
+            i_RXPHOVRDEN           = 0,
+            o_RXPHSLIPMONITOR      = Open(),
+            o_RXSTATUS             = Open(),
+            i_RXSYNCALLIN          = rxphaligndone,
+            o_RXSYNCDONE           = rx_init.rxsyncdone,
+            i_RXSYNCIN             = 0,
+            i_RXSYNCMODE           = 0 if rx_buffer_enable else 1,
+            o_RXSYNCOUT            = Open(),
 
             # Receive Ports - RX Byte and Word Alignment Ports
-            o_RXBYTEISALIGNED       = Open(),
-            o_RXBYTEREALIGN         = Open(),
-            o_RXCOMMADET            = Open(),
-            i_RXCOMMADETEN          = 1,
-            i_RXMCOMMAALIGNEN       = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
-            i_RXPCOMMAALIGNEN       = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
-            i_RXSLIDE               = 0,
+            o_RXBYTEISALIGNED      = Open(),
+            o_RXBYTEREALIGN        = Open(),
+            o_RXCOMMADET           = Open(),
+            i_RXCOMMADETEN         = 1,
+            i_RXMCOMMAALIGNEN      = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
+            i_RXPCOMMAALIGNEN      = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
+            i_RXSLIDE              = 0,
 
             # Receive Ports - RX Channel Bonding Ports
-            o_RXCHANBONDSEQ         = Open(),
-            i_RXCHBONDEN            = 0,
-            i_RXCHBONDI             = 0b0000,
-            i_RXCHBONDLEVEL         = 0,
-            i_RXCHBONDMASTER        = 0,
-            o_RXCHBONDO             = Open(),
-            i_RXCHBONDSLAVE         = 0,
+            o_RXCHANBONDSEQ        = Open(),
+            i_RXCHBONDEN           = 0,
+            i_RXCHBONDI            = 0b0000,
+            i_RXCHBONDLEVEL        = 0,
+            i_RXCHBONDMASTER       = 0,
+            o_RXCHBONDO            = Open(),
+            i_RXCHBONDSLAVE        = 0,
 
             # Receive Ports - RX Channel Bonding Ports
-            o_RXCHANISALIGNED       = Open(),
-            o_RXCHANREALIGN         = Open(),
+            o_RXCHANISALIGNED      = Open(),
+            o_RXCHANREALIGN        = Open(),
 
             # Receive Ports - RX Decision Feedback Equalizer
-            o_DMONITOROUT           = Open(),
-            i_RXADAPTSELTEST        = 0,
-            i_RXDFEXYDEN            = 0,
-            i_RXOSINTEN             = 0b1,
-            i_RXOSINTID0            = 0,
-            i_RXOSINTNTRLEN         = 0,
-            o_RXOSINTSTROBEDONE     = Open(),
+            o_DMONITOROUT          = Open(),
+            i_RXADAPTSELTEST       = 0,
+            i_RXDFEXYDEN           = 0,
+            i_RXOSINTEN            = 0b1,
+            i_RXOSINTID0           = 0,
+            i_RXOSINTNTRLEN        = 0,
+            o_RXOSINTSTROBEDONE    = Open(),
 
             # Receive Ports - RX Driver,OOB signalling,Coupling and Eq.,CDR
-            i_RXLPMLFOVRDEN         = 0,
-            i_RXLPMOSINTNTRLEN      = 0,
+            i_RXLPMLFOVRDEN        = 0,
+            i_RXLPMOSINTNTRLEN     = 0,
 
             # Receive Ports - RX Equalizer Ports
-            i_RXLPMHFHOLD           = 0,
-            i_RXLPMHFOVRDEN         = 0,
-            i_RXLPMLFHOLD           = 0,
-            i_RXOSHOLD              = 0,
-            i_RXOSOVRDEN            = 0,
+            i_RXLPMHFHOLD          = 0,
+            i_RXLPMHFOVRDEN        = 0,
+            i_RXLPMLFHOLD          = 0,
+            i_RXOSHOLD             = 0,
+            i_RXOSOVRDEN           = 0,
 
             # Receive Ports - RX Fabric ClocK Output Control Ports
-            o_RXRATEDONE            = Open(),
+            o_RXRATEDONE           = Open(),
 
             # Receive Ports - RX Fabric Clock Output Control Ports
-            i_RXRATEMODE            = 0b0,
+            i_RXRATEMODE           = 0b0,
 
             # Receive Ports - RX Fabric Output Control Ports
-            o_RXOUTCLK              = self.rxoutclk,
-            o_RXOUTCLKFABRIC        = Open(),
-            o_RXOUTCLKPCS           = Open(),
-            i_RXOUTCLKSEL           = 0b010,
+            o_RXOUTCLK             = self.rxoutclk,
+            o_RXOUTCLKFABRIC       = Open(),
+            o_RXOUTCLKPCS          = Open(),
+            i_RXOUTCLKSEL          = 0b010,
 
             # Receive Ports - RX Gearbox Ports
-            o_RXDATAVALID           = Open(),
-            o_RXHEADER              = Open(),
-            o_RXHEADERVALID         = Open(),
-            o_RXSTARTOFSEQ          = Open(),
-            i_RXGEARBOXSLIP         = 0,
+            o_RXDATAVALID          = Open(),
+            o_RXHEADER             = Open(),
+            o_RXHEADERVALID        = Open(),
+            o_RXSTARTOFSEQ         = Open(),
+            i_RXGEARBOXSLIP        = 0,
 
             # Receive Ports - RX Initialization and Reset Ports
-            i_GTRXRESET             = rx_init.gtrxreset,
-            i_RXLPMRESET            = 0,
-            i_RXOOBRESET            = 0,
-            i_RXPCSRESET            = 0,
-            i_RXPMARESET            = 0,
+            i_GTRXRESET            = rx_init.gtrxreset,
+            i_RXLPMRESET           = 0,
+            i_RXOOBRESET           = 0,
+            i_RXPCSRESET           = 0,
+            i_RXPMARESET           = 0,
 
             # Receive Ports - RX OOB Signaling ports
-            o_RXCOMSASDET           = Open(),
-            o_RXCOMWAKEDET          = Open(),
-            o_RXCOMINITDET          = Open(),
-            o_RXELECIDLE            = Open(),
-            i_RXELECIDLEMODE        = 0b11,
+            o_RXCOMSASDET          = Open(),
+            o_RXCOMWAKEDET         = Open(),
+            o_RXCOMINITDET         = Open(),
+            o_RXELECIDLE           = Open(),
+            i_RXELECIDLEMODE       = 0b11,
 
             # Receive Ports - RX Polarity Control Ports
-            i_RXPOLARITY            = rx_polarity,
+            i_RXPOLARITY           = rx_polarity,
 
             # Receive Ports -RX Initialization and Reset Ports
-            o_RXRESETDONE           = rx_init.rxresetdone,
+            o_RXRESETDONE          = rx_init.rxresetdone,
 
             # TX Buffer Bypass Ports
-            i_TXPHDLYTSTCLK         = 0,
+            i_TXPHDLYTSTCLK        = 0,
 
             # TX Configurable Driver Ports
-            i_TXPOSTCURSOR          = 0b00000,
-            i_TXPOSTCURSORINV       = 0,
-            i_TXPRECURSOR           = 0b00000,
-            i_TXPRECURSORINV        = 0,
+            i_TXPOSTCURSOR         = 0b00000,
+            i_TXPOSTCURSORINV      = 0,
+            i_TXPRECURSOR          = 0b00000,
+            i_TXPRECURSORINV       = 0,
 
             # TX Fabric Clock Output Control Ports
-            i_TXRATEMODE            = 0,
+            i_TXRATEMODE           = 0,
 
             # TX Initialization and Reset Ports
-            i_CFGRESET              = 0,
-            i_GTTXRESET             = tx_init.gttxreset,
-            #o_PCSRSVDOUT           = Open(),
-            i_TXUSERRDY             = tx_init.txuserrdy,
+            i_CFGRESET             = 0,
+            i_GTTXRESET            = tx_init.gttxreset,
+            #o_PCSRSVDOUT          = Open(),
+            i_TXUSERRDY            = tx_init.txuserrdy,
 
             # TX Phase Interpolator PPM Controller Ports
-            i_TXPIPPMEN             = 0,
-            i_TXPIPPMOVRDEN         = 0,
-            i_TXPIPPMPD             = 0,
-            i_TXPIPPMSEL            = 1,
-            i_TXPIPPMSTEPSIZE       = 0,
+            i_TXPIPPMEN            = 0,
+            i_TXPIPPMOVRDEN        = 0,
+            i_TXPIPPMPD            = 0,
+            i_TXPIPPMSEL           = 1,
+            i_TXPIPPMSTEPSIZE      = 0,
 
             # Transceiver Reset Mode Operation
-            i_GTRESETSEL            = 0,
-            i_RESETOVRD             = 0,
+            i_GTRESETSEL           = 0,
+            i_RESETOVRD            = 0,
 
             # Transmit Ports
-            #o_TXPMARESETDONE       = Open(),
+            #o_TXPMARESETDONE      = Open(),
 
             # Transmit Ports - Configurable Driver Ports
-            i_PMARSVDIN0            = 0b0,
-            i_PMARSVDIN1            = 0b0,
+            i_PMARSVDIN0           = 0b0,
+            i_PMARSVDIN1           = 0b0,
 
             # Transmit Ports - FPGA TX Interface Ports
-            i_TXDATA                = Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
-            i_TXUSRCLK              = ClockSignal("tx"),
-            i_TXUSRCLK2             = ClockSignal("tx"),
+            i_TXDATA               = Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
+            i_TXUSRCLK             = ClockSignal("tx"),
+            i_TXUSRCLK2            = ClockSignal("tx"),
 
             # Transmit Ports - PCI Express Ports
-            i_TXELECIDLE            = 0,
-            i_TXMARGIN              = 0,
-            i_TXRATE                = 0,
-            i_TXSWING               = 0,
+            i_TXELECIDLE           = 0,
+            i_TXMARGIN             = 0,
+            i_TXRATE               = 0,
+            i_TXSWING              = 0,
 
             # Transmit Ports - Pattern Generator Ports
-            i_TXPRBSFORCEERR        = 0,
+            i_TXPRBSFORCEERR       = 0,
 
             # Transmit Ports - TX 8B/10B Encoder Ports
-            i_TX8B10BBYPASS         = 0,
-            i_TXCHARDISPMODE        = Cat(*[txdata[10*i+9] for i in range(nwords)]),
-            i_TXCHARDISPVAL         = Cat(*[txdata[10*i+8] for i in range(nwords)]),
-            i_TXCHARISK             = 0,
+            i_TX8B10BBYPASS        = 0,
+            i_TXCHARDISPMODE       = Cat(*[txdata[10*i+9] for i in range(nwords)]),
+            i_TXCHARDISPVAL        = Cat(*[txdata[10*i+8] for i in range(nwords)]),
+            i_TXCHARISK            = 0,
 
             # Transmit Ports - TX Buffer Bypass Ports
-            i_TXDLYBYPASS           = 1 if tx_buffer_enable else 0,
-            i_TXDLYEN               = tx_init.txdlyen,
-            i_TXDLYHOLD             = 0,
-            i_TXDLYOVRDEN           = 0,
-            i_TXDLYSRESET           = tx_init.txdlysreset,
-            o_TXDLYSRESETDONE       = tx_init.txdlysresetdone,
-            i_TXDLYUPDOWN           = 0,
-            i_TXPHALIGN             = tx_init.txphalign,
-            o_TXPHALIGNDONE         = tx_init.txphaligndone,
-            i_TXPHALIGNEN           = 0 if tx_buffer_enable else 1,
-            i_TXPHDLYPD             = 0,
-            i_TXPHDLYRESET          = 0,
-            i_TXPHINIT              = tx_init.txphinit,
-            o_TXPHINITDONE          = tx_init.txphinitdone,
-            i_TXPHOVRDEN            = 0,
+            i_TXDLYBYPASS          = 1 if tx_buffer_enable else 0,
+            i_TXDLYEN              = tx_init.txdlyen,
+            i_TXDLYHOLD            = 0,
+            i_TXDLYOVRDEN          = 0,
+            i_TXDLYSRESET          = tx_init.txdlysreset,
+            o_TXDLYSRESETDONE      = tx_init.txdlysresetdone,
+            i_TXDLYUPDOWN          = 0,
+            i_TXPHALIGN            = tx_init.txphalign,
+            o_TXPHALIGNDONE        = tx_init.txphaligndone,
+            i_TXPHALIGNEN          = 0 if tx_buffer_enable else 1,
+            i_TXPHDLYPD            = 0,
+            i_TXPHDLYRESET         = 0,
+            i_TXPHINIT             = tx_init.txphinit,
+            o_TXPHINITDONE         = tx_init.txphinitdone,
+            i_TXPHOVRDEN           = 0,
 
             # Transmit Ports - TX Buffer Ports
-            o_TXBUFSTATUS           = Open(),
+            o_TXBUFSTATUS          = Open(),
 
             # Transmit Ports - TX Buffer and Phase Alignment Ports
-            i_TXSYNCALLIN           = 0,
-            o_TXSYNCDONE            = Open(),
-            i_TXSYNCIN              = 0,
-            i_TXSYNCMODE            = 0,
-            o_TXSYNCOUT             = Open(),
+            i_TXSYNCALLIN          = 0,
+            o_TXSYNCDONE           = Open(),
+            i_TXSYNCIN             = 0,
+            i_TXSYNCMODE           = 0,
+            o_TXSYNCOUT            = Open(),
 
             # Transmit Ports - TX Configurable Driver Ports
-            o_GTPTXN                = tx_pads.n,
-            o_GTPTXP                = tx_pads.p,
-            i_TXBUFDIFFCTRL         = 0b100,
-            i_TXDEEMPH              = 0,
-            i_TXDIFFCTRL            = 0b1000,
-            i_TXDIFFPD              = 0,
-            i_TXINHIBIT             = self.tx_inhibit,
-            i_TXMAINCURSOR          = 0b0000000,
-            i_TXPISOPD              = 0,
+            o_GTPTXN               = tx_pads.n,
+            o_GTPTXP               = tx_pads.p,
+            i_TXBUFDIFFCTRL        = 0b100,
+            i_TXDEEMPH             = 0,
+            i_TXDIFFCTRL           = 0b1000,
+            i_TXDIFFPD             = 0,
+            i_TXINHIBIT            = self.tx_inhibit,
+            i_TXMAINCURSOR         = 0b0000000,
+            i_TXPISOPD             = 0,
 
             # Transmit Ports - TX Fabric Clock Output Control Ports
-            o_TXOUTCLK              = self.txoutclk,
-            o_TXOUTCLKFABRIC        = Open(),
-            o_TXOUTCLKPCS           = Open(),
-            i_TXOUTCLKSEL           = 0b010 if tx_buffer_enable else 0b011,
-            o_TXRATEDONE            = Open(),
+            o_TXOUTCLK             = self.txoutclk,
+            o_TXOUTCLKFABRIC       = Open(),
+            o_TXOUTCLKPCS          = Open(),
+            i_TXOUTCLKSEL          = 0b010 if tx_buffer_enable else 0b011,
+            o_TXRATEDONE           = Open(),
 
             # Transmit Ports - TX Gearbox Ports
-            o_TXGEARBOXREADY        = Open(),
-            i_TXHEADER              = 0,
-            i_TXSEQUENCE            = 0,
-            i_TXSTARTSEQ            = 0,
+            o_TXGEARBOXREADY       = Open(),
+            i_TXHEADER             = 0,
+            i_TXSEQUENCE           = 0,
+            i_TXSTARTSEQ           = 0,
 
             # Transmit Ports - TX Initialization and Reset Ports
-            i_TXPCSRESET            = 0,
-            i_TXPMARESET            = 0,
-            o_TXRESETDONE           = tx_init.txresetdone,
+            i_TXPCSRESET           = 0,
+            i_TXPMARESET           = 0,
+            o_TXRESETDONE          = tx_init.txresetdone,
 
             # Transmit Ports - TX OOB signalling Ports
-            o_TXCOMFINISH           = Open(),
-            i_TXCOMINIT             = 0,
-            i_TXCOMSAS              = 0,
-            i_TXCOMWAKE             = 0,
-            i_TXPDELECIDLEMODE      = 0,
+            o_TXCOMFINISH          = Open(),
+            i_TXCOMINIT            = 0,
+            i_TXCOMSAS             = 0,
+            i_TXCOMWAKE            = 0,
+            i_TXPDELECIDLEMODE     = 0,
 
             # Transmit Ports - TX Polarity Control Ports
-            i_TXPOLARITY            = tx_polarity,
+            i_TXPOLARITY           = tx_polarity,
 
             # Transmit Ports - TX Receiver Detection Ports
-            i_TXDETECTRX            = 0,
+            i_TXDETECTRX           = 0,
 
             # Transmit Ports - pattern Generator Ports
-            i_TXPRBSSEL             = 0,
+            i_TXPRBSSEL            = 0,
         )
 
         # TX clocking ------------------------------------------------------------------------------
