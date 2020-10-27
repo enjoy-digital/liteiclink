@@ -357,10 +357,9 @@ class SERWBPHY(Module, AutoCSR):
                     sink.connect(self.serdes.tx.sink),
                 ),
                 self.serdes.rx.source.connect(source)
-            ).Else(
-                self.serdes.rx.source.ready.eq(1)
             ),
-            self.serdes.tx.sink.valid.eq(1) # Always transmitting
+            self.serdes.tx.sink.valid.eq(1),  # Always transmitting.
+            self.serdes.rx.source.ready.eq(1) # Always receiving.
         ]
 
         # The PRBS test is using the scrambler/descrambler as PRBS, sending 0 to the scrambler and
