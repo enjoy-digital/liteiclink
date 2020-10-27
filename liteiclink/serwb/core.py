@@ -25,9 +25,8 @@ class SERWBCore(Module):
         self.bus = etherbone.wishbone.bus
 
         # Packetizer / Depacketizer ----------------------------------------------------------------
-        depacketizer = Depacketizer(clk_freq)
-        packetizer   = Packetizer()
-        self.submodules += depacketizer, packetizer
+        self.submodules.depacketizer = depacketizer = Depacketizer(clk_freq)
+        self.submodules.packetizer   = packetizer   = Packetizer()
 
         # Buffering --------------------------------------------------------------------------------
         tx_fifo = stream.SyncFIFO([("data", 32)], tx_buffer_depth, buffered=True)
