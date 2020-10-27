@@ -138,14 +138,30 @@ def sram_test(port):
 
     wb.close()
 
+# Access Test ----------------------------------------------------------------------------------------
+
+def access_test(port):
+    wb = RemoteClient(port=port)
+    wb.open()
+
+    data = 0x12345678
+    addr = 0x100
+
+    print("Write over SerWB at 0x{:08x}: 0x{:08x}.".format(addr, data))
+    wb.write(wb.mems.serwb.base + addr, data)
+    print("Read  over SerWB at 0x{:08x}: 0x{:08x}.".format(addr, wb.read(wb.mems.serwb.base + addr)))
+
+    wb.close()
+
 # Run ----------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteICLink SerWB test utility")
-    parser.add_argument("--port",  default="1234",      help="Host bind port")
-    parser.add_argument("--ident", action="store_true", help="Read FPGA identifier")
-    parser.add_argument("--init",  action="store_true", help="Initialize SerWB Link")
-    parser.add_argument("--sram",  action="store_true", help="Test SRAM access over SerWB")
+    parser.add_argument("--port",   default="1234",      help="Host bind port")
+    parser.add_argument("--ident",  action="store_true", help="Read FPGA identifier")
+    parser.add_argument("--init",   action="store_true", help="Initialize SerWB Link")
+    parser.add_argument("--sram",   action="store_true", help="Test SRAM access over SerWB")
+    parser.add_argument("--access", action="store_true", help="Test single Write/Read access over SerWB")
     args = parser.parse_args()
 
     port = int(args.port, 0)
@@ -158,6 +174,9 @@ def main():
 
     if args.sram:
         sram_test(port=port)
+
+    if args.access:
+        access_test(port=port)
 
 if __name__ == "__main__":
     main()
