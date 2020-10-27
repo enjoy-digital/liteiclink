@@ -88,67 +88,82 @@ class SerWBTestSoC(SoCMini):
             serwb_master_pads = platform.request("serwb_master")
             serwb_slave_pads  = platform.request("serwb_slave")
 
-        # Master
-        self.submodules.serwb_master_phy = SERWBPHY(
+        # SerWB Master -----------------------------------------------------------------------------
+        # PHY
+        serwb_master_phy = SERWBPHY(
             device = platform.device,
             pads   = serwb_master_pads,
             mode   = "master")
+        self.submodules.serwb_master_phy = serwb_master_phy
         self.add_csr("serwb_master_phy")
 
-        # Slave
-        self.submodules.serwb_slave_phy = SERWBPHY(
+        # Core
+        serwb_master_core = SERWBCore(serwb_master_phy, self.clk_freq, mode="slave",
+            etherbone_buffer_depth = 1,
+            tx_buffer_depth        = 8,
+            rx_buffer_depth        = 8)
+        self.submodules += serwb_master_core
+
+        # Connect as peripheral to main SoC.
+        self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
+
+        # SerWB Slave ------------------------------------------------------------------------------
+        # PHY
+        serwb_slave_phy = SERWBPHY(
             device = platform.device,
             pads   = serwb_slave_pads,
             mode   ="slave")
+        self.clock_domains.cd_serwb = ClockDomain()
+        if hasattr(serwb_slave_phy.serdes, "clocking"):
+            self.comb += self.cd_serwb.clk.eq(serwb_slave_phy.serdes.clocking.refclk)
+        else:
+            self.comb += self.cd_serwb.clk.eq(ClockSignal("sys"))
+        self.specials += AsyncResetSynchronizer(self.cd_serwb, ResetSignal("sys"))
+        serwb_slave_phy = ClockDomainsRenamer("serwb")(serwb_slave_phy)
+        self.submodules.serwb_slave_phy = serwb_slave_phy
         self.add_csr("serwb_slave_phy")
 
-        # Wishbone Slave
-        serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave",
+        # Core
+        serwb_slave_core = SERWBCore(serwb_slave_phy, self.clk_freq, mode="master",
             etherbone_buffer_depth = 1,
-            tx_buffer_depth        = 0,
-            rx_buffer_depth        = 0)
-        self.submodules += serwb_master_core
-
-        # Wishbone Master
-        serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master",
-            etherbone_buffer_depth = 1,
-            tx_buffer_depth        = 0,
-            rx_buffer_depth        = 0)
+            tx_buffer_depth        = 8,
+            rx_buffer_depth        = 8)
+        serwb_slave_core = ClockDomainsRenamer("serwb")(serwb_slave_core)
         self.submodules += serwb_slave_core
 
         # Wishbone SRAM
-        self.submodules.serwb_sram = wishbone.SRAM(8192)
-        self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
-        self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
+        serwb_sram = ClockDomainsRenamer("serwb")(wishbone.SRAM(8192))
+        self.submodules += serwb_sram
+        self.comb += serwb_slave_core.bus.connect(serwb_sram.bus)
 
         # Leds -------------------------------------------------------------------------------------
         self.comb += [
-            platform.request("user_led", 0).eq(self.serwb_master_phy.init.ready),
-            platform.request("user_led", 1).eq(self.serwb_master_phy.init.error),
-            platform.request("user_led", 2).eq(self.serwb_slave_phy.init.ready),
-            platform.request("user_led", 3).eq(self.serwb_slave_phy.init.error),
+            platform.request("user_led", 0).eq(serwb_master_phy.init.ready),
+            platform.request("user_led", 1).eq(serwb_master_phy.init.error),
+            platform.request("user_led", 2).eq(serwb_slave_phy.init.ready),
+            platform.request("user_led", 3).eq(serwb_slave_phy.init.error),
         ]
 
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
             analyzer_signals = [
-                self.serwb_master_phy.init.fsm,
-                self.serwb_master_phy.serdes.rx.data,
-                self.serwb_master_phy.serdes.rx.comma,
-                self.serwb_master_phy.serdes.rx.idle,
-                self.serwb_master_phy.serdes.tx.data,
-                self.serwb_master_phy.serdes.tx.comma,
-                self.serwb_master_phy.serdes.tx.idle,
-                self.serwb_master_phy.serdes.rx.datapath.decoder.source,
+                serwb_master_phy.init.fsm,
+                serwb_master_phy.serdes.rx.data,
+                serwb_master_phy.serdes.rx.comma,
+                serwb_master_phy.serdes.rx.idle,
+                serwb_master_phy.serdes.tx.data,
+                serwb_master_phy.serdes.tx.comma,
+                serwb_master_phy.serdes.tx.idle,
+                serwb_master_phy.serdes.rx.datapath.decoder.source,
 
-                self.serwb_slave_phy.init.fsm,
-                self.serwb_slave_phy.serdes.rx.data,
-                self.serwb_slave_phy.serdes.rx.comma,
-                self.serwb_slave_phy.serdes.rx.idle,
-                self.serwb_slave_phy.serdes.tx.data,
-                self.serwb_slave_phy.serdes.tx.comma,
-                self.serwb_slave_phy.serdes.tx.idle,
-                self.serwb_slave_phy.serdes.rx.datapath.decoder.source,
+                serwb_slave_phy.init.fsm,
+                serwb_slave_phy.serdes.rx.data,
+                serwb_slave_phy.serdes.rx.comma,
+                serwb_slave_phy.serdes.rx.idle,
+                serwb_slave_phy.serdes.tx.data,
+                serwb_slave_phy.serdes.tx.comma,
+                serwb_slave_phy.serdes.tx.idle,
+                serwb_slave_phy.serdes.rx.datapath.decoder.source,
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
             self.add_csr("analyzer")
