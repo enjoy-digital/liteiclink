@@ -53,7 +53,7 @@ class SerWBTestSoC(SoCMini):
     mem_map.update(SoCMini.mem_map)
 
     def __init__(self, platform, loopback=False, with_analyzer=False):
-        sys_clk_freq = int(75e6)
+        sys_clk_freq = int(50e6)
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
