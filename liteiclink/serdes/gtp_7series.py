@@ -852,7 +852,7 @@ class GTP(Module, AutoCSR):
 
             # Transmit Ports - TX Buffer Bypass Ports
             i_TXDLYBYPASS          = 1 if tx_buffer_enable else 0,
-            i_TXDLYEN              = tx_init.txdlyen,
+            i_TXDLYEN              = 0 if tx_buffer_enable else tx_init.txdlyen,
             i_TXDLYHOLD            = 0,
             i_TXDLYOVRDEN          = 0,
             i_TXDLYSRESET          = tx_init.txdlysreset,
