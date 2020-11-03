@@ -241,15 +241,15 @@ class GTPRXInit(Module):
         fsm.act("POWER-DOWN",
             gtrxreset.eq(1),
             gtrxpd.eq(1),
-            NextState("DRP_READ_ISSUE")
+            NextState("WAIT-INIT-DELAY")
         )
         # Wait 500ns after configuration before releasing GTP reset (to follow AR43482)
         init_delay = WaitTimer(int(500e-9*sys_clk_freq))
         self.submodules += init_delay
         self.comb += init_delay.wait.eq(1)
-        fsm.act("DRP_READ_ISSUE",
+        fsm.act("WAIT-INIT-DELAY",
             gtrxreset.eq(1),
-            If(init_delay.done,
+            If(plllock & init_delay.done,
                 NextState("DRP_READ_ISSUE")
             )
         )
