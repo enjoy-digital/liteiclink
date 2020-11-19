@@ -19,6 +19,7 @@ from litex_boards.platforms import versa_ecp5
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.code_8b10b import K
 
 from liteiclink.serdes.serdes_ecp5 import SerDesECP5PLL, SerDesECP5
 
@@ -122,6 +123,7 @@ class SerDesTestSoC(SoCMini):
         serdes.add_stream_endpoints()
         serdes.add_controls()
         self.add_csr("serdes")
+
         platform.add_period_constraint(serdes.txoutclk, 1e9/serdes.tx_clk_freq)
         platform.add_period_constraint(serdes.rxoutclk, 1e9/serdes.rx_clk_freq)
 
@@ -132,9 +134,9 @@ class SerDesTestSoC(SoCMini):
         # K28.5 and slow counter --> TX
         self.comb += [
             serdes.sink.valid.eq(1),
-            serdes.sink.ctrl.eq(0b01),
-            serdes.sink.data[0:8].eq((5 << 5) | 28),
-            serdes.sink.data[8:16].eq(counter[26:]),
+            serdes.sink.ctrl.eq(0b1),
+            serdes.sink.data[:8].eq(K(28, 5)),
+            serdes.sink.data[8:].eq(counter[26:]),
         ]
 
         # RX (slow counter) --> Leds
@@ -143,7 +145,7 @@ class SerDesTestSoC(SoCMini):
             serdes.rx_align.eq(1),
             serdes.source.ready.eq(1),
             # No word aligner, so look for K28.5 and redirect the other byte to the leds
-            If(serdes.source.data[0:8] == ((5 << 5) | 28),
+            If(serdes.source.data[0:8] == K(28, 5),
                 counter.eq(serdes.source.data[8:]),
             ).Else(
                 counter.eq(serdes.source.data[0:]),

@@ -18,6 +18,7 @@ from litex.build.generic_platform import *
 
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.code_8b10b import K
 
 from liteiclink.serdes.gtx_7series import GTXChannelPLL, GTXQuadPLL, GTX
 
@@ -83,10 +84,9 @@ class GTXTestSoC(SoCMini):
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
         self.submodules.serdes = serdes = GTX(pll, tx_pads, rx_pads, sys_clk_freq,
-            data_width       = 40,
-            clock_aligner    = False,
             tx_buffer_enable = True,
-            rx_buffer_enable = True)
+            rx_buffer_enable = True,
+            clock_aligner    = False)
         serdes.add_stream_endpoints()
         serdes.add_controls()
         self.add_csr("serdes")
@@ -105,14 +105,14 @@ class GTXTestSoC(SoCMini):
         # K28.5 and slow counter --> TX
         self.comb += [
             serdes.sink.valid.eq(1),
-            serdes.sink.ctrl.eq(0b01),
-            serdes.sink.data[0:8].eq((5 << 5) | 28),
-            serdes.sink.data[8:16].eq(counter[26:]),
+            serdes.sink.ctrl.eq(0b1),
+            serdes.sink.data[:8].eq(K(28, 5)),
+            serdes.sink.data[8:].eq(counter[26:]),
         ]
 
         # RX (slow counter) --> Leds
         for i in range(4):
-            self.comb += platform.request("user_led", 4 + i).eq(serdes.source.data[8+i])
+            self.comb += platform.request("user_led", 4 + i).eq(serdes.source.data[i])
 
         # Leds -------------------------------------------------------------------------------------
         sys_counter = Signal(32)
