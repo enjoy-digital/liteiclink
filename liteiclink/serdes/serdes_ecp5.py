@@ -496,9 +496,9 @@ class SerDesECP5(Module, AutoCSR):
             i_CHX_FFC_SIGNAL_DETECT = rx_align,
             o_CHX_FFS_LS_SYNC_STATUS= rx_lsm,
             p_CHX_ENABLE_CG_ALIGN   = "0b1",
-            p_CHX_UDF_COMMA_MASK    = "0x0ff", # compare the 8 lsbs
-            p_CHX_UDF_COMMA_A       = "0x003", # K28.1, K28.5 and K28.7
-            p_CHX_UDF_COMMA_B       = "0x07c", # K28.1, K28.5 and K28.7
+            p_CHX_UDF_COMMA_MASK    = "0x3ff",  # compare all 10 bits
+            p_CHX_UDF_COMMA_A       = "0x283",  # K28.5 inverted
+            p_CHX_UDF_COMMA_B       = "0x17C",  # K28.5
 
             p_CHX_CTC_BYPASS        = "0b1",    # bypass CTC FIFO
             p_CHX_MIN_IPG_CNT       = "0b11",   # minimum interpacket gap of 4
