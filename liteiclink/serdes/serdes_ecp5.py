@@ -431,13 +431,13 @@ class SerDesECP5(Module, AutoCSR):
             p_CHX_REQ_EN            = "0b0",    # Enable equalizer
             p_CHX_RX_RATE_SEL       = "0d10",   # Equalizer  pole position
             p_CHX_RTERM_RX          = {
-                "5k-ohms": "0b00000",
-                "80-ohms": "0b00001",
-                "75-ohms": "0b00100",
-                "70-ohms": "0b00110",
-                "60-ohms": "0b01011",
-                "50-ohms": "0b10011",
-                "46-ohms": "0b11001"}["50-ohms"],
+                "5k-ohms": "0d00",
+                "80-ohms": "0d01",
+                "75-ohms": "0d04",
+                "70-ohms": "0d06",
+                "60-ohms": "0d11",
+                "50-ohms": "0d19",
+                "46-ohms": "0d25"}["50-ohms"],
             p_CHX_RXIN_CM           = "0b11",   # CMFB (wizard value used)
             p_CHX_RXTERM_CM         = "0b11",   # RX Input (wizard value used)
 
@@ -496,9 +496,9 @@ class SerDesECP5(Module, AutoCSR):
             i_CHX_FFC_SIGNAL_DETECT = rx_align,
             o_CHX_FFS_LS_SYNC_STATUS= rx_lsm,
             p_CHX_ENABLE_CG_ALIGN   = "0b1",
-            p_CHX_UDF_COMMA_MASK    = "0x0ff",        # compare the 8 lsbs
-            p_CHX_UDF_COMMA_A       = "0b0000000011", # K28.1, K28.5 and K28.7
-            p_CHX_UDF_COMMA_B       = "0b0001111100", # K28.1, K28.5 and K28.7
+            p_CHX_UDF_COMMA_MASK    = "0x0ff", # compare the 8 lsbs
+            p_CHX_UDF_COMMA_A       = "0x003", # K28.1, K28.5 and K28.7
+            p_CHX_UDF_COMMA_B       = "0x07c", # K28.1, K28.5 and K28.7
 
             p_CHX_CTC_BYPASS        = "0b1",    # bypass CTC FIFO
             p_CHX_MIN_IPG_CNT       = "0b11",   # minimum interpacket gap of 4
@@ -527,13 +527,13 @@ class SerDesECP5(Module, AutoCSR):
 
             p_CHX_TXAMPLITUDE       = "0d1000",  # 1000 mV
             p_CHX_RTERM_TX          = {
-                "5k-ohms": "0b00000",
-                "80-ohms": "0b00001",
-                "75-ohms": "0b00100",
-                "70-ohms": "0b00110",
-                "60-ohms": "0b01011",
-                "50-ohms": "0b10011",
-                "46-ohms": "0b11001"}["50-ohms"],
+                "5k-ohms": "0d00",
+                "80-ohms": "0d01",
+                "75-ohms": "0d04",
+                "70-ohms": "0d06",
+                "60-ohms": "0d11",
+                "50-ohms": "0d19",
+                "46-ohms": "0d25"}["50-ohms"],
 
             p_CHX_TDRV_SLICE0_CUR   = "0b011",  # 400 uA
             p_CHX_TDRV_SLICE0_SEL   = "0b01",   # main data
