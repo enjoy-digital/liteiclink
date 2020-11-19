@@ -12,7 +12,7 @@ import argparse
 from migen import *
 from migen.genlib.io import CRG
 
-from litex.boards.platforms import kc705
+from litex_boards.platforms import kc705
 
 from litex.build.generic_platform import *
 
@@ -53,7 +53,12 @@ class GTXTestSoC(SoCMini):
         sys_clk_freq = int(156e6)
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq, with_uart=True, uart_name="bridge")
+        SoCMini.__init__(self, platform, sys_clk_freq,
+            ident         = "LiteICLink bench on KC705",
+            ident_version = True,
+            with_uart     = True,
+            uart_name     = "bridge"
+        )
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("clk156"), platform.request("cpu_reset"))
@@ -107,7 +112,7 @@ class GTXTestSoC(SoCMini):
 
         # RX (slow counter) --> Leds
         for i in range(4):
-            self.comb += platform.request("user_led", 4 + i).eq(serdes.source.data[i])
+            self.comb += platform.request("user_led", 4 + i).eq(serdes.source.data[8+i])
 
         # Leds -------------------------------------------------------------------------------------
         sys_counter = Signal(32)

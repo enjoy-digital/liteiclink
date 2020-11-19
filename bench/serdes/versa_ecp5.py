@@ -14,7 +14,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.generic_platform import *
 
-from litex.boards.platforms import versa_ecp5
+from litex_boards.platforms import versa_ecp5
 
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
@@ -75,7 +75,12 @@ class SerDesTestSoC(SoCMini):
         sys_clk_freq = int(100e6)
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq, with_uart=True, uart_name="bridge")
+        SoCMini.__init__(self, platform, sys_clk_freq,
+            ident         = "LiteICLink bench on Versa ECP5",
+            ident_version = True,
+            with_uart     = True,
+            uart_name     = "bridge"
+        )
 
         # CRG --------------------------------------------------------------------------------------
         if linerate == 2.5e9:

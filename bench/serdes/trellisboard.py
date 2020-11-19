@@ -75,7 +75,12 @@ class SerDesTestSoC(SoCMini):
         sys_clk_freq = int(100e6)
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq, with_uart=True, uart_name="bridge")
+        SoCMini.__init__(self, platform, sys_clk_freq,
+            ident         = "LiteICLink bench on Trellisboard",
+            ident_version = True,
+            with_uart     = True,
+            uart_name     = "bridge"
+        )
 
         # CRG --------------------------------------------------------------------------------------
         refclk_from_pll = True

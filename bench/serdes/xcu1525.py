@@ -77,7 +77,12 @@ class GTYTestSoC(SoCMini):
         sys_clk_freq = int(125e6)
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq, with_uart=True, uart_name="bridge")
+        SoCMini.__init__(self, platform, sys_clk_freq,
+            ident         = "LiteICLink bench on XCU1525",
+            ident_version = True,
+            with_uart     = True,
+            uart_name     = "bridge"
+        )
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
