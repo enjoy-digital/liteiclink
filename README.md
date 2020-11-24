@@ -10,7 +10,7 @@
                              communication cores powered by Migen & LiteX
 ```
 
-[![](https://travis-ci.com/enjoy-digital/liteiclink.svg?branch=master)](https://travis-ci.com/enjoy-digital/liteiclink) ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
+[![](https://github.com/enjoy-digital/liteiclink/workflows/ci/badge.svg)](https://github.com/enjoy-digital/liteiclink/actions) ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
 
 
 [> Intro
