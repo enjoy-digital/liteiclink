@@ -262,7 +262,7 @@ class GTYQuadPLL(Module):
     def __repr__(self):
         config = self.config
         r = """
-GTXQuadPLL
+GTYQuadPLL
 ===========
   overview:
   ---------
