@@ -26,6 +26,16 @@ from liteiclink.serdes.gty_ultrascale import GTYChannelPLL, GTYQuadPLL, GTY
 # IOs ----------------------------------------------------------------------------------------------
 
 _transceiver_io = [
+    # PCIe
+    ("pcie_tx", 0,
+        Subsignal("p", Pins("AF7")),
+        Subsignal("n", Pins("AF6"))
+    ),
+    ("pcie_rx", 0,
+        Subsignal("p", Pins("AF2")),
+        Subsignal("n", Pins("AF1"))
+    ),
+
     # QSFP0
     ("qsfp0_refclk", 0,
         Subsignal("p", Pins("M11")),
@@ -73,8 +83,8 @@ class _CRG(Module):
 # GTYTestSoC ---------------------------------------------------------------------------------------
 
 class GTYTestSoC(SoCMini):
-    def __init__(self, platform, connector="qsfp0", linerate=2.5e9, use_qpll=False):
-        assert connector in ["qsfp0", "qsfp1"]
+    def __init__(self, platform, connector="pcie", linerate=2.5e9, use_qpll=False):
+        assert connector in ["pcie", "qsfp0", "qsfp1"]
         sys_clk_freq = int(125e6)
 
         # SoCMini ----------------------------------------------------------------------------------
@@ -97,7 +107,8 @@ class GTYTestSoC(SoCMini):
             i_I   = refclk_pads.p,
             i_IB  = refclk_pads.n,
             o_O   = refclk)
-        self.comb += platform.request(connector + "_fs").eq(0b01)
+        if connector in ["qsfp0", "qsfp1"]:
+            self.comb += platform.request(connector + "_fs").eq(0b01)
 
         # GTY PLL ----------------------------------------------------------------------------------
         if use_qpll:
@@ -177,7 +188,7 @@ def main():
     parser = argparse.ArgumentParser(description="LiteICLink transceiver example on XCU1525")
     parser.add_argument("--build",     action="store_true", help="Build bitstream")
     parser.add_argument("--load",      action="store_true", help="Load bitstream (to SRAM)")
-    parser.add_argument("--connector", default="qsfp0",     help="Connector: qsfp0 (default) or qsfp1")
+    parser.add_argument("--connector", default="pcie",      help="Connector: pcie (default), qsfp0 or qsfp1")
     parser.add_argument("--linerate",  default="2.5e9",     help="Linerate (default: 2.5e9)")
     parser.add_argument("--pll",       default="cpll",      help="PLL: cpll (default) or qpll")
     args = parser.parse_args()
