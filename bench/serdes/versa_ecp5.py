@@ -117,15 +117,15 @@ class SerDesTestSoC(SoCMini):
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
         channel = 1 if connector == "sma" else 0
-        self.submodules.serdes = serdes = SerDesECP5(serdes_pll, tx_pads, rx_pads,
+        self.submodules.serdes0 = serdes0 = SerDesECP5(serdes_pll, tx_pads, rx_pads,
             channel    = channel,
             data_width = 20)
-        serdes.add_stream_endpoints()
-        serdes.add_controls()
-        self.add_csr("serdes")
+        serdes0.add_stream_endpoints()
+        serdes0.add_controls()
+        self.add_csr("serdes0")
 
-        platform.add_period_constraint(serdes.txoutclk, 1e9/serdes.tx_clk_freq)
-        platform.add_period_constraint(serdes.rxoutclk, 1e9/serdes.rx_clk_freq)
+        platform.add_period_constraint(serdes0.txoutclk, 1e9/serdes0.tx_clk_freq)
+        platform.add_period_constraint(serdes0.rxoutclk, 1e9/serdes0.rx_clk_freq)
 
         # Test -------------------------------------------------------------------------------------
         counter = Signal(32)
@@ -133,22 +133,22 @@ class SerDesTestSoC(SoCMini):
 
         # K28.5 and slow counter --> TX
         self.comb += [
-            serdes.sink.valid.eq(1),
-            serdes.sink.ctrl.eq(0b1),
-            serdes.sink.data[:8].eq(K(28, 5)),
-            serdes.sink.data[8:].eq(counter[26:]),
+            serdes0.sink.valid.eq(1),
+            serdes0.sink.ctrl.eq(0b1),
+            serdes0.sink.data[:8].eq(K(28, 5)),
+            serdes0.sink.data[8:].eq(counter[26:]),
         ]
 
         # RX (slow counter) --> Leds
         counter = Signal(8)
         self.sync.rx += [
-            serdes.rx_align.eq(1),
-            serdes.source.ready.eq(1),
+            serdes0.rx_align.eq(1),
+            serdes0.source.ready.eq(1),
             # No word aligner, so look for K28.5 and redirect the other byte to the leds
-            If(serdes.source.data[0:8] == K(28, 5),
-                counter.eq(serdes.source.data[8:]),
+            If(serdes0.source.data[0:8] == K(28, 5),
+                counter.eq(serdes0.source.data[8:]),
             ).Else(
-                counter.eq(serdes.source.data[0:]),
+                counter.eq(serdes0.source.data[0:]),
             ),
             platform.request("user_led", 4).eq(~counter[0]),
             platform.request("user_led", 5).eq(~counter[1]),
