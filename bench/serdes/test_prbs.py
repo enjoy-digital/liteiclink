@@ -24,33 +24,47 @@ prbs_modes = {
 
 near_end_pma_loopback = 0b10
 
+# SerDes -------------------------------------------------------------------------------------------
+
+class SerDes:
+    def __init__(self, wb, n):
+        present = False
+        for k, v in wb.regs.d.items():
+            if f"serdes{n}_" in k:
+                setattr(self, k.replace(f"serdes{n}_", ""), v)
+                present = True
+        if not present:
+            raise ValueError(f"Serdes{n} not present in design")
+
 # PRBS Test ----------------------------------------------------------------------------------------
 
-def prbs_test(port=1234, mode="prbs7", loopback=False, duration=60):
+def prbs_test(port=1234, serdes=0, mode="prbs7", loopback=False, duration=60):
     wb = RemoteClient(port=port)
     wb.open()
-    wb.regs.ctrl_scratch.read()
+
+    print(f"Selecting Serdes{serdes}")
+    serdes = SerDes(wb, serdes)
 
     def serdes_reset():
         print("Reseting SerDes...")
-        if hasattr(wb.regs, "serdes_clock_aligner_disable"):
-            wb.regs.serdes_clock_aligner_disable.write(0)
-        wb.regs.serdes_tx_prbs_config.write(0)
-        wb.regs.serdes_rx_prbs_config.write(0)
+        if hasattr(serdes, "clock_aligner_disable"):
+            serdes.clock_aligner_disable.write(0)
+        serdes.tx_prbs_config.write(0)
+        serdes.rx_prbs_config.write(0)
         time.sleep(1)
 
     # Enable Loopback
     if loopback:
         print("Enabling SerDes loopback...")
-        wb.regs.serdes_loopback.write(near_end_pma_loopback)
+        serdes.loopback.write(near_end_pma_loopback)
 
     # Reset SerDes
     serdes_reset()
 
     # Configure PRBS
     print(f"Configuring SerDes for {mode.upper()}...")
-    wb.regs.serdes_tx_prbs_config.write(prbs_modes[mode])
-    wb.regs.serdes_rx_prbs_config.write(prbs_modes[mode])
+    serdes.tx_prbs_config.write(prbs_modes[mode])
+    serdes.rx_prbs_config.write(prbs_modes[mode])
 
     # Run PRBS/BER Test
     print("Running PRBS/BER test...")
@@ -65,7 +79,7 @@ def prbs_test(port=1234, mode="prbs7", loopback=False, duration=60):
             time.sleep(interval)
             duration_current += interval
             # Errors
-            errors_current = (wb.regs.serdes_rx_prbs_errors.read() - errors_last)
+            errors_current = (serdes.rx_prbs_errors.read() - errors_last)
             errors_total  += errors_current
             errors_last = errors_current
             # Log
@@ -82,7 +96,7 @@ def prbs_test(port=1234, mode="prbs7", loopback=False, duration=60):
     # Disable Loopback
     if loopback:
         print("Disabling SerDes loopback...")
-        wb.regs.serdes_loopback.write(0)
+        serdes.loopback.write(0)
 
     wb.close()
 
@@ -91,6 +105,7 @@ def prbs_test(port=1234, mode="prbs7", loopback=False, duration=60):
 def main():
     parser = argparse.ArgumentParser(description="LiteICLink PRBS/BER test utility")
     parser.add_argument("--port",      default="1234",      help="Host bind port")
+    parser.add_argument("--serdes",    default="0",         help="Serdes")
     parser.add_argument("--mode",      default="prbs7",     help="PRBS mode: prbs7 (default), prbs15 or prbs31")
     parser.add_argument("--duration",  default="60",        help="Test duration (default=10)")
     parser.add_argument("--loopback",  action="store_true", help="Enable internal loopback")
@@ -98,6 +113,7 @@ def main():
 
     prbs_test(
         port     = int(args.port, 0),
+        serdes   = int(args.serdes, 0),
         mode     = args.mode,
         loopback = args.loopback,
         duration = int(args.duration, 0)
