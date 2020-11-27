@@ -101,25 +101,28 @@ def prbs_test(port=1234, serdes=0, mode="prbs7", loopback=False, duration=60):
 
     # Run PRBS/BER Test
     print("Running PRBS/BER test...")
-    errors_current   = 0
+    first            = True
+    errors           = 0
     errors_last      = 0
     errors_total     = 0
     duration_current = 0
-    interval         = 1
+    interval         = 0.5
     try:
         while duration_current < duration:
             # Interval / Duration
             time.sleep(interval)
             duration_current += interval
             # Errors
-            errors_current = (serdes.rx_prbs_errors.read() - errors_last)
-            errors_total  += errors_current
-            errors_last = errors_current
+            errors        = serdes.rx_prbs_errors.read()
+            if not first:
+                errors_total += (errors - errors_last)
             # Log
-            print("Errors: {:10d} / Duration: {:3d}s / BER: {:1.3e} ".format(
-                errors_current,
+            print("Errors: {:10d} / Duration: {:5.2f}s / BER: {:1.3e} ".format(
+                errors - errors_last,
                 duration_current,
                 errors_total/(duration_current*5e9)))
+            first       = False
+            errors_last = errors
     except KeyboardInterrupt:
         pass
 
