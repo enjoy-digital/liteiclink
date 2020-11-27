@@ -17,9 +17,10 @@ from litex import RemoteClient
 # Constants ----------------------------------------------------------------------------------------
 
 prbs_modes = {
-    "prbs7":  0b01,
-    "prbs15": 0b10,
-    "prbs31": 0b11,
+    "disabled": 0b00,
+    "prbs7":    0b01,
+    "prbs15":   0b10,
+    "prbs31":   0b11,
 }
 
 near_end_pma_loopback = 0b10
@@ -28,6 +29,8 @@ near_end_pma_loopback = 0b10
 
 class SerDes:
     def __init__(self, wb, n):
+        self.n  = n
+        print(f"Creating Serdes{n}")
         present = False
         for k, v in wb.regs.d.items():
             if f"serdes{n}_" in k:
@@ -36,35 +39,65 @@ class SerDes:
         if not present:
             raise ValueError(f"Serdes{n} not present in design")
 
+    def measure_clocks(self):
+        if hasattr(self, "clock_latch"):
+            print(f"Measuring Serdes{self.n} frequencies...")
+            duration = 2
+            self.clock_latch.write(1)
+            tx_start = self.clock_tx_cycles.read()
+            rx_start = self.clock_rx_cycles.read()
+            time.sleep(duration)
+            self.clock_latch.write(1)
+            tx_end = self.clock_tx_cycles.read()
+            rx_end = self.clock_rx_cycles.read()
+            tx_cycles = (tx_end - tx_start) if tx_end > tx_start else (2**32 - tx_start) + tx_end
+            rx_cycles = (rx_end - rx_start) if rx_end > rx_start else (2**32 - rx_start) + rx_end
+            print("TX freq: {:10.3f}MHz".format((tx_cycles)/(duration*1e6)))
+            print("RX freq: {:10.3f}MHz".format((rx_cycles)/(duration*1e6)))
+
+    def configure(self, mode, loopback):
+        print(f"Configuring Serdes{self.n}...")
+
+        if hasattr(self, "clock_aligner_disable"):
+            printf("Disabling Clock Aligner")
+            self.clock_aligner_disable.write(0)
+
+        print(f"Setting PRBS to {mode.upper()} mode.")
+        self.tx_prbs_config.write(prbs_modes[mode])
+        self.rx_prbs_config.write(prbs_modes[mode])
+
+        if loopback:
+            print(f"Enabling Loopback.")
+            self.loopback.write(near_end_pma_loopback)
+
+    def unconfigure(self):
+        print(f"Unconfiguring Serdes{self.n}...")
+
+        if hasattr(self, "clock_aligner_disable"):
+            printf("Enabling Clock Aligner")
+            self.clock_aligner_disable.write(0)
+
+        print(f"Disabling PRBS.")
+        self.tx_prbs_config.write(prbs_modes["disabled"])
+        self.rx_prbs_config.write(prbs_modes["disabled"])
+
+        print(f"Disabling Loopback.")
+        self.loopback.write(0)
+
 # PRBS Test ----------------------------------------------------------------------------------------
 
 def prbs_test(port=1234, serdes=0, mode="prbs7", loopback=False, duration=60):
     wb = RemoteClient(port=port)
     wb.open()
 
-    print(f"Selecting Serdes{serdes}")
+    # Create SerDes
     serdes = SerDes(wb, serdes)
 
-    def serdes_reset():
-        print("Reseting SerDes...")
-        if hasattr(serdes, "clock_aligner_disable"):
-            serdes.clock_aligner_disable.write(0)
-        serdes.tx_prbs_config.write(0)
-        serdes.rx_prbs_config.write(0)
-        time.sleep(1)
+    # Measure SerDes clocks
+    serdes.measure_clocks()
 
-    # Enable Loopback
-    if loopback:
-        print("Enabling SerDes loopback...")
-        serdes.loopback.write(near_end_pma_loopback)
-
-    # Reset SerDes
-    serdes_reset()
-
-    # Configure PRBS
-    print(f"Configuring SerDes for {mode.upper()}...")
-    serdes.tx_prbs_config.write(prbs_modes[mode])
-    serdes.rx_prbs_config.write(prbs_modes[mode])
+    # Configure SerDes
+    serdes.configure(mode, loopback)
 
     # Run PRBS/BER Test
     print("Running PRBS/BER test...")
@@ -83,20 +116,15 @@ def prbs_test(port=1234, serdes=0, mode="prbs7", loopback=False, duration=60):
             errors_total  += errors_current
             errors_last = errors_current
             # Log
-            print("Errors: {:12d} / Duration: {:8d}s / BER: {:1.3e} ".format(
+            print("Errors: {:10d} / Duration: {:3d}s / BER: {:1.3e} ".format(
                 errors_current,
                 duration_current,
                 errors_total/(duration_current*5e9)))
     except KeyboardInterrupt:
         pass
 
-    # Reset SerDes
-    serdes_reset()
-
-    # Disable Loopback
-    if loopback:
-        print("Disabling SerDes loopback...")
-        serdes.loopback.write(0)
+    # Unconfigure Serdes
+    serdes.unconfigure()
 
     wb.close()
 
