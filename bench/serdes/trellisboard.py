@@ -85,7 +85,7 @@ class SerDesTestSoC(SoCMini):
 
         # CRG --------------------------------------------------------------------------------------
         refclk_from_pll = True
-        refclk_freq     = 100e6 if linerate == 2.5e9 else 200e6
+        refclk_freq     = {2.5e9: 100e6, 5e9: 200e6}[linerate]
         self.submodules.crg = _CRG(platform, sys_clk_freq, refclk_from_pll, refclk_freq)
 
         # SerDes RefClk ----------------------------------------------------------------------------
