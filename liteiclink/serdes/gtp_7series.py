@@ -1162,5 +1162,20 @@ class GTP(Module, AutoCSR):
         self.add_polarity_control()
         self.add_electrical_control()
 
+    def add_clock_cycles(self):
+        self.clock_latch    = CSRStorage(description="Write to latch TX/RX clock cycles")
+        self.clock_tx_cycles = CSRStorage(32, description="TX clock cycles")
+        self.clock_rx_cycles = CSRStorage(32, description="RX clock cycles")
+
+        tx_cycles = Signal(32)
+        rx_cycles = Signal(32)
+        self.sync.tx += tx_cycles.eq(tx_cycles + 1)
+        self.sync.rx += rx_cycles.eq(rx_cycles + 1)
+
+        self.sync += If(self.clock_latch.re,
+            self.clock_tx_cycles.storage.eq(tx_cycles),
+            self.clock_rx_cycles.storage.eq(rx_cycles),
+        )
+
     def do_finalize(self):
         self.specials += Instance("GTPE2_CHANNEL", **self.gtp_params)

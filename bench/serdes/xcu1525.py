@@ -139,6 +139,7 @@ class GTYTestSoC(SoCMini):
             setattr(self.submodules, f"serdes{i}", serdes)
             serdes.add_stream_endpoints()
             serdes.add_controls()
+            serdes.add_clock_cycles()
             self.add_csr(f"serdes{i}")
 
             platform.add_period_constraint(serdes.cd_tx.clk, 1e9/serdes.tx_clk_freq)
