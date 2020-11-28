@@ -113,7 +113,9 @@ def prbs_test(port=1234, serdes=0, mode="prbs7", loopback=False, duration=60):
             time.sleep(interval)
             duration_current += interval
             # Errors
-            errors        = serdes.rx_prbs_errors.read()
+            serdes.rx_prbs_pause.write(1)
+            errors = serdes.rx_prbs_errors.read()
+            serdes.rx_prbs_pause.write(0)
             if not first:
                 errors_total += (errors - errors_last)
             # Log

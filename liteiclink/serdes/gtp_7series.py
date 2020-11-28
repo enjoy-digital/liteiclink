@@ -179,6 +179,7 @@ class GTP(Module, AutoCSR):
         self.rx_ready       = Signal()
         self.rx_align       = Signal(reset=1)
         self.rx_prbs_config = Signal(2)
+        self.rx_prbs_pause  = Signal()
         self.rx_prbs_errors = Signal(32)
 
         # DRP
@@ -209,6 +210,7 @@ class GTP(Module, AutoCSR):
         tx_prbs_config         = Signal(2)
 
         rx_prbs_config = Signal(2)
+        rx_prbs_pause  = Signal()
         rx_prbs_errors = Signal(32)
 
         self.specials += [
@@ -220,7 +222,8 @@ class GTP(Module, AutoCSR):
 
         self.specials += [
             MultiReg(self.rx_prbs_config, rx_prbs_config, "rx"),
-            MultiReg(rx_prbs_errors, self.rx_prbs_errors, "sys"), # FIXME
+            MultiReg(self.rx_prbs_pause, rx_prbs_pause, "rx"),
+            MultiReg(rx_prbs_errors, self.rx_prbs_errors, "sys"),
         ]
 
         # # #
@@ -999,6 +1002,7 @@ class GTP(Module, AutoCSR):
         self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
+            self.rx_prbs.pause.eq(rx_prbs_pause),
             rx_prbs_errors.eq(self.rx_prbs.errors)
         ]
         for i in range(nwords):
@@ -1104,10 +1108,12 @@ class GTP(Module, AutoCSR):
                 ("``0b11``", "PRBS31 Enabled."),
             ])
         ])
+        self._rx_prbs_pause  = CSRStorage(description="Pause RX PRBS.")
         self._rx_prbs_errors = CSRStatus(32, description="RX PRBS errors.")
         self.comb += [
             self.tx_prbs_config.eq(self._tx_prbs_config.fields.config),
             self.rx_prbs_config.eq(self._rx_prbs_config.fields.config),
+            self.rx_prbs_pause.eq(self._rx_prbs_pause.storage),
             self._rx_prbs_errors.status.eq(self.rx_prbs_errors)
         ]
 
