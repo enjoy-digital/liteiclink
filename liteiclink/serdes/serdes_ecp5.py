@@ -566,6 +566,7 @@ class SerDesECP5(Module, AutoCSR):
         # SCI Reconfiguration ----------------------------------------------------------------------
         sci_reconfig = SerDesECP5SCIReconfig(self)
         self.submodules.sci_reconfig = sci_reconfig
+        self.comb += sci_reconfig.sci.dual_sel.eq(dual)
         self.comb += sci_reconfig.loopback.eq(self.loopback)
         self.comb += sci_reconfig.tx_idle.eq(self.tx_idle)
         self.comb += sci_reconfig.rx_polarity.eq(rx_polarity)
