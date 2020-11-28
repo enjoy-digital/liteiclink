@@ -172,11 +172,12 @@ def main():
     parser = argparse.ArgumentParser(description="LiteICLink transceiver example on Versa ECP5")
     parser.add_argument("--build",     action="store_true", help="Build bitstream")
     parser.add_argument("--load",      action="store_true", help="Load bitstream (to SRAM)")
+    parser.add_argument("--toolchain", default="trellis",   help="FPGA toolchain: trellis (default) or diamond")
     parser.add_argument("--connector", default="pcie",      help="Connector: pcie (default) or sma")
     parser.add_argument("--linerate",  default="2.5e9",     help="Linerate (default: 2.5e9)")
     args = parser.parse_args()
 
-    platform = versa_ecp5.Platform(toolchain="trellis")
+    platform = versa_ecp5.Platform(toolchain=args.toolchain)
     platform.add_extension(_transceiver_io)
     soc = SerDesTestSoC(platform,
         connector = args.connector,
@@ -187,7 +188,7 @@ def main():
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".svf"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()
