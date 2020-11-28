@@ -72,7 +72,6 @@ class _CRG(Module):
 class SerDesTestSoC(SoCMini):
     def __init__(self, platform, connector="pcie", linerate=2.5e9):
         assert connector in ["pcie", "sma"]
-        assert linerate in [2.5e9, 5e9]
         sys_clk_freq = int(100e6)
 
         # SoCMini ----------------------------------------------------------------------------------
@@ -84,8 +83,8 @@ class SerDesTestSoC(SoCMini):
         )
 
         # CRG --------------------------------------------------------------------------------------
-        refclk_from_pll = {2.5e9:    False, 5e9:  True}[linerate]
-        refclk_freq     = {2.5e9: 156.25e6, 5e9: 200e6}[linerate]
+        refclk_from_pll = {1.25e9: False,    2.5e9:    False, 5e9:  True}[linerate]
+        refclk_freq     = {1.25e9: 156.25e6, 2.5e9: 156.25e6, 5e9: 200e6}[linerate]
         self.submodules.crg = _CRG(platform, sys_clk_freq, refclk_from_pll, refclk_freq)
 
         # SerDes RefClk ----------------------------------------------------------------------------
