@@ -493,7 +493,7 @@ class SerDesECP5(Module, AutoCSR):
             # CHx_RXLSM? CHx_RXWA?
 
             # CHX RX — link state machine
-            i_CHX_FFC_SIGNAL_DETECT = rx_align,
+            i_CHX_FFC_SIGNAL_DETECT = rx_align & (self.rx_prbs_config == 0),
             o_CHX_FFS_LS_SYNC_STATUS= rx_lsm,
             p_CHX_ENABLE_CG_ALIGN   = "0b1",
             p_CHX_UDF_COMMA_MASK    = "0x3ff",  # compare all 10 bits
