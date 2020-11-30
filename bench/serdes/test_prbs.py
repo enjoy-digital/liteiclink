@@ -55,20 +55,20 @@ class SerDes:
             print("TX freq: {:10.3f}MHz".format((tx_cycles)/(duration*1e6)))
             print("RX freq: {:10.3f}MHz".format((rx_cycles)/(duration*1e6)))
 
-    def configure(self, mode, loopback):
+    def configure(self, mode, square_wave, loopback):
         print(f"Configuring Serdes{self.n}...")
 
         if hasattr(self, "clock_aligner_disable"):
             printf("Disabling Clock Aligner")
             self.clock_aligner_disable.write(0)
 
-        if mode == "square-wave":
+        if square_wave:
             print(f"Setting Square-wave mode.")
             self.tx_produce_square_wave.write(1)
-        else:
-            print(f"Setting PRBS to {mode.upper()} mode.")
-            self.tx_prbs_config.write(prbs_modes[mode])
-            self.rx_prbs_config.write(prbs_modes[mode])
+
+        print(f"Setting PRBS to {mode.upper()} mode.")
+        self.tx_prbs_config.write(prbs_modes[mode])
+        self.rx_prbs_config.write(prbs_modes[mode])
 
         if loopback:
             print(f"Enabling Loopback.")
@@ -78,20 +78,22 @@ class SerDes:
         print(f"Unconfiguring Serdes{self.n}...")
 
         if hasattr(self, "clock_aligner_disable"):
-            printf("Enabling Clock Aligner")
+            printf("Enabling Clock Aligner.")
             self.clock_aligner_disable.write(0)
 
-        print(f"Disabling PRBS / Square-wave.")
+        print("Disabling Square-wave.")
         self.tx_produce_square_wave.write(0)
+
+        print("Disabling PRBS.")
         self.tx_prbs_config.write(prbs_modes["disabled"])
         self.rx_prbs_config.write(prbs_modes["disabled"])
 
-        print(f"Disabling Loopback.")
+        print("Disabling Loopback.")
         self.loopback.write(0)
 
 # PRBS Test ----------------------------------------------------------------------------------------
 
-def prbs_test(csr_csv="csr.csv", port=1234, serdes=0, mode="prbs7", loopback=False, duration=60):
+def prbs_test(csr_csv="csr.csv", port=1234, serdes=0, mode="prbs7", square_wave=False, loopback=False, duration=60):
     wb = RemoteClient(csr_csv=csr_csv, port=port)
     wb.open()
 
@@ -102,7 +104,7 @@ def prbs_test(csr_csv="csr.csv", port=1234, serdes=0, mode="prbs7", loopback=Fal
     serdes.measure_clocks()
 
     # Configure SerDes
-    serdes.configure(mode, loopback)
+    serdes.configure(mode, square_wave, loopback)
 
     # Run PRBS/BER Test
     print("Running PRBS/BER test...")
@@ -145,18 +147,20 @@ def main():
     parser.add_argument("--csr-csv",     default="csr.csv",   help="CSR configuration file")
     parser.add_argument("--port",        default="1234",      help="Host bind port")
     parser.add_argument("--serdes",      default="0",         help="Serdes")
-    parser.add_argument("--mode",        default="prbs7",     help="PRBS mode: prbs7 (default), prbs15, prbs31 or square-wave")
+    parser.add_argument("--mode",        default="prbs7",     help="PRBS mode: prbs7 (default), prbs15 or prbs31")
+    parser.add_argument("--square-wave", action="store_true", help="Generate Square-wave on TX")
     parser.add_argument("--duration",    default="60",        help="Test duration (default=10)")
     parser.add_argument("--loopback",    action="store_true", help="Enable internal loopback")
     args = parser.parse_args()
 
     prbs_test(
-        csr_csv  = args.csr_csv,
-        port     = int(args.port, 0),
-        serdes   = int(args.serdes, 0),
-        mode     = args.mode,
-        loopback = args.loopback,
-        duration = int(args.duration, 0)
+        csr_csv     = args.csr_csv,
+        port        = int(args.port, 0),
+        serdes      = int(args.serdes, 0),
+        mode        = args.mode,
+        square_wave = args.square_wave,
+        loopback    = args.loopback,
+        duration    = int(args.duration, 0)
     )
 
 if __name__ == "__main__":
