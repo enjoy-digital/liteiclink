@@ -93,6 +93,7 @@ class SerDesTestSoC(SoCMini):
         # SerDes PLL -------------------------------------------------------------------------------
         serdes_pll = SerDesECP5PLL(refclk, refclk_freq=refclk_freq, linerate=linerate)
         self.submodules += serdes_pll
+        print(serdes_pll)
 
         # SerDes -----------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
@@ -168,6 +169,8 @@ def main():
         connector = args.connector,
         linerate  = float(args.linerate)
     )
+    import time
+    time.sleep(1) # Yosys/NextPnr are too fast, add sleep to see LiteX logs :)
     builder = Builder(soc, csr_csv="trellisboard.csv")
     builder.build(run=args.build)
 

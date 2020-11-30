@@ -83,8 +83,8 @@ class SerDesTestSoC(SoCMini):
         )
 
         # CRG --------------------------------------------------------------------------------------
-        refclk_from_pll = {1.25e9: False,    2.5e9:    False, 5e9:  True}[linerate]
-        refclk_freq     = {1.25e9: 156.25e6, 2.5e9: 156.25e6, 5e9: 200e6}[linerate]
+        refclk_from_pll = {1.5e9: True,   2.5e9:    False, 3.0e9:  True, 5e9:  True}[linerate]
+        refclk_freq     = {1.5e9: 75e6,   2.5e9: 156.25e6, 3.0e9: 150e6, 5e9: 200e6}[linerate]
         self.submodules.crg = _CRG(platform, sys_clk_freq, refclk_from_pll, refclk_freq)
 
         # SerDes RefClk ----------------------------------------------------------------------------
@@ -107,6 +107,7 @@ class SerDesTestSoC(SoCMini):
         # SerDes PLL -------------------------------------------------------------------------------
         serdes_pll = SerDesECP5PLL(refclk, refclk_freq=refclk_freq, linerate=linerate)
         self.submodules += serdes_pll
+        print(serdes_pll)
 
         # SerDes -----------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
@@ -195,7 +196,9 @@ def main():
         connector = args.connector,
         linerate  = float(args.linerate)
     )
-    builder = Builder(soc, csr_csv="versa_ecp5.csv")
+    import time
+    time.sleep(1) # Yosys/NextPnr are too fast, add sleep to see LiteX logs :)
+    builder = Builder(soc, csr_csv="csr.csv")
     builder.build(run=args.build)
 
     if args.load:
