@@ -23,16 +23,45 @@ class SerDesECP5PLL(Module):
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
-        for mult in [8, 10, 16, 20, 25]:
-            current_linerate = refclk_freq*mult
+        for m in [8, 10, 16, 20, 25]:
+            current_linerate = refclk_freq*m
             if current_linerate == linerate:
                 return {
-                    "mult":       mult,
-                    "refck_freq": refclk_freq,
-                    "linerate":   linerate,
+                    "clkin": refclk_freq,
+                    "m":               m,
+                    "linerate": linerate,
                 }
-        msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
+        msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate.\n"
+        msg += "Possible refclk frequencies:\n"
+        for m in [8, 10, 16, 20, 25]:
+            msg += " - {:3.2f}MHz\n".format(linerate/m*1e-6)
+        msg = msg[:-1]
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
+
+    def __repr__(self):
+        config = self.config
+        r = """
+SerDesECP5PLL
+==============
+  overview:
+  ---------
+       +-------------+
+       |   +-----+   |
+       |   |     |   |
+CLKIN +---->  M  +-----> LINERATE
+       |   |     |   |
+       |   +-----+   |
+       +-------------+
+
+  config:
+  -------
+    CLKIN    = {clkin}MHz
+    LINERATE = CLKIN x M = {clkin}MHz x {m}
+             = {linerate}GHz
+""".format(clkin    = config["clkin"]/1e6,
+           m        = config["m"],
+           linerate = config["linerate"]/1e9)
+        return r
 
 # SerDesSCI ----------------------------------------------------------------------------------------
 
@@ -369,7 +398,7 @@ class SerDesECP5(Module, AutoCSR):
                 20: "0b000",
                 16: "0b010",
                 10: "0b001",
-                 8: "0b011"}[pll.config["mult"]],
+                 8: "0b011"}[pll.config["m"]],
             p_D_TX_MAX_RATE         = "5.0",    # 5.0 Gbps
             p_D_TX_VCO_CK_DIV       = {
                 32: "0b111",
