@@ -62,9 +62,13 @@ class SerDes:
             printf("Disabling Clock Aligner")
             self.clock_aligner_disable.write(0)
 
-        print(f"Setting PRBS to {mode.upper()} mode.")
-        self.tx_prbs_config.write(prbs_modes[mode])
-        self.rx_prbs_config.write(prbs_modes[mode])
+        if mode == "square-wave":
+            print(f"Setting Square-wave mode.")
+            self.tx_produce_square_wave.write(1)
+        else:
+            print(f"Setting PRBS to {mode.upper()} mode.")
+            self.tx_prbs_config.write(prbs_modes[mode])
+            self.rx_prbs_config.write(prbs_modes[mode])
 
         if loopback:
             print(f"Enabling Loopback.")
@@ -77,7 +81,8 @@ class SerDes:
             printf("Enabling Clock Aligner")
             self.clock_aligner_disable.write(0)
 
-        print(f"Disabling PRBS.")
+        print(f"Disabling PRBS / Square-wave.")
+        self.tx_produce_square_wave.write(0)
         self.tx_prbs_config.write(prbs_modes["disabled"])
         self.rx_prbs_config.write(prbs_modes["disabled"])
 
@@ -137,11 +142,11 @@ def prbs_test(port=1234, serdes=0, mode="prbs7", loopback=False, duration=60):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteICLink PRBS/BER test utility")
-    parser.add_argument("--port",      default="1234",      help="Host bind port")
-    parser.add_argument("--serdes",    default="0",         help="Serdes")
-    parser.add_argument("--mode",      default="prbs7",     help="PRBS mode: prbs7 (default), prbs15 or prbs31")
-    parser.add_argument("--duration",  default="60",        help="Test duration (default=10)")
-    parser.add_argument("--loopback",  action="store_true", help="Enable internal loopback")
+    parser.add_argument("--port",        default="1234",      help="Host bind port")
+    parser.add_argument("--serdes",      default="0",         help="Serdes")
+    parser.add_argument("--mode",        default="prbs7",     help="PRBS mode: prbs7 (default), prbs15, prbs31 or square-wave")
+    parser.add_argument("--duration",    default="60",        help="Test duration (default=10)")
+    parser.add_argument("--loopback",    action="store_true", help="Enable internal loopback")
     args = parser.parse_args()
 
     prbs_test(
