@@ -91,6 +91,7 @@ class SerDesECP5SCI(Module):
              i_D_SCIWSTN   = sci_wrn,
         )
 
+@ResetInserter()
 class SerDesECP5SCIReconfig(Module):
     def __init__(self, serdes):
         self.loopback    = Signal()
@@ -182,68 +183,63 @@ class SerDesECP5SCIReconfig(Module):
         self.sync += last_fsm_state.eq(fsm.state)
         self.comb += first.eq(fsm.state != last_fsm_state)
 
-# SerdesRXInit -------------------------------------------------------------------------------------
+# SerdesInit ---------------------------------------------------------------------------------------
 
-class SerdesRXInit(Module):
-    def __init__(self, tx_lol, rx_lol, rx_los, rx_lsm):
-        self.rrst        = Signal()
-        self.lane_rx_rst = Signal()
+class SerdesInit(Module):
+    def __init__(self, tx_lol, rx_lol, rx_los):
+        self.tx_rst  = Signal()
+        self.rx_rst  = Signal()
+        self.pcs_rst = Signal()
+        self.ready   = Signal()
 
         # # #
 
-        _tx_lol      = Signal()
-        _rx_lol      = Signal()
-        _rx_los      = Signal()
-        _rx_lsm      = Signal()
-        _rx_lsm_seen = Signal()
-        self.specials += [
-            MultiReg(tx_lol, _tx_lol),
-            MultiReg(rx_lol, _rx_lol),
-            MultiReg(rx_los, _rx_los),
-            MultiReg(rx_lsm, _rx_lsm),
-        ]
+        self.tx_lol = _tx_lol = Signal()
+        self.rx_lol = _rx_lol = Signal()
+        self.rx_los = _rx_los = Signal()
+        self.specials += MultiReg(tx_lol, _tx_lol)
+        self.specials += MultiReg(rx_lol, _rx_lol)
 
-        timer = WaitTimer(int(4e5))
+        timer = WaitTimer(1024)
         self.submodules += timer
+        timer.wait.reset = 1
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
-        fsm.act("IDLE",
-            self.lane_rx_rst.eq(1),
-            If(~_tx_lol,
-                NextState("RESET-ALL")
-            )
-        )
+        self.submodules.fsm = fsm = FSM(reset_state="RESET-ALL")
         fsm.act("RESET-ALL",
-            self.rrst.eq(1),
-            self.lane_rx_rst.eq(1),
-            NextState("RESET-PCS")
-        )
-        fsm.act("RESET-PCS",
-            self.lane_rx_rst.eq(1),
-            timer.wait.eq(~_rx_lol & ~_rx_los),
+            # Reset TX Serdes, RX Serdes and PCS.
+            self.tx_rst.eq(1),
+            self.rx_rst.eq(1),
+            self.pcs_rst.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
-                NextValue(_rx_lsm_seen, 0),
-                NextState("CHECK-LSM")
+                NextState("RESET-RX-PCS-WAIT-TX-PLL-LOCK")
             )
         )
-        fsm.act("CHECK-LSM",
-            NextValue(_rx_lsm_seen, _rx_lsm_seen | _rx_lsm),
-            timer.wait.eq(1),
-            If(_rx_lsm_seen & ~_rx_lsm,
-                NextState("IDLE")
-            ),
-            If(timer.done,
-                If(_rx_lsm,
-                    NextState("READY")
-                ).Else(
-                    NextState("IDLE")
-                )
+        fsm.act("RESET-RX-PCS-WAIT-TX-PLL-LOCK",
+            # Reset RX Serdes and PCS, wait for TX PLL lock.
+            self.rx_rst.eq(1),
+            self.pcs_rst.eq(1),
+            If(timer.done & ~_tx_lol,
+                timer.wait.eq(0),
+                NextState("RESET-PCS-WAIT-RX-CDR-LOCK")
+            )
+        )
+        fsm.act("RESET-PCS-WAIT-RX-CDR-LOCK",
+            # Reset PCS, wait for RX CDR lock.
+            self.pcs_rst.eq(1),
+            If(timer.done & ~_rx_lol,
+                timer.wait.eq(0),
+                NextState("READY")
             )
         )
         fsm.act("READY",
-            If(_tx_lol | _rx_lol | _rx_los,
-                NextState("IDLE")
+            # Ready
+            self.ready.eq(1),
+            If(_tx_lol | _rx_lol,
+                NextState("RESET-ALL")
+            ),
+            If(_rx_los,
+                NextState("RESET-RX-PCS-WAIT-TX-PLL-LOCK")
             )
         )
 
@@ -335,20 +331,19 @@ class SerDesECP5(Module, AutoCSR):
             MultiReg(rx_prbs_errors, self.rx_prbs_errors, "sys"),
         ]
 
+        # DCU init ---------------------------------------------------------------------------------
+        self.submodules.init = init = SerdesInit(tx_lol, rx_lol, rx_los)
+
         # Clocking ---------------------------------------------------------------------------------
         self.clock_domains.cd_tx = ClockDomain()
         self.comb += self.cd_tx.clk.eq(self.txoutclk)
-        self.specials += AsyncResetSynchronizer(self.cd_tx, ResetSignal("sys"))
-        self.specials += MultiReg(~self.cd_tx.rst, self.tx_ready)
+        self.specials += AsyncResetSynchronizer(self.cd_tx, ~init.ready)
+        self.comb += self.tx_ready.eq(init.ready)
 
         self.clock_domains.cd_rx = ClockDomain()
         self.comb += self.cd_rx.clk.eq(self.rxoutclk)
-        self.specials += AsyncResetSynchronizer(self.cd_rx, ResetSignal("sys"))
-        self.specials += MultiReg(~self.cd_rx.rst, self.rx_ready)
-
-
-        # DCU init ---------------------------------------------------------------------------------
-        self.submodules.rx_init = rx_init = SerdesRXInit(tx_lol, rx_lol, rx_los, rx_lsm)
+        self.specials += AsyncResetSynchronizer(self.cd_rx, ~init.ready)
+        self.comb += self.rx_ready.eq(init.ready)
 
         # DCU instance -----------------------------------------------------------------------------
         self.serdes_params = dict(
@@ -424,8 +419,8 @@ class SerDesECP5(Module, AutoCSR):
             i_CHX_FFC_RXPWDNB       = 1,
 
             # CHX RX ­— reset
-            i_CHX_FFC_RRST          = ~self.rx_enable | rx_init.rrst,
-            i_CHX_FFC_LANE_RX_RST   = ~self.rx_enable | rx_init.lane_rx_rst,
+            i_CHX_FFC_RRST          = ~self.rx_enable | init.rx_rst,
+            i_CHX_FFC_LANE_RX_RST   = ~self.rx_enable | init.pcs_rst,
 
             # CHX RX ­— input
             i_CHX_HDINP             = rx_pads.p,
@@ -521,8 +516,8 @@ class SerDesECP5(Module, AutoCSR):
             i_CHX_FFC_TXPWDNB       = 1,
 
             # CHX TX ­— reset
-            i_D_FFC_TRST            = ~self.tx_enable,
-            i_CHX_FFC_LANE_TX_RST   = ~self.tx_enable,
+            i_D_FFC_TRST            = ~self.tx_enable | init.tx_rst,
+            i_CHX_FFC_LANE_TX_RST   = ~self.tx_enable | init.pcs_rst,
 
             # CHX TX ­— output
             o_CHX_HDOUTP            = tx_pads.p,
@@ -566,6 +561,7 @@ class SerDesECP5(Module, AutoCSR):
         # SCI Reconfiguration ----------------------------------------------------------------------
         sci_reconfig = SerDesECP5SCIReconfig(self)
         self.submodules.sci_reconfig = sci_reconfig
+        self.comb += sci_reconfig.reset.eq(~self.init.ready)
         self.comb += sci_reconfig.sci.dual_sel.eq(dual)
         self.comb += sci_reconfig.loopback.eq(self.loopback)
         self.comb += sci_reconfig.tx_idle.eq(self.tx_idle)
