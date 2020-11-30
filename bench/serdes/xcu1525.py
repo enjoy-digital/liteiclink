@@ -192,7 +192,7 @@ def main():
         linerate  = float(args.linerate),
         use_qpll  = args.pll == "qpll"
     )
-    builder = Builder(soc, csr_csv="csr.csv")
+    builder = Builder(soc, csr_csv="xcu1525.csv")
     builder.build(run=args.build)
 
     if args.load:

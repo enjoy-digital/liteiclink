@@ -176,7 +176,7 @@ def main():
         connector = args.connector,
         linerate  = float(args.linerate)
     )
-    builder = Builder(soc, csr_csv="csr.csv")
+    builder = Builder(soc, csr_csv="kcu105.csv")
     builder.build(run=args.build)
 
     if args.load:

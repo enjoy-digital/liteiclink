@@ -182,7 +182,7 @@ def main():
         connector = args.connector,
         linerate  = float(args.linerate)
     )
-    builder = Builder(soc, csr_csv="csr.csv")
+    builder = Builder(soc, csr_csv="versa_ecp5.csv")
     builder.build(run=args.build)
 
     if args.load:

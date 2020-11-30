@@ -91,8 +91,8 @@ class SerDes:
 
 # PRBS Test ----------------------------------------------------------------------------------------
 
-def prbs_test(port=1234, serdes=0, mode="prbs7", loopback=False, duration=60):
-    wb = RemoteClient(port=port)
+def prbs_test(csr_csv="csr.csv", port=1234, serdes=0, mode="prbs7", loopback=False, duration=60):
+    wb = RemoteClient(csr_csv=csr_csv, port=port)
     wb.open()
 
     # Create SerDes
@@ -142,6 +142,7 @@ def prbs_test(port=1234, serdes=0, mode="prbs7", loopback=False, duration=60):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteICLink PRBS/BER test utility")
+    parser.add_argument("--csr-csv",     default="csr.csv",   help="CSR configuration file")
     parser.add_argument("--port",        default="1234",      help="Host bind port")
     parser.add_argument("--serdes",      default="0",         help="Serdes")
     parser.add_argument("--mode",        default="prbs7",     help="PRBS mode: prbs7 (default), prbs15, prbs31 or square-wave")
@@ -150,6 +151,7 @@ def main():
     args = parser.parse_args()
 
     prbs_test(
+        csr_csv  = args.csr_csv,
         port     = int(args.port, 0),
         serdes   = int(args.serdes, 0),
         mode     = args.mode,
