@@ -165,6 +165,19 @@ class SerDesTestSoC(SoCMini):
         self.sync.tx += tx_counter.eq(rx_counter + 1)
         self.comb += platform.request("user_led", 2).eq(tx_counter[26])
 
+        # Analyzer ---------------------------------------------------------------------------------
+        from litescope import LiteScopeAnalyzer
+        self.submodules.analyzer = LiteScopeAnalyzer([
+            serdes0.init.fsm,
+            serdes0.init.tx_lol,
+            serdes0.init.rx_lol,
+            ], depth=512)
+        self.add_csr("analyzer")
+
+        # Debug ------------------------------------------------------------------------------------
+        self.platform.add_extension([("debug", 0, Pins("X3:4"), IOStandard("LVCMOS33"))])
+        self.comb += platform.request("debug").eq(serdes0.init.rx_lol)
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
