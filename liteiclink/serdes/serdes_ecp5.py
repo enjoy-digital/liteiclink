@@ -23,18 +23,29 @@ class SerDesECP5PLL(Module):
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
-        for m in [8, 10, 16, 20, 25]:
-            current_linerate = refclk_freq*m
-            if current_linerate == linerate:
-                return {
-                    "clkin": refclk_freq,
-                    "m":               m,
-                    "linerate": linerate,
-                }
-        msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate.\n"
+        multipliers = [8, 10, 16, 20]
+        if refclk_freq == 100e6:
+            multipliers.append(25) # x25 for 100MHz refclk only.
+        dividers = [1, 2, 4, 8, 16, 32]
+        for d in reversed(dividers): # Use highest possible VCO.
+            for m in multipliers:
+                vco_freq = refclk_freq*m
+                current_linerate = vco_freq/d
+                if current_linerate == linerate:
+                    return {
+                        "clkin": refclk_freq,
+                        "m":               m,
+                        "d":               d,
+                        "vco_freq": vco_freq,
+                        "linerate": linerate,
+                    }
+        msg = "No config found for {:3.4f} MHz refclk / {:3.4f} Gbps linerate.\n"
         msg += "Possible refclk frequencies:\n"
-        for m in [8, 10, 16, 20, 25]:
-            msg += " - {:3.2f}MHz\n".format(linerate/m*1e-6)
+        for m in multipliers:
+            for d in dividers:
+                f = linerate*d/m
+                if f <= 250e6:
+                    msg += " - {:3.4f}MHz\n".format(linerate*d/m*1e-6)
         msg = msg[:-1]
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
 
@@ -45,21 +56,24 @@ SerDesECP5PLL
 ==============
   overview:
   ---------
-       +-------------+
-       |   +-----+   |
-       |   |     |   |
-CLKIN +---->  M  +-----> LINERATE
-       |   |     |   |
-       |   +-----+   |
-       +-------------+
+       +---------------------------+
+       | +-----+  +-----+  +-----+ |
+       | |     |  |     |  |     | |
+CLKIN +-->  M  +--> VCO +--> /D  +--> LINERATE
+       | |     |  |     |  |     | |
+       | +-----+  +-----+  +-----+ |
+       +---------------------------+
 
   config:
   -------
     CLKIN    = {clkin}MHz
-    LINERATE = CLKIN x M = {clkin}MHz x {m}
+    VCO      = CLKIN x M = {clkin}MHz x {m} = {vco_freq}GHz
+    LINERATE = VCO / D   = {vco_freq}GHz / {d}
              = {linerate}GHz
 """.format(clkin    = config["clkin"]/1e6,
            m        = config["m"],
+           d        = config["d"],
+           vco_freq = config["vco_freq"]/1e9,
            linerate = config["linerate"]/1e9)
         return r
 
@@ -406,7 +420,7 @@ class SerDesECP5(Module, AutoCSR):
                  8: "0b101",
                  4: "0b100",
                  2: "0b010",
-                 1: "0b000"}[1],                # DIV/1
+                 1: "0b000"}[pll.config["d"]],
             p_D_BITCLK_LOCAL_EN     = "0b1",    # Use clock from local PLL
 
             # DCU ­— unknown
@@ -480,7 +494,7 @@ class SerDesECP5(Module, AutoCSR):
                  8: "0b101",
                  4: "0b100",
                  2: "0b010",
-                 1: "0b000"}[1],                # DIV/1
+                 1: "0b000"}[pll.config["d"]],
             p_CHX_RX_GEAR_MODE      = "0b1",    # 1:2 gearbox
             p_CHX_FF_RX_H_CLK_EN    = "0b1",    # enable  DIV/2 output clock
             p_CHX_FF_RX_F_CLK_DIS   = "0b1",    # disable DIV/1 output clock
