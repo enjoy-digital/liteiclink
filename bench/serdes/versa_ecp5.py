@@ -83,8 +83,19 @@ class SerDesTestSoC(SoCMini):
         )
 
         # CRG --------------------------------------------------------------------------------------
-        refclk_from_pll = {1.5e9: True,   2.5e9:    False, 3.0e9:  True, 5e9:  True}[linerate]
-        refclk_freq     = {1.5e9: 75e6,   2.5e9: 156.25e6, 3.0e9: 150e6, 5e9: 200e6}[linerate]
+        refclk_from_pll = {
+            1.25e9:   False, # SGMII
+            1.5e9:    True,  # SATA Gen1
+            2.5e9:    False, # PCIe Gen1
+            3.0e9:    True,  # SATA Gen2
+            5.0e9:    True,  # PCIe Gen2, USB3.
+        }[linerate]
+        refclk_freq = {
+            1.25e9:   156.25e6,
+            1.5e9:    150e6,
+            2.5e9:    156.25e6,
+            3.0e9:    150e6,
+            5.0e9:    250e6}[linerate]
         self.submodules.crg = _CRG(platform, sys_clk_freq, refclk_from_pll, refclk_freq)
 
         # SerDes RefClk ----------------------------------------------------------------------------
