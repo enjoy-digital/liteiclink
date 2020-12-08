@@ -165,10 +165,12 @@ class SerWBSoC(SoCCore):
 
         self.comb += platform.trace.eq(1)
 
-        # SoCCore ----------------------------------------------------------------------------------
-        SoCCore.__init__(self, platform, clk_freq=sys_clk_freq,
-            integrated_rom_size = 0x10000,
-            uart_name           = "sim")
+        # SoCMini ----------------------------------------------------------------------------------
+        SoCMini.__init__(self, platform, clk_freq=sys_clk_freq,
+            ident         = "LiteICLink SerWB bench simulation",
+            ident_version = True,
+            with_uart     = True,
+            uart_name     = "sim")
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("sys_clk"))
@@ -234,7 +236,6 @@ class SerWBSoC(SoCCore):
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
         self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
 
-
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -254,7 +255,7 @@ def main():
     soc     = SerWBMinSoC() if args.min else SerWBSoC()
     builder = Builder(soc, csr_csv="csr.csv")
     builder.build(sim_config=sim_config,
-        trace       = True,
+        trace       = args.trace,
         trace_start = int(args.trace_start),
         trace_end   = int(args.trace_end),
     )
