@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 """
@@ -21,182 +21,9 @@ from migen import *
 from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
 
-from liteiclink.serwb.packet import *
+from liteiclink.serwb.packet import user_description
 
-
-class _Packetizer(Module):
-    def __init__(self, sink_description, source_description, header):
-        self.sink = sink = stream.Endpoint(sink_description)
-        self.source = source = stream.Endpoint(source_description)
-        self.header = Signal(header.length*8)
-
-        # # #
-
-        dw = len(self.sink.data)
-
-        header_reg = Signal(header.length*8, reset_less=True)
-        header_words = (header.length*8)//dw
-        load = Signal()
-        shift = Signal()
-        counter = Signal(max=max(header_words, 2))
-        counter_reset = Signal()
-        counter_ce = Signal()
-        self.sync += \
-            If(counter_reset,
-                counter.eq(0)
-            ).Elif(counter_ce,
-                counter.eq(counter + 1)
-            )
-
-        self.comb += header.encode(sink, self.header)
-        if header_words == 1:
-            self.sync += [
-                If(load,
-                    header_reg.eq(self.header)
-                )
-            ]
-        else:
-            self.sync += [
-                If(load,
-                    header_reg.eq(self.header)
-                ).Elif(shift,
-                    header_reg.eq(Cat(header_reg[dw:], Signal(dw)))
-                )
-            ]
-
-        fsm = FSM(reset_state="IDLE")
-        self.submodules += fsm
-
-        if header_words == 1:
-            idle_next_state = "COPY"
-        else:
-            idle_next_state = "SEND_HEADER"
-
-        fsm.act("IDLE",
-            sink.ready.eq(1),
-            counter_reset.eq(1),
-            If(sink.valid,
-                sink.ready.eq(0),
-                source.valid.eq(1),
-                source.last.eq(0),
-                source.data.eq(self.header[:dw]),
-                If(source.valid & source.ready,
-                    load.eq(1),
-                    NextState(idle_next_state)
-                )
-            )
-        )
-        if header_words != 1:
-            fsm.act("SEND_HEADER",
-                source.valid.eq(1),
-                source.last.eq(0),
-                source.data.eq(header_reg[dw:2*dw]),
-                If(source.valid & source.ready,
-                    shift.eq(1),
-                    counter_ce.eq(1),
-                    If(counter == header_words-2,
-                        NextState("COPY")
-                    )
-                )
-            )
-        if hasattr(sink, "error"):
-            self.comb += source.error.eq(sink.error)
-        fsm.act("COPY",
-            source.valid.eq(sink.valid),
-            source.last.eq(sink.last),
-            source.data.eq(sink.data),
-            If(source.valid & source.ready,
-                sink.ready.eq(1),
-                If(source.last,
-                    NextState("IDLE")
-                )
-            )
-        )
-
-
-class _Depacketizer(Module):
-    def __init__(self, sink_description, source_description, header):
-        self.sink = sink = stream.Endpoint(sink_description)
-        self.source = source = stream.Endpoint(source_description)
-        self.header = Signal(header.length*8)
-
-        # # #
-
-        dw = len(sink.data)
-
-        header_reg = Signal(header.length*8, reset_less=True)
-        header_words = (header.length*8)//dw
-
-        shift = Signal()
-        counter = Signal(max=max(header_words, 2))
-        counter_reset = Signal()
-        counter_ce = Signal()
-        self.sync += \
-            If(counter_reset,
-                counter.eq(0)
-            ).Elif(counter_ce,
-                counter.eq(counter + 1)
-            )
-
-        if header_words == 1:
-            self.sync += \
-                If(shift,
-                    header_reg.eq(sink.data)
-                )
-        else:
-            self.sync += \
-                If(shift,
-                    header_reg.eq(Cat(header_reg[dw:], sink.data))
-                )
-        self.comb += self.header.eq(header_reg)
-
-        fsm = FSM(reset_state="IDLE")
-        self.submodules += fsm
-
-        if header_words == 1:
-            idle_next_state = "COPY"
-        else:
-            idle_next_state = "RECEIVE_HEADER"
-
-        fsm.act("IDLE",
-            sink.ready.eq(1),
-            counter_reset.eq(1),
-            If(sink.valid,
-                shift.eq(1),
-                NextState(idle_next_state)
-            )
-        )
-        if header_words != 1:
-            fsm.act("RECEIVE_HEADER",
-                sink.ready.eq(1),
-                If(sink.valid,
-                    counter_ce.eq(1),
-                    shift.eq(1),
-                    If(counter == header_words-2,
-                        NextState("COPY")
-                    )
-                )
-            )
-        no_payload = Signal()
-        self.sync += \
-            If(fsm.before_entering("COPY"),
-                no_payload.eq(sink.last)
-            )
-
-        if hasattr(sink, "error"):
-            self.comb += source.error.eq(sink.error)
-        self.comb += [
-            source.last.eq(sink.last | no_payload),
-            source.data.eq(sink.data),
-            header.decode(self.header, source)
-        ]
-        fsm.act("COPY",
-            sink.ready.eq(source.ready),
-            source.valid.eq(sink.valid | no_payload),
-            If(source.valid & source.ready & source.last,
-                NextState("IDLE")
-            )
-        )
+from litex.soc.interconnect.packet import *
 
 
 etherbone_magic = 0x4e6f
@@ -281,9 +108,9 @@ def etherbone_mmap_description(dw):
 
 # etherbone packet
 
-class _EtherbonePacketPacketizer(_Packetizer):
+class _EtherbonePacketPacketizer(Packetizer):
     def __init__(self):
-        _Packetizer.__init__(self,
+        Packetizer.__init__(self,
             etherbone_packet_description(32),
             user_description(32),
             etherbone_packet_header)
@@ -327,9 +154,9 @@ class _EtherbonePacketTX(Module):
         )
 
 
-class _EtherbonePacketDepacketizer(_Depacketizer):
+class _EtherbonePacketDepacketizer(Depacketizer):
     def __init__(self):
-        _Depacketizer.__init__(self,
+        Depacketizer.__init__(self,
             user_description(32),
             etherbone_packet_description(32),
             etherbone_packet_header)
@@ -403,17 +230,17 @@ class _EtherbonePacket(Module):
 
 # etherbone record
 
-class _EtherboneRecordPacketizer(_Packetizer):
+class _EtherboneRecordPacketizer(Packetizer):
     def __init__(self):
-        _Packetizer.__init__(self,
+        Packetizer.__init__(self,
             etherbone_record_description(32),
             etherbone_packet_user_description(32),
             etherbone_record_header)
 
 
-class _EtherboneRecordDepacketizer(_Depacketizer):
+class _EtherboneRecordDepacketizer(Depacketizer):
     def __init__(self):
-        _Depacketizer.__init__(self,
+        Depacketizer.__init__(self,
             etherbone_packet_user_description(32),
             etherbone_record_description(32),
             etherbone_record_header)
