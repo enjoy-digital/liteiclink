@@ -23,6 +23,8 @@ prbs_modes = {
     "prbs31":   0b11,
 }
 
+prbs_pause = 0b100
+
 near_end_pma_loopback = 0b10
 
 # SerDes -------------------------------------------------------------------------------------------
@@ -120,9 +122,9 @@ def prbs_test(csr_csv="csr.csv", port=1234, serdes=0, mode="prbs7", square_wave=
             time.sleep(interval)
             duration_current += interval
             # Errors
-            serdes.rx_prbs_pause.write(1)
+            serdes.rx_prbs_config.write(prbs_pause | prbs_modes[mode])
             errors = serdes.rx_prbs_errors.read()
-            serdes.rx_prbs_pause.write(0)
+            serdes.rx_prbs_config.write(prbs_modes[mode])
             if not first:
                 errors_total += (errors - errors_last)
             # Log

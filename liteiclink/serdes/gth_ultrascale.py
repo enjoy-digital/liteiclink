@@ -966,14 +966,14 @@ class GTH(Module, AutoCSR):
                 ("``0b01``", "PRBS7  Enabled."),
                 ("``0b10``", "PRBS15 Enabled."),
                 ("``0b11``", "PRBS31 Enabled."),
-            ])
+            ]),
+            CSRField("pause", size=1, description="Pause RX PRBS."),
         ])
-        self._rx_prbs_pause  = CSRStorage(description="Pause RX PRBS.")
         self._rx_prbs_errors = CSRStatus(32, description="RX PRBS errors.")
         self.comb += [
             self.tx_prbs_config.eq(self._tx_prbs_config.fields.config),
             self.rx_prbs_config.eq(self._rx_prbs_config.fields.config),
-            self.rx_prbs_pause.eq(self._rx_prbs_pause.storage),
+            self.rx_prbs_pause.eq(self._rx_prbs_config.fields.pause),
             self._rx_prbs_errors.status.eq(self.rx_prbs_errors)
         ]
 
