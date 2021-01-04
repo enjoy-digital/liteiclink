@@ -16,7 +16,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from litex.soc.interconnect.csr import *
 
 from litex.build.generic_platform import *
-from litex.boards.platforms import nexys_video as nexys
+from litex_boards.platforms import nexys_video as nexys
 
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.soc_core import *
