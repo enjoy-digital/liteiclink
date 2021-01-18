@@ -42,8 +42,8 @@ class SerDesECP5PLL(Module):
         msg = "No config found for {:3.4f} MHz refclk / {:3.4f} Gbps linerate.\n"
         msg += "Possible refclk frequencies:\n"
         refclks = []
-        for m in multipliers:
-            for d in dividers:
+        for d in dividers:
+            for m in multipliers:
                 f = linerate*d/m
                 if f <= 250e6 and f not in refclks:
                     refclks.append(f)
