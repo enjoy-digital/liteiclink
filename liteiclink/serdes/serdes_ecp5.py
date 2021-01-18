@@ -125,9 +125,9 @@ class SerDesECP5SCI(Module):
         ]
 
         serdes.serdes_params.update(
-             **{"i_D_SCIWDATA%d" % n: sci_wdata[n] for n in range(8)},
-             **{"i_D_SCIADDR%d"   % n: sci_addr[n]   for n in range(6)},
-             **{"o_D_SCIRDATA%d" % n: sci_rdata[n] for n in range(8)},
+             **{"i_D_SCIWDATA%d"  % n: sci_wdata[n] for n in range(8)},
+             **{"i_D_SCIADDR%d"   % n: sci_addr[n]  for n in range(6)},
+             **{"o_D_SCIRDATA%d"  % n: sci_rdata[n] for n in range(8)},
              i_D_SCIENAUX  = self.dual_sel,
              i_D_SCISELAUX = self.dual_sel,
              i_CHX_SCIEN   = self.chan_sel,
@@ -137,13 +137,22 @@ class SerDesECP5SCI(Module):
         )
 
 @ResetInserter()
-class SerDesECP5SCIReconfig(Module):
+class SerDesECP5SCIReconfig(Module, AutoCSR):
     def __init__(self, serdes):
         self.loopback    = Signal()
         self.rx_polarity = Signal()
         self.tx_idle     = Signal()
         self.tx_polarity = Signal()
         self.rx_cdr_hold = Signal()
+
+        self.pause = CSRStorage(1, description="Pause Hardware re-configuration")
+        self.sel   = CSRStorage(1, description="Channel/Dual selection: 0 Channel / 1 Dual")
+        self.we    = CSRStorage(1, description="Do a Write access")
+        self.re    = CSRStorage(1, description="Do a Read access")
+        self.done  = CSRStatus(    description="Access is Done")
+        self.adr   = CSRStorage(6, description="Access address")
+        self.dat_w = CSRStorage(8, description="Access Write data")
+        self.dat_r = CSRStatus(8,  description="Access Read data")
 
         # # #
 
@@ -155,7 +164,39 @@ class SerDesECP5SCIReconfig(Module):
 
         self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
-            NextState("READ-CH-01"),
+            self.done.status.eq(1),
+            If(self.pause.storage,
+                If(self.we.re,
+                    NextState("WRITE")
+                ),
+                If(self.re.re,
+                    NextState("READ")
+                )
+            ).Else(
+                NextState("READ-CH-01")
+            )
+        )
+        fsm.act("READ",
+            sci.dual_sel.eq(self.sel.storage == 1),
+            sci.chan_sel.eq(self.sel.storage == 0),
+            sci.re.eq(1),
+            sci.adr.eq(self.adr.storage),
+            If(~first & sci.done,
+                sci.re.eq(0),
+                NextValue(self.dat_r.status, sci.dat_r),
+                NextState("IDLE"),
+            )
+        )
+        fsm.act("WRITE",
+            sci.dual_sel.eq(self.sel.storage == 1),
+            sci.chan_sel.eq(self.sel.storage == 0),
+            sci.we.eq(1),
+            sci.adr.eq(self.adr.storage),
+            sci.dat_w.eq(self.dat_w.storage),
+            If(~first & sci.done,
+                sci.we.eq(0),
+                NextState("IDLE")
+            )
         )
         fsm.act("READ-CH-01",
             sci.chan_sel.eq(1),
