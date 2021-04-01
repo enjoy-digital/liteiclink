@@ -1177,7 +1177,7 @@ class GTX(Module, AutoCSR):
         )
 
     def add_electrical_control(self):
-        self._tx_diffctrl       = CSRStorage(4, reset=0b1111,  description="TX Driver Swing Control, see UG476.")
+        self._tx_diffctrl       = CSRStorage(4, reset=0b1000,  description="TX Driver Swing Control, see UG476.")
         self._tx_postcursor     = CSRStorage(5, reset=0b00000, description="TX Post Cursor Pre-emphasis Control, see UG476.")
         self._tx_postcursor_inv = CSRStorage(1, reset=0b0,     description="TX Post Cursor Polarity, see UG476.")
         self._tx_precursor      = CSRStorage(5, reset=0b00000, description="TX Pre Cursor Pre-emphasis Control, see UG476.")
