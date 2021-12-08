@@ -84,7 +84,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 # GTH Quad PLL -------------------------------------------------------------------------------------
 
-class GTHQuadPLL(Module):
+class GTHQuadPLLBase(Module):
     def __init__(self, refclk, refclk_freq, linerate):
         self.clk    = Signal()
         self.refclk = Signal()
@@ -97,7 +97,7 @@ class GTHQuadPLL(Module):
         use_qpll0 = config["qpll"] == "qpll0"
         use_qpll1 = config["qpll"] == "qpll1"
 
-        self.specials += Instance("GTHE3_COMMON",
+        self.gth_params = dict(
             # Common
             i_GTREFCLK00       = refclk,
             i_GTREFCLK01       = refclk,
@@ -140,6 +140,9 @@ class GTHQuadPLL(Module):
             i_QPLL1REFCLKSEL   = 0b001,
             i_QPLL1RESET       = self.reset,
         )
+
+    def do_finalize(self):
+        self.specials += Instance(self.name, **self.gth_params)
 
     @staticmethod
     def compute_config(refclk_freq, linerate):
@@ -205,9 +208,135 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
            linerate = config["linerate"]/1e9)
         return r
 
+
+class GTH3QuadPLL(GTHQuadPLLBase):
+    name = "GTHE3_COMMON"
+
+    def __init__(self, refclk, refclk_freq, linerate):
+        super().__init__(refclk, refclk_freq, linerate)
+
+        # Update params common to GTHE3/4 but that have different
+        # values and differs from the default ones
+        self.gth_params.update(
+            # QPLL0
+            p_QPLL0_CFG0        = 0b0011001000011100,
+            p_QPLL0_CFG1        = 0b0001000000011000,
+            p_QPLL0_CFG1_G3     = 0b0001000000011000,
+            p_QPLL0_CFG2        = 0b0000000001001000,
+            p_QPLL0_CFG2_G3     = 0b0000000001001000,
+            p_QPLL0_CFG3        = 0b0000000100100000,
+            p_QPLL0_CFG4        = 0b0000000000001001,
+            p_QPLL0_CP          = 0b0111111111,
+            p_QPLL0_CP_G3       = 0b1111111111,
+            p_QPLL0_FBDIV_G3    = self.config["n"], # ?
+            p_QPLL0_INIT_CFG0   = 0b0000001010110010,
+            p_QPLL0_INIT_CFG1   = 0b00000000,
+            p_QPLL0_LOCK_CFG    = 0b0010000111101000,
+            p_QPLL0_LOCK_CFG_G3 = 0b0010000111101000,
+            p_QPLL0_LPF         = 0b1111111100,
+            p_QPLL0_LPF_G3      = 0b0000010101,
+
+            # QPLL1
+            p_QPLL1_CFG0        = 0b0011001000011100,
+            p_QPLL1_CFG1        = 0b0001000000011000,
+            p_QPLL1_CFG1_G3     = 0b0001000000011000,
+            p_QPLL1_CFG2        = 0b0000000001000000,
+            p_QPLL1_CFG2_G3     = 0b0000000001000000,
+            p_QPLL1_CFG3        = 0b0000000100100000,
+            p_QPLL1_CFG4        = 0b0000000000001001,
+            p_QPLL1_CP          = 0b0001111111,
+            p_QPLL1_CP_G3       = 0b1111111111,
+            p_QPLL1_FBDIV_G3    = self.config["n"], # ?
+            p_QPLL1_INIT_CFG0   = 0b0000001010110010,
+            p_QPLL1_INIT_CFG1   = 0b00000000,
+            p_QPLL1_LOCK_CFG    = 0b0010000111101000,
+            p_QPLL1_LOCK_CFG_G3 = 0b0010000111101000,
+            p_QPLL1_LPF         = 0b1111111100,
+            p_QPLL1_LPF_G3      = 0b0000010101,
+        )
+
+
+class GTH4QuadPLL(GTHQuadPLLBase):
+    name = "GTHE4_COMMON"
+
+    def __init__(self, refclk, refclk_freq, linerate):
+        super().__init__(refclk, refclk_freq, linerate)
+
+        # Update params common to GTHE3/4 but that have different
+        # values and differs from the default ones
+        self.gth_params.update(
+            # Bias
+            p_BIAS_CFG0             = 0b0000000000000000,
+            p_BIAS_CFG1             = 0b0000000000000000,
+            p_BIAS_CFG2             = 0b0000000100100100,
+            p_BIAS_CFG3             = 0b0000000001000001,
+            p_BIAS_CFG4             = 0b0000000000010000,
+            p_BIAS_CFG_RSVD         = 0b0000000000000000,
+
+            # QPLL0
+            p_QPLL0_CFG0            = 0b0011001100011100,
+            p_QPLL0_CFG1            = 0b1101000000111000,
+            p_QPLL0_CFG1_G3         = 0b1101000000111000,
+            p_QPLL0_CFG2            = 0b1000011111000000,
+            p_QPLL0_CFG2_G3         = 0b1000011111000000,
+            p_QPLL0_CFG3            = 0b0000000100100000,
+            p_QPLL0_CFG4            = 0b0000000000000011,
+            p_QPLL0_CP              = 0b0011111111,
+            p_QPLL0_CP_G3           = 0b0000001111,
+            p_QPLL0_FBDIV_G3        = self.config["n"],
+            p_QPLL0_INIT_CFG0       = 0b0000001010110010,
+            p_QPLL0_INIT_CFG1       = 0b00000000,
+            p_QPLL0_LOCK_CFG        = 0b0010010111101000,
+            p_QPLL0_LOCK_CFG_G3     = 0b0010010111101000,
+            p_QPLL0_LPF             = 0b1000011111,
+            p_QPLL0_LPF_G3          = 0b0111010101,
+
+            # QPLL1
+            p_QPLL1_CFG0            = 0b0011001100011100,
+            p_QPLL1_CFG1            = 0b1101000000111000,
+            p_QPLL1_CFG1_G3         = 0b1101000000111000,
+            p_QPLL1_CFG2            = 0b0000111111000011,
+            p_QPLL1_CFG2_G3         = 0b0000111111000011,
+            p_QPLL1_CFG3            = 0b0000000100100000,
+            p_QPLL1_CFG4            = 0b0000000000000011,
+            p_QPLL1_CP              = 0b0011111111,
+            p_QPLL1_CP_G3           = 0b0001111111,
+            p_QPLL1_FBDIV_G3        = self.config["n"],
+            p_QPLL1_INIT_CFG0       = 0b0000001010110010,
+            p_QPLL1_INIT_CFG1       = 0b00000000,
+            p_QPLL1_LOCK_CFG        = 0b0010010111101000,
+            p_QPLL1_LOCK_CFG_G3     = 0b0010010111101000,
+            p_QPLL1_LPF             = 0b1000011111,
+            p_QPLL1_LPF_G3          = 0b0111010100,
+        )
+
+        # Update GTHE4 specific params that have different values
+        # than the default ones
+        self.gth_params.update(
+            p_PPF0_CFG              = 0b0000011000000000,
+            p_PPF1_CFG              = 0b0000011000000000,
+            p_QPLL0CLKOUT_RATE      = "HALF",
+            p_QPLL0_RATE_SW_USE_DRP = 1,
+            p_QPLL1CLKOUT_RATE      = "HALF",
+            p_QPLL1_RATE_SW_USE_DRP = 1,
+        )
+
+        # Ultrascale+ only ports (inputs only. outputs are ignored)
+        self.gth_params.update(
+            i_SDM0RESET             = 0b0,
+            i_SDM1RESET             = 0b0,
+            i_SDM0DATA              = 0b0000000000000000000000000,
+            i_SDM1DATA              = 0b0000000000000000000000000,
+            i_SDM0WIDTH             = 0b00,
+            i_SDM1WIDTH             = 0b00,
+            i_QPLL0FBDIV            = 0b00000000,
+            i_QPLL1FBDIV            = 0b00000000,
+        )
+
+
 # GTH ----------------------------------------------------------------------------------------------
 
-class GTH(Module, AutoCSR):
+class GTHBase(Module, AutoCSR):
     def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq,
         data_width          = 20,
         tx_buffer_enable    = False,
@@ -244,8 +373,8 @@ class GTH(Module, AutoCSR):
         # # #
 
         use_cpll  = isinstance(pll, GTHChannelPLL)
-        use_qpll0 = isinstance(pll, GTHQuadPLL) and pll.config["qpll"] == "qpll0"
-        use_qpll1 = isinstance(pll, GTHQuadPLL) and pll.config["qpll"] == "qpll1"
+        use_qpll0 = isinstance(pll, GTHQuadPLLBase) and pll.config["qpll"] == "qpll0"
+        use_qpll1 = isinstance(pll, GTHQuadPLLBase) and pll.config["qpll"] == "qpll1"
 
         self.nwords = nwords = data_width//10
 
@@ -315,12 +444,11 @@ class GTH(Module, AutoCSR):
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
         rxphaligndone = Signal()
+
         self.gth_params = dict(
             p_ACJTAG_DEBUG_MODE            = 0b0,
             p_ACJTAG_MODE                  = 0b0,
             p_ACJTAG_RESET                 = 0b0,
-            p_ADAPT_CFG0                   = 0b1111100000000000,
-            p_ADAPT_CFG1                   = 0b0000000000000000,
             p_ALIGN_COMMA_DOUBLE           = "FALSE",
             p_ALIGN_COMMA_ENABLE           = 0b0000000000,
             p_ALIGN_COMMA_WORD             = 1,
@@ -349,8 +477,6 @@ class GTH(Module, AutoCSR):
             p_CHAN_BOND_SEQ_LEN            = 1,
             p_CLK_CORRECT_USE              = "FALSE",
             p_CLK_COR_KEEP_IDLE            = "FALSE",
-            p_CLK_COR_MAX_LAT              = 12 if rx_buffer_enable else 20,
-            p_CLK_COR_MIN_LAT              = 8 if rx_buffer_enable else 18,
             p_CLK_COR_PRECEDENCE           = "TRUE",
             p_CLK_COR_REPEAT_WAIT          = 0,
             p_CLK_COR_SEQ_1_1              = 0b0000000000,
@@ -365,23 +491,13 @@ class GTH(Module, AutoCSR):
             p_CLK_COR_SEQ_2_ENABLE         = 0b1111,
             p_CLK_COR_SEQ_2_USE            = "FALSE",
             p_CLK_COR_SEQ_LEN              = 1,
-            p_CPLL_CFG0                    = 0b0110011111111000,
-            p_CPLL_CFG1                    = 0b1010010010101100,
-            p_CPLL_CFG2                    = 0b0000000000000111,
-            p_CPLL_CFG3                    = 0b000000,
-            p_CPLL_FBDIV                   = 1 if (use_qpll0 | use_qpll1) else pll.config["n2"],
-            p_CPLL_FBDIV_45                = 4 if (use_qpll0 | use_qpll1) else pll.config["n1"],
             p_CPLL_INIT_CFG0               = 0b0000001010110010,
-            p_CPLL_INIT_CFG1               = 0b00000000,
             p_CPLL_LOCK_CFG                = 0b0000000111101000,
-            p_CPLL_REFCLK_DIV              = 1 if (use_qpll0 | use_qpll1) else pll.config["m"],
             p_DDI_CTRL                     = 0b00,
             p_DDI_REALIGN_WAIT             = 15,
             p_DEC_MCOMMA_DETECT            = "FALSE",
             p_DEC_PCOMMA_DETECT            = "FALSE",
             p_DEC_VALID_COMMA_ONLY         = "FALSE",
-            p_DFE_D_X_REL_POS              = 0b0,
-            p_DFE_VCM_COMP_EN              = 0b0,
             p_DMONITOR_CFG0                = 0b0000000000,
             p_DMONITOR_CFG1                = 0b00000000,
             p_ES_CLK_PHASE_SEL             = 0b0,
@@ -389,7 +505,6 @@ class GTH(Module, AutoCSR):
             p_ES_ERRDET_EN                 = "FALSE",
             p_ES_EYE_SCAN_EN               = "FALSE",
             p_ES_HORZ_OFFSET               = 0b000000000000,
-            p_ES_PMA_CFG                   = 0b0000000000,
             p_ES_PRESCALE                  = 0b00000,
             p_ES_QUALIFIER0                = 0b0000000000000000,
             p_ES_QUALIFIER1                = 0b0000000000000000,
@@ -406,13 +521,11 @@ class GTH(Module, AutoCSR):
             p_ES_SDATA_MASK2               = 0b0000000000000000,
             p_ES_SDATA_MASK3               = 0b0000000000000000,
             p_ES_SDATA_MASK4               = 0b0000000000000000,
-            p_EVODD_PHI_CFG                = 0b00000000000,
             p_EYE_SCAN_SWAP_EN             = 0b0,
             p_FTS_DESKEW_SEQ_ENABLE        = 0b1111,
             p_FTS_LANE_DESKEW_CFG          = 0b1111,
             p_FTS_LANE_DESKEW_EN           = "FALSE",
             p_GEARBOX_MODE                 = 0b00000,
-            p_GM_BIAS_SELECT               = 0b0,
             p_LOCAL_MASTER                 = 0b1,
             p_OOBDIVCTL                    = 0b00,
             p_OOB_PWRUP                    = 0b0,
@@ -425,132 +538,45 @@ class GTH(Module, AutoCSR):
             p_PCI3_RX_ELECIDLE_HI_COUNT    = 0b000000,
             p_PCI3_RX_ELECIDLE_LP4_DISABLE = 0b0,
             p_PCI3_RX_FIFO_DISABLE         = 0b0,
-            p_PCIE_BUFG_DIV_CTRL           = 0b0001000000000000,
-            p_PCIE_RXPCS_CFG_GEN3          = 0b0000001010100100,
-            p_PCIE_RXPMA_CFG               = 0b0000000000001010,
             p_PCIE_TXPCS_CFG_GEN3          = 0b0010010010100100,
-            p_PCIE_TXPMA_CFG               = 0b0000000000001010,
             p_PCS_PCIE_EN                  = "FALSE",
             p_PCS_RSVD0                    = 0b0000000000000000,
-            p_PCS_RSVD1                    = 0b000,
             p_PD_TRANS_TIME_FROM_P2        = 0b000000111100,
             p_PD_TRANS_TIME_NONE_P2        = 0b00011001,
             p_PD_TRANS_TIME_TO_P2          = 0b01100100,
-            p_PLL_SEL_MODE_GEN12           = 0b00,
-            p_PLL_SEL_MODE_GEN3            = 0b11,
-            p_PMA_RSV1                     = 0b1111000000000000,
             p_PROCESS_PAR                  = 0b010,
             p_RATE_SW_USE_DRP              = 0b1,
             p_RESET_POWERSAVE_DISABLE      = 0b0,
-        )
-        self.gth_params.update(
             p_RXBUFRESET_TIME              = 0b00011,
             p_RXBUF_ADDR_MODE              = "FAST",
             p_RXBUF_EIDLE_HI_CNT           = 0b1000,
             p_RXBUF_EIDLE_LO_CNT           = 0b0000,
-            p_RXBUF_EN                     = "TRUE" if rx_buffer_enable else "FALSE",
             p_RXBUF_RESET_ON_CB_CHANGE     = "TRUE",
             p_RXBUF_RESET_ON_COMMAALIGN    = "FALSE",
             p_RXBUF_RESET_ON_EIDLE         = "FALSE",
             p_RXBUF_RESET_ON_RATE_CHANGE   = "TRUE",
-            p_RXBUF_THRESH_OVFLW           = 57 if rx_buffer_enable else 0,
-            p_RXBUF_THRESH_OVRD            = "TRUE" if rx_buffer_enable else "FALSE",
-            p_RXBUF_THRESH_UNDFLW          = 3 if rx_buffer_enable else 0,
             p_RXCDRFREQRESET_TIME          = 0b00001,
             p_RXCDRPHRESET_TIME            = 0b00001,
-            p_RXCDR_CFG0                   = 0b0000000000000000,
-            p_RXCDR_CFG0_GEN3              = 0b0000000000000000,
-            p_RXCDR_CFG1                   = 0b0000000000000000,
-            p_RXCDR_CFG1_GEN3              = 0b0000000000000000,
-            p_RXCDR_CFG2                   = 0b0000011111010110,
-            p_RXCDR_CFG2_GEN3              = 0b0000011111100110,
-            p_RXCDR_CFG3                   = 0b0000000000000000,
-            p_RXCDR_CFG3_GEN3              = 0b0000000000000000,
-            p_RXCDR_CFG4                   = 0b0000000000000000,
-            p_RXCDR_CFG4_GEN3              = 0b0000000000000000,
-            p_RXCDR_CFG5                   = 0b0000000000000000,
-            p_RXCDR_CFG5_GEN3              = 0b0000000000000000,
             p_RXCDR_FR_RESET_ON_EIDLE      = 0b0,
             p_RXCDR_HOLD_DURING_EIDLE      = 0b0,
-            p_RXCDR_LOCK_CFG0              = 0b0100010010000000,
-            p_RXCDR_LOCK_CFG1              = 0b0101111111111111,
-            p_RXCDR_LOCK_CFG2              = 0b0111011111000011,
             p_RXCDR_PH_RESET_ON_EIDLE      = 0b0,
-            p_RXCFOK_CFG0                  = 0b0100000000000000,
-            p_RXCFOK_CFG1                  = 0b0000000001100101,
-            p_RXCFOK_CFG2                  = 0b0000000000101110,
             p_RXDFELPMRESET_TIME           = 0b0001111,
-            p_RXDFELPM_KL_CFG0             = 0b0000000000000000,
-            p_RXDFELPM_KL_CFG1             = 0b0000000000000010,
-            p_RXDFELPM_KL_CFG2             = 0b0000000000000000,
             p_RXDFE_CFG0                   = 0b0000101000000000,
             p_RXDFE_CFG1                   = 0b0000000000000000,
-            p_RXDFE_GC_CFG0                = 0b0000000000000000,
-            p_RXDFE_GC_CFG1                = 0b0111100001110000,
-            p_RXDFE_GC_CFG2                = 0b0000000000000000,
-            p_RXDFE_H2_CFG0                = 0b0000000000000000,
-            p_RXDFE_H2_CFG1                = 0b0000000000000000,
-            p_RXDFE_H3_CFG0                = 0b0100000000000000,
-            p_RXDFE_H3_CFG1                = 0b0000000000000000,
-            p_RXDFE_H4_CFG0                = 0b0010000000000000,
-            p_RXDFE_H4_CFG1                = 0b0000000000000011,
-            p_RXDFE_H5_CFG0                = 0b0010000000000000,
-            p_RXDFE_H5_CFG1                = 0b0000000000000011,
-            p_RXDFE_H6_CFG0                = 0b0010000000000000,
-            p_RXDFE_H6_CFG1                = 0b0000000000000000,
-            p_RXDFE_H7_CFG0                = 0b0010000000000000,
-            p_RXDFE_H7_CFG1                = 0b0000000000000000,
-            p_RXDFE_H8_CFG0                = 0b0010000000000000,
-            p_RXDFE_H8_CFG1                = 0b0000000000000000,
-            p_RXDFE_H9_CFG0                = 0b0010000000000000,
-            p_RXDFE_H9_CFG1                = 0b0000000000000000,
-            p_RXDFE_HA_CFG0                = 0b0010000000000000,
-            p_RXDFE_HA_CFG1                = 0b0000000000000000,
-            p_RXDFE_HB_CFG0                = 0b0010000000000000,
-            p_RXDFE_HB_CFG1                = 0b0000000000000000,
-            p_RXDFE_HC_CFG0                = 0b0000000000000000,
-            p_RXDFE_HC_CFG1                = 0b0000000000000000,
-            p_RXDFE_HD_CFG0                = 0b0000000000000000,
-            p_RXDFE_HD_CFG1                = 0b0000000000000000,
-            p_RXDFE_HE_CFG0                = 0b0000000000000000,
-            p_RXDFE_HE_CFG1                = 0b0000000000000000,
-            p_RXDFE_HF_CFG0                = 0b0000000000000000,
-            p_RXDFE_HF_CFG1                = 0b0000000000000000,
-            p_RXDFE_OS_CFG0                = 0b1000000000000000,
-            p_RXDFE_OS_CFG1                = 0b0000000000000000,
-            p_RXDFE_UT_CFG0                = 0b1000000000000000,
-            p_RXDFE_UT_CFG1                = 0b0000000000000011,
-            p_RXDFE_VP_CFG0                = 0b1010101000000000,
-            p_RXDFE_VP_CFG1                = 0b0000000000110011,
-            p_RXDLY_CFG                    = 0b0000000000011111,
             p_RXDLY_LCFG                   = 0b0000000000110000,
-            p_RXELECIDLE_CFG               = "SIGCFG_4",
             p_RXGBOX_FIFO_INIT_RD_ADDR     = 4,
             p_RXGEARBOX_EN                 = "FALSE",
             p_RXISCANRESET_TIME            = 0b00001,
             p_RXLPM_CFG                    = 0b0000000000000000,
-            p_RXLPM_GC_CFG                 = 0b0001000000000000,
             p_RXLPM_KH_CFG0                = 0b0000000000000000,
             p_RXLPM_KH_CFG1                = 0b0000000000000010,
-            p_RXLPM_OS_CFG0                = 0b1000000000000000,
-            p_RXLPM_OS_CFG1                = 0b0000000000000010,
             p_RXOOB_CFG                    = 0b000000110,
             p_RXOOB_CLK_CFG                = "PMA",
             p_RXOSCALRESET_TIME            = 0b00011,
-            p_RXOUT_DIV                    = pll.config["d"],
             p_RXPCSRESET_TIME              = 0b00011,
             p_RXPHBEACON_CFG               = 0b0000000000000000,
-            p_RXPHDLY_CFG                  = 0b0010000000100000,
             p_RXPHSAMP_CFG                 = 0b0010000100000000,
-            p_RXPHSLIP_CFG                 = 0b0110011000100010,
             p_RXPH_MONITOR_SEL             = 0b00000,
-            p_RXPI_CFG0                    = 0b00,
-            p_RXPI_CFG1                    = 0b00,
-            p_RXPI_CFG2                    = 0b00,
-            p_RXPI_CFG3                    = 0b00,
-            p_RXPI_CFG4                    = 0b1,
-            p_RXPI_CFG5                    = 0b1,
-            p_RXPI_CFG6                    = 0b000,
             p_RXPI_LPM                     = 0b0,
             p_RXPI_VREFSEL                 = 0b0,
             p_RXPMACLK_SEL                 = "DATA",
@@ -563,152 +589,112 @@ class GTH(Module, AutoCSR):
             p_RXSYNC_OVRD                  = 0b0,
             p_RXSYNC_SKIP_DA               = 0b0,
             p_RX_AFE_CM_EN                 = 0b0,
-            p_RX_BIAS_CFG0                 = 0b0000101010110100,
             p_RX_BUFFER_CFG                = 0b000000,
             p_RX_CAPFF_SARC_ENB            = 0b0,
-            p_RX_CLK25_DIV                 = 5,
+            p_RX_CLK25_DIV                 = 3,
             p_RX_CLKMUX_EN                 = 0b1,
             p_RX_CLK_SLIP_OVRD             = 0b00000,
             p_RX_CM_BUF_CFG                = 0b1010,
             p_RX_CM_BUF_PD                 = 0b0,
-            p_RX_CM_SEL                    = 0b11,
-            p_RX_CM_TRIM                   = 0b1010,
-            p_RX_CTLE3_LPF                 = 0b00000001,
-            p_RX_DATA_WIDTH                = data_width,
             p_RX_DDI_SEL                   = 0b000000,
             p_RX_DEFER_RESET_BUF_EN        = "TRUE",
-            p_RX_DFELPM_CFG0               = 0b0110,
-            p_RX_DFELPM_CFG1               = 0b1,
             p_RX_DFELPM_KLKH_AGC_STUP_EN   = 0b1,
-            p_RX_DFE_AGC_CFG0              = 0b10,
-            p_RX_DFE_AGC_CFG1              = 0b100,
-            p_RX_DFE_KL_LPM_KH_CFG0        = 0b01,
-            p_RX_DFE_KL_LPM_KH_CFG1        = 0b100,
-            p_RX_DFE_KL_LPM_KL_CFG0        = 0b01,
-            p_RX_DFE_KL_LPM_KL_CFG1        = 0b100,
             p_RX_DFE_LPM_HOLD_DURING_EIDLE = 0b0,
             p_RX_DISPERR_SEQ_MATCH         = "TRUE",
             p_RX_DIVRESET_TIME             = 0b00001,
-            p_RX_EN_HI_LR                  = 0b0,
+            p_RX_EN_HI_LR                  = 0b1,
             p_RX_EYESCAN_VS_CODE           = 0b0000000,
             p_RX_EYESCAN_VS_NEG_DIR        = 0b0,
             p_RX_EYESCAN_VS_RANGE          = 0b00,
             p_RX_EYESCAN_VS_UT_SIGN        = 0b0,
             p_RX_FABINT_USRCLK_FLOP        = 0b0,
-            p_RX_INT_DATAWIDTH             = data_width == 40,
             p_RX_PMA_POWER_SAVE            = 0b0,
-            p_RX_PROGDIV_CFG               = 0.0,
+            p_RX_PROGDIV_CFG               = 0,
             p_RX_SAMPLE_PERIOD             = 0b111,
             p_RX_SIG_VALID_DLY             = 11,
             p_RX_SUM_DFETAPREP_EN          = 0b0,
-            p_RX_SUM_IREF_TUNE             = 0b0000,
-            p_RX_SUM_RES_CTRL              = 0b00,
-            p_RX_SUM_VCMTUNE               = 0b0000,
             p_RX_SUM_VCM_OVWR              = 0b0,
-            p_RX_SUM_VREF_TUNE             = 0b000,
-            p_RX_TUNE_AFE_OS               = 0b10,
-            p_RX_WIDEMODE_CDR              = 0b0,
-            p_RX_XCLK_SEL                  = "RXDES" if rx_buffer_enable else "RXUSR",
-            p_SAS_MAX_COM                  = 64,
-            p_SAS_MIN_COM                  = 36,
-            p_SATA_BURST_SEQ_LEN           = 0b1110,
             p_SATA_CPLL_CFG                = "VCO_3000MHZ",
-            p_SATA_MAX_BURST               = 8,
-            p_SATA_MAX_INIT                = 21,
-            p_SATA_MAX_WAKE                = 7,
-            p_SATA_MIN_BURST               = 4,
-            p_SATA_MIN_INIT                = 12,
-            p_SATA_MIN_WAKE                = 4,
             p_SHOW_REALIGN_COMMA           = "TRUE",
             p_SIM_RECEIVER_DETECT_PASS     = "TRUE",
             p_SIM_RESET_SPEEDUP            = "TRUE",
-            p_SIM_TX_EIDLE_DRIVE_LEVEL     = 0b0,
-            p_SIM_VERSION                  = 2,
             p_TAPDLY_SET_TX                = 0b00,
-            p_TEMPERATUR_PAR               = 0b0010,
-            p_TERM_RCAL_CFG                = 0b100001000010000,
             p_TERM_RCAL_OVRD               = 0b000,
             p_TRANS_TIME_RATE              = 0b00001110,
             p_TST_RSV0                     = 0b00000000,
             p_TST_RSV1                     = 0b00000000,
+            p_TXBUF_RESET_ON_RATE_CHANGE   = "TRUE",
+            p_TXDRVBIAS_N                  = 0b1010,
+            p_TXFIFO_ADDR_CFG              = "LOW",
+            p_TXGBOX_FIFO_INIT_RD_ADDR     = 4,
+            p_TXGEARBOX_EN                 = "FALSE",
+            p_TXPCSRESET_TIME              = 0b00011,
+            p_TXPH_MONITOR_SEL             = 0b00000,
+            p_TXPI_GRAY_SEL                = 0b0,
+            p_TXPI_LPM                     = 0b0,
+            p_TXPI_PPMCLK_SEL              = "TXUSRCLK2",
+            p_TXPI_PPM_CFG                 = 0b00000000,
+            p_TXPI_SYNFREQ_PPM             = 0b001,
+            p_TXPI_VREFSEL                 = 0b0,
+            p_TXPMARESET_TIME              = 0b00011,
+            p_TXSYNC_MULTILANE             = 0b0,
+            p_TXSYNC_OVRD                  = 0b0,
+            p_TXSYNC_SKIP_DA               = 0b0,
+            p_TX_CLK25_DIV                 = 3,
+            p_TX_CLKMUX_EN                 = 0b1,
+            p_TX_DEEMPH0                   = 0b000000,
+            p_TX_DEEMPH1                   = 0b000000,
+            p_TX_DIVRESET_TIME             = 0b00001,
+            p_TX_DRIVE_MODE                = "DIRECT",
+            p_TX_EIDLE_ASSERT_DELAY        = 0b100,
+            p_TX_EIDLE_DEASSERT_DELAY      = 0b011,
+            p_TX_FABINT_USRCLK_FLOP        = 0b0,
+            p_TX_IDLE_DATA_ZERO            = 0b0,
+            p_TX_LOOPBACK_DRIVE_HIZ        = "FALSE",
+            p_TX_MAINCURSOR_SEL            = 0b0,
+            p_TX_MARGIN_LOW_0              = 0b1000110,
+            p_TX_MARGIN_LOW_1              = 0b1000101,
+            p_TX_MARGIN_LOW_2              = 0b1000011,
+            p_TX_MARGIN_LOW_3              = 0b1000010,
+            p_TX_MARGIN_LOW_4              = 0b1000000,
+            p_TX_PMADATA_OPT               = 0b0,
+            p_TX_PMA_POWER_SAVE            = 0b0,
+            p_TX_PROGCLK_SEL               = "PREPI",
+            p_TX_PROGDIV_CFG               = 0,
+            p_TX_QPI_STATUS_EN             = 0b0,
+            p_TX_RXDETECT_CFG              = 0b00000000110010,
+            p_TX_SAMPLE_PERIOD             = 0b111,
+            p_TX_SARC_LPBK_ENB             = 0b0,
+            p_USE_PCS_CLK_PHASE_SEL        = 0b0,
+        )
+
+        self.gth_params.update(
+            p_CLK_COR_MAX_LAT              = 12 if rx_buffer_enable else 20,
+            p_CLK_COR_MIN_LAT              = 8 if rx_buffer_enable else 18,
+            p_CPLL_FBDIV                   = 1 if (use_qpll0 | use_qpll1) else pll.config["n2"],
+            p_CPLL_FBDIV_45                = 4 if (use_qpll0 | use_qpll1) else pll.config["n1"],
+            p_CPLL_REFCLK_DIV              = 1 if (use_qpll0 | use_qpll1) else pll.config["m"],
         )
         self.gth_params.update(
-            p_TXBUF_EN                   = "TRUE" if tx_buffer_enable else "FALSE",
-            p_TXBUF_RESET_ON_RATE_CHANGE = "TRUE",
-            p_TXDLY_CFG                  = 0b0000000000001001,
-            p_TXDLY_LCFG                 = 0b0000000001010000,
-            p_TXDRVBIAS_N                = 0b1010,
-            p_TXDRVBIAS_P                = 0b1010,
-            p_TXFIFO_ADDR_CFG            = "LOW",
-            p_TXGBOX_FIFO_INIT_RD_ADDR   = 4,
-            p_TXGEARBOX_EN               = "FALSE",
-            p_TXOUT_DIV                  = pll.config["d"],
-            p_TXPCSRESET_TIME            = 0b00011,
-            p_TXPHDLY_CFG0               = 0b0010000000100000,
-            p_TXPHDLY_CFG1               = 0b0000000001110101,
-            p_TXPH_CFG                   = 0b0000100110000000,
-            p_TXPH_MONITOR_SEL           = 0b00000,
-            p_TXPI_CFG0                  = 0b00,
-            p_TXPI_CFG1                  = 0b00,
-            p_TXPI_CFG2                  = 0b00,
-            p_TXPI_CFG3                  = 0b1,
-            p_TXPI_CFG4                  = 0b1,
-            p_TXPI_CFG5                  = 0b000,
-            p_TXPI_GRAY_SEL              = 0b0,
-            p_TXPI_INVSTROBE_SEL         = 0b0,
-            p_TXPI_LPM                   = 0b0,
-            p_TXPI_PPMCLK_SEL            = "TXUSRCLK2",
-            p_TXPI_PPM_CFG               = 0b00000000,
-            p_TXPI_SYNFREQ_PPM           = 0b001,
-            p_TXPI_VREFSEL               = 0b0,
-            p_TXPMARESET_TIME            = 0b00011,
-            p_TXSYNC_MULTILANE           = 0,
-            p_TXSYNC_OVRD                = 0b0,
-            p_TXSYNC_SKIP_DA             = 0b0,
-            p_TX_CLK25_DIV               = 5,
-            p_TX_CLKMUX_EN               = 0b1,
-            p_TX_DATA_WIDTH              = data_width,
-            p_TX_DCD_CFG                 = 0b000010,
-            p_TX_DCD_EN                  = 0b0,
-            p_TX_DEEMPH0                 = 0b000000,
-            p_TX_DEEMPH1                 = 0b000000,
-            p_TX_DIVRESET_TIME           = 0b00001,
-            p_TX_DRIVE_MODE              = "DIRECT",
-            p_TX_EIDLE_ASSERT_DELAY      = 0b100,
-            p_TX_EIDLE_DEASSERT_DELAY    = 0b011,
-            p_TX_EML_PHI_TUNE            = 0b0,
-            p_TX_FABINT_USRCLK_FLOP      = 0b0,
-            p_TX_IDLE_DATA_ZERO          = 0b0,
-            p_TX_INT_DATAWIDTH           = data_width == 40,
-            p_TX_LOOPBACK_DRIVE_HIZ      = "FALSE",
-            p_TX_MAINCURSOR_SEL          = 0b0,
-            p_TX_MARGIN_FULL_0           = 0b1001111,
-            p_TX_MARGIN_FULL_1           = 0b1001110,
-            p_TX_MARGIN_FULL_2           = 0b1001100,
-            p_TX_MARGIN_FULL_3           = 0b1001010,
-            p_TX_MARGIN_FULL_4           = 0b1001000,
-            p_TX_MARGIN_LOW_0            = 0b1000110,
-            p_TX_MARGIN_LOW_1            = 0b1000101,
-            p_TX_MARGIN_LOW_2            = 0b1000011,
-            p_TX_MARGIN_LOW_3            = 0b1000010,
-            p_TX_MARGIN_LOW_4            = 0b1000000,
-            p_TX_MODE_SEL                = 0b000,
-            p_TX_PMADATA_OPT             = 0b0,
-            p_TX_PMA_POWER_SAVE          = 0b0,
-            p_TX_PROGCLK_SEL             = "PREPI",
-            p_TX_PROGDIV_CFG             = 0.0,
-            p_TX_QPI_STATUS_EN           = 0b0,
-            p_TX_RXDETECT_CFG            = 0b00000000110010,
-            p_TX_RXDETECT_REF            = 0b100,
-            p_TX_SAMPLE_PERIOD           = 0b111,
-            p_TX_SARC_LPBK_ENB           = 0b0,
-            p_TX_XCLK_SEL                = "TXOUT" if tx_buffer_enable else "TXUSR",
-            p_USE_PCS_CLK_PHASE_SEL      = 0b0,
-            p_WB_MODE                    = 0b00,
+            p_RXBUF_EN                     = "TRUE" if rx_buffer_enable else "FALSE",
+            p_RXBUF_THRESH_OVFLW           = 57 if rx_buffer_enable else 0,
+            p_RXBUF_THRESH_OVRD            = "TRUE" if rx_buffer_enable else "FALSE",
+            p_RXBUF_THRESH_UNDFLW          = 3 if rx_buffer_enable else 0,
+            p_RXOUT_DIV                    = pll.config["d"],
+            p_RX_DATA_WIDTH                = data_width,
+            p_RX_INT_DATAWIDTH             = data_width == 40,
+            p_RX_XCLK_SEL                  = "RXDES" if rx_buffer_enable else "RXUSR",
         )
+        self.gth_params.update(
+            p_TXBUF_EN                     = "TRUE" if tx_buffer_enable else "FALSE",
+            p_TXOUT_DIV                    = pll.config["d"],
+            p_TX_DATA_WIDTH                = data_width,
+            p_TX_INT_DATAWIDTH             = data_width == 40,
+            p_TX_XCLK_SEL                  = "TXOUT" if tx_buffer_enable else "TXUSR",
+        )
+
         self.gth_params.update(
             # Reset modes
-            i_GTRESETSEL      = 0,
             i_RESETOVRD       = 0,
 
             # DRP
@@ -761,7 +747,6 @@ class GTH(Module, AutoCSR):
 
             # TX electrical
             i_TXPD            = 0b00,
-            i_TXBUFDIFFCTRL   = 0b000,
             i_TXDIFFCTRL      = 0b1100,
             i_TXINHIBIT       = self.tx_inhibit,
 
@@ -785,8 +770,6 @@ class GTH(Module, AutoCSR):
             i_RXDFEAGCCTRL    = 1,
             i_RXDFEXYDEN      = 1,
             i_RXLPMEN         = 1,
-            i_RXOSINTCFG      = 0xd,
-            i_RXOSINTEN       = 1,
 
             # RX clock
             i_RXRATE          = 0,
@@ -1010,15 +993,11 @@ class GTH(Module, AutoCSR):
     def add_electrical_control(self):
         self._tx_diffctrl       = CSRStorage(4, reset=0b1100,  description="TX Driver Swing Control, see UG576.")
         self._tx_postcursor     = CSRStorage(5, reset=0b00000, description="TX Post Cursor Pre-emphasis Control, see UG576.")
-        self._tx_postcursor_inv = CSRStorage(1, reset=0b0,     description="TX Post Cursor Polarity, see UG576.")
         self._tx_precursor      = CSRStorage(5, reset=0b00000, description="TX Pre Cursor Pre-emphasis Control, see UG576.")
-        self._tx_precursor_inv  = CSRStorage(1, reset=0b0,     description="Invert polarity of TX Pre Cursor, see UG576.")
         self.gth_params.update(
             i_TXDIFFCTRL      = self._tx_diffctrl.storage,
             i_TXPOSTCURSOR    = self._tx_postcursor.storage,
-            i_TXPOSTCURSORINV = self._tx_postcursor_inv.storage,
             i_TXPRECURSOR     = self._tx_precursor.storage,
-            i_TXPRECURSORINV  = self._tx_precursor_inv.storage,
         )
 
     def add_controls(self, auto_enable=True):
@@ -1044,4 +1023,571 @@ class GTH(Module, AutoCSR):
         )
 
     def do_finalize(self):
-        self.specials += Instance("GTHE3_CHANNEL", **self.gth_params)
+        self.specials += Instance(self.name, **self.gth_params)
+
+
+class GTH3(GTHBase):
+    name = "GTHE3_CHANNEL"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Ultrascale only params
+        self.gth_params.update(
+            p_ADAPT_CFG0                   = 0b1111100000000000,
+            p_ADAPT_CFG1                   = 0b0000000000000000,
+            p_CPLL_CFG0                    = 0b0110011111111000,
+            p_CPLL_CFG1                    = 0b1010010010101100,
+            p_CPLL_CFG2                    = 0b0101000000000111,
+            p_CPLL_CFG3                    = 0b000000,
+            p_CPLL_INIT_CFG1               = 0b00000000,
+            p_DFE_D_X_REL_POS              = 0b0,
+            p_DFE_VCM_COMP_EN              = 0b0,
+            p_ES_PMA_CFG                   = 0b0000000000,
+            p_EVODD_PHI_CFG                = 0b00000000000,
+            p_GM_BIAS_SELECT               = 0b0,
+            p_PCIE_BUFG_DIV_CTRL           = 0b0001000000000000,
+            p_PCIE_RXPCS_CFG_GEN3          = 0b0000001010100100,
+            p_PCIE_RXPMA_CFG               = 0b0000000000001010,
+            p_PCIE_TXPMA_CFG               = 0b0000000000001010,
+            p_PCS_RSVD1                    = 0b000,
+            p_PLL_SEL_MODE_GEN12           = 0b11,
+            p_PLL_SEL_MODE_GEN3            = 0b11,
+            p_PMA_RSV1                     = 0b1111000000000000,
+            p_RXCDR_CFG0                   = 0b0000000000000000,
+            p_RXCDR_CFG0_GEN3              = 0b0000000000000000,
+            p_RXCDR_CFG1                   = 0b0000000000000000,
+            p_RXCDR_CFG1_GEN3              = 0b0000000000000000,
+            p_RXCDR_CFG2                   = 0b0000011111100110,
+            p_RXCDR_CFG2_GEN3              = 0b0000011111100110,
+            p_RXCDR_CFG3                   = 0b0000000000000000,
+            p_RXCDR_CFG3_GEN3              = 0b0000000000000000,
+            p_RXCDR_CFG4                   = 0b0000000000000000,
+            p_RXCDR_CFG4_GEN3              = 0b0000000000000000,
+            p_RXCDR_CFG5                   = 0b0000000000000000,
+            p_RXCDR_CFG5_GEN3              = 0b0000000000000000,
+            p_RXCDR_LOCK_CFG0              = 0b0100010010000000,
+            p_RXCDR_LOCK_CFG1              = 0b0101111111111111,
+            p_RXCDR_LOCK_CFG2              = 0b0111011111000011,
+            p_RXCFOK_CFG0                  = 0b0100000000000000,
+            p_RXCFOK_CFG1                  = 0b0000000001100101,
+            p_RXCFOK_CFG2                  = 0b0000000000101110,
+            p_RXDFELPM_KL_CFG0             = 0b0000000000000000,
+            p_RXDFELPM_KL_CFG1             = 0b0000000000000010,
+            p_RXDFELPM_KL_CFG2             = 0b0000000000000000,
+            p_RXDFE_GC_CFG0                = 0b0000000000000000,
+            p_RXDFE_GC_CFG1                = 0b0111100001110000,
+            p_RXDFE_GC_CFG2                = 0b0000000000000000,
+            p_RXDFE_H2_CFG0                = 0b0000000000000000,
+            p_RXDFE_H2_CFG1                = 0b0000000000000000,
+            p_RXDFE_H3_CFG0                = 0b0100000000000000,
+            p_RXDFE_H3_CFG1                = 0b0000000000000000,
+            p_RXDFE_H4_CFG0                = 0b0010000000000000,
+            p_RXDFE_H4_CFG1                = 0b0000000000000011,
+            p_RXDFE_H5_CFG0                = 0b0010000000000000,
+            p_RXDFE_H5_CFG1                = 0b0000000000000011,
+            p_RXDFE_H6_CFG0                = 0b0010000000000000,
+            p_RXDFE_H6_CFG1                = 0b0000000000000000,
+            p_RXDFE_H7_CFG0                = 0b0010000000000000,
+            p_RXDFE_H7_CFG1                = 0b0000000000000000,
+            p_RXDFE_H8_CFG0                = 0b0010000000000000,
+            p_RXDFE_H8_CFG1                = 0b0000000000000000,
+            p_RXDFE_H9_CFG0                = 0b0010000000000000,
+            p_RXDFE_H9_CFG1                = 0b0000000000000000,
+            p_RXDFE_HA_CFG0                = 0b0010000000000000,
+            p_RXDFE_HA_CFG1                = 0b0000000000000000,
+            p_RXDFE_HB_CFG0                = 0b0010000000000000,
+            p_RXDFE_HB_CFG1                = 0b0000000000000000,
+            p_RXDFE_HC_CFG0                = 0b0000000000000000,
+            p_RXDFE_HC_CFG1                = 0b0000000000000000,
+            p_RXDFE_HD_CFG0                = 0b0000000000000000,
+            p_RXDFE_HD_CFG1                = 0b0000000000000000,
+            p_RXDFE_HE_CFG0                = 0b0000000000000000,
+            p_RXDFE_HE_CFG1                = 0b0000000000000000,
+            p_RXDFE_HF_CFG0                = 0b0000000000000000,
+            p_RXDFE_HF_CFG1                = 0b0000000000000000,
+            p_RXDFE_OS_CFG0                = 0b1000000000000000,
+            p_RXDFE_OS_CFG1                = 0b0000000000000000,
+            p_RXDFE_UT_CFG0                = 0b1000000000000000,
+            p_RXDFE_UT_CFG1                = 0b0000000000000011,
+            p_RXDFE_VP_CFG0                = 0b1010101000000000,
+            p_RXDFE_VP_CFG1                = 0b0000000000110011,
+            p_RXDLY_CFG                    = 0b0000000000011111,
+            p_RXELECIDLE_CFG               = "SIGCFG_4",
+            p_RXLPM_GC_CFG                 = 0b0001000000000000,
+            p_RXLPM_OS_CFG0                = 0b1000000000000000,
+            p_RXLPM_OS_CFG1                = 0b0000000000000010,
+            p_RXPHDLY_CFG                  = 0b0010000000100000,
+            p_RXPHSLIP_CFG                 = 0b0110011000100010,
+            p_RXPI_CFG0                    = 0b00,
+            p_RXPI_CFG1                    = 0b00,
+            p_RXPI_CFG2                    = 0b00,
+            p_RXPI_CFG3                    = 0b00,
+            p_RXPI_CFG4                    = 0b0,
+            p_RXPI_CFG5                    = 0b1,
+            p_RXPI_CFG6                    = 0b000,
+            p_RX_BIAS_CFG0                 = 0b0000101010110100,
+            p_RX_CM_SEL                    = 0b11,
+            p_RX_CM_TRIM                   = 0b1010,
+            p_RX_CTLE3_LPF                 = 0b00000001,
+            p_RX_DFELPM_CFG0               = 0b0110,
+            p_RX_DFELPM_CFG1               = 0b1,
+            p_RX_DFE_AGC_CFG0              = 0b10,
+            p_RX_DFE_AGC_CFG1              = 0b100,
+            p_RX_DFE_KL_LPM_KH_CFG0        = 0b01,
+            p_RX_DFE_KL_LPM_KH_CFG1        = 0b100,
+            p_RX_DFE_KL_LPM_KL_CFG0        = 0b01,
+            p_RX_DFE_KL_LPM_KL_CFG1        = 0b100,
+            p_RX_SUM_IREF_TUNE             = 0b0000,
+            p_RX_SUM_RES_CTRL              = 0b00,
+            p_RX_SUM_VCMTUNE               = 0b0000,
+            p_RX_SUM_VREF_TUNE             = 0b000,
+            p_RX_TUNE_AFE_OS               = 0b10,
+            p_RX_WIDEMODE_CDR              = 0b1,
+            p_SAS_MAX_COM                  = 64,
+            p_SAS_MIN_COM                  = 36,
+            p_SATA_BURST_SEQ_LEN           = 0b1110,
+            p_SATA_MAX_BURST               = 8,
+            p_SATA_MAX_INIT                = 21,
+            p_SATA_MAX_WAKE                = 7,
+            p_SATA_MIN_BURST               = 4,
+            p_SATA_MIN_INIT                = 12,
+            p_SATA_MIN_WAKE                = 4,
+            p_SIM_TX_EIDLE_DRIVE_LEVEL     = 0b0,
+            p_SIM_VERSION                  = 2,
+            p_TEMPERATUR_PAR               = 0b0010,
+            p_TERM_RCAL_CFG                = 0b100001000010000,
+            p_TXDLY_CFG                    = 0b0000000000001001,
+            p_TXDLY_LCFG                   = 0b0000000001010000,
+            p_TXDRVBIAS_P                  = 0b1010,
+            p_TXPHDLY_CFG0                 = 0b0010000000100000,
+            p_TXPHDLY_CFG1                 = 0b0000000001110101,
+            p_TXPH_CFG                     = 0b0000100110000000,
+            p_TXPI_CFG0                    = 0b00,
+            p_TXPI_CFG1                    = 0b00,
+            p_TXPI_CFG2                    = 0b00,
+            p_TXPI_CFG3                    = 0b1,
+            p_TXPI_CFG4                    = 0b1,
+            p_TXPI_CFG5                    = 0b000,
+            p_TXPI_INVSTROBE_SEL           = 0b1,
+            p_TX_DCD_CFG                   = 0b000010,
+            p_TX_DCD_EN                    = 0b0,
+            p_TX_EML_PHI_TUNE              = 0b0,
+            p_TX_MARGIN_FULL_0             = 0b1001111,
+            p_TX_MARGIN_FULL_1             = 0b1001110,
+            p_TX_MARGIN_FULL_2             = 0b1001100,
+            p_TX_MARGIN_FULL_3             = 0b1001010,
+            p_TX_MARGIN_FULL_4             = 0b1001000,
+            p_TX_MODE_SEL                  = 0b000,
+            p_TX_RXDETECT_REF              = 0b100,
+            p_WB_MODE                      = 0b00,
+        )
+
+        # Ultrascale only ports
+        self.gth_params.update(
+            # Reset modes
+            i_GTRESETSEL      = 0,
+
+            # RX AFE
+            i_RXOSINTCFG      = 0xd,
+            i_RXOSINTEN       = 1,
+
+            # TX Electrical
+            i_TXBUFDIFFCTRL   = 0b000,
+        )
+
+        # Full list of Ultrascale only ports
+            # EVODDPHICALDONE
+            # EVODDPHICALSTART
+            # EVODDPHIDRDEN
+            # EVODDPHIDWREN
+            # EVODDPHIXRDEN
+            # EVODDPHIXWREN
+            # EYESCANMODE
+            # GTRESETSEL
+            # LPBKRXTXSEREN
+            # LPBKTXRXSEREN
+            # PCSRSVDIN2
+            # PMARSVDIN
+            # RSTCLKENTX
+            # RXCDRRESETRSV
+            # RXDFEVSEN
+            # RXOSINTCFG
+            # RXOSINTEN
+            # RXOSINTHOLD
+            # RXOSINTOVRDEN
+            # RXOSINTSTROBE
+            # RXOSINTTESTOVRDEN
+            # TXBUFDIFFCTRL
+            # TXDIFFPD
+            # TXPOSTCURSORINV
+            # TXPRECURSORINV
+            # TXQPISTRONGPDOWN
+
+    def add_electrical_control(self):
+        super().add_electrical_control()
+
+        self._tx_postcursor_inv = CSRStorage(1, reset=0b0,     description="TX Post Cursor Polarity, see UG576.")
+        self._tx_precursor_inv  = CSRStorage(1, reset=0b0,     description="Invert polarity of TX Pre Cursor, see UG576.")
+        self.gth_params.update(
+            i_TXPOSTCURSORINV = self._tx_postcursor_inv.storage,
+            i_TXPRECURSORINV  = self._tx_precursor_inv.storage,
+        )
+
+
+class GTH4(GTHBase):
+    name = "GTHE4_CHANNEL"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Ultrascale+ only params
+        self.gth_params.update(
+            p_ADAPT_CFG0                   = 0b0001000000000000,
+            p_ADAPT_CFG1                   = 0b1100100000000000,
+            p_ADAPT_CFG2                   = 0b0000000000000000,
+            p_A_RXTERMINATION              = 0b1,
+            p_A_TXDIFFCTRL                 = 0b01100,
+            p_CAPBYPASS_FORCE              = 0b0,
+            p_CFOK_PWRSVE_EN               = 0b1,
+            p_CH_HSPMUX                    = 0b0010010000100100,
+            p_CKCAL1_CFG_0                 = 0b1100000011000000,
+            p_CKCAL1_CFG_1                 = 0b0101000011000000,
+            p_CKCAL1_CFG_2                 = 0b0000000000001010,
+            p_CKCAL1_CFG_3                 = 0b0000000000000000,
+            p_CKCAL2_CFG_0                 = 0b1100000011000000,
+            p_CKCAL2_CFG_1                 = 0b1000000011000000,
+            p_CKCAL2_CFG_2                 = 0b0000000000000000,
+            p_CKCAL2_CFG_3                 = 0b0000000000000000,
+            p_CKCAL2_CFG_4                 = 0b0000000000000000,
+            p_CKCAL_RSVD0                  = 0b0000000010000000,
+            p_CKCAL_RSVD1                  = 0b0000010000000000,
+            p_CPLL_CFG0                    = 0b0000000111111010,
+            p_CPLL_CFG1                    = 0b0000000000100011,
+            p_CPLL_CFG2                    = 0b0000000000000010,
+            p_CPLL_CFG3                    = 0b0000000000000000,
+            p_CTLE3_OCAP_EXT_CTRL          = 0b000,
+            p_CTLE3_OCAP_EXT_EN            = 0b0,
+            p_DELAY_ELEC                   = 0b0,
+            p_ES_QUALIFIER5                = 0b0000000000000000,
+            p_ES_QUALIFIER6                = 0b0000000000000000,
+            p_ES_QUALIFIER7                = 0b0000000000000000,
+            p_ES_QUALIFIER8                = 0b0000000000000000,
+            p_ES_QUALIFIER9                = 0b0000000000000000,
+            p_ES_QUAL_MASK5                = 0b0000000000000000,
+            p_ES_QUAL_MASK6                = 0b0000000000000000,
+            p_ES_QUAL_MASK7                = 0b0000000000000000,
+            p_ES_QUAL_MASK8                = 0b0000000000000000,
+            p_ES_QUAL_MASK9                = 0b0000000000000000,
+            p_ES_SDATA_MASK5               = 0b0000000000000000,
+            p_ES_SDATA_MASK6               = 0b0000000000000000,
+            p_ES_SDATA_MASK7               = 0b0000000000000000,
+            p_ES_SDATA_MASK8               = 0b0000000000000000,
+            p_ES_SDATA_MASK9               = 0b0000000000000000,
+            p_ISCAN_CK_PH_SEL2             = 0b0,
+            p_LPBK_BIAS_CTRL               = 0b100,
+            p_LPBK_EN_RCAL_B               = 0b0,
+            p_LPBK_EXT_RCAL                = 0b1000,
+            p_LPBK_IND_CTRL0               = 0b000,
+            p_LPBK_IND_CTRL1               = 0b000,
+            p_LPBK_IND_CTRL2               = 0b000,
+            p_LPBK_RG_CTRL                 = 0b1110,
+            p_PCIE3_CLK_COR_EMPTY_THRSH    = 0b00000,
+            p_PCIE3_CLK_COR_FULL_THRSH     = 0b010000,
+            p_PCIE3_CLK_COR_MAX_LAT        = 0b00100,
+            p_PCIE3_CLK_COR_MIN_LAT        = 0b00000,
+            p_PCIE3_CLK_COR_THRSH_TIMER    = 0b001000,
+            p_PCIE_BUFG_DIV_CTRL           = 0b0011010100000000,
+            p_PCIE_PLL_SEL_MODE_GEN12      = 0b10,
+            p_PCIE_PLL_SEL_MODE_GEN3       = 0b10,
+            p_PCIE_PLL_SEL_MODE_GEN4       = 0b10,
+            p_PCIE_RXPCS_CFG_GEN3          = 0b0000101010100101,
+            p_PCIE_RXPMA_CFG               = 0b0010100000001010,
+            p_PCIE_TXPMA_CFG               = 0b0010100000001010,
+            p_PREIQ_FREQ_BST               = 0,
+            p_RCLK_SIPO_DLY_ENB            = 0b0,
+            p_RCLK_SIPO_INV_EN             = 0b0,
+            p_RTX_BUF_CML_CTRL             = 0b010,
+            p_RTX_BUF_TERM_CTRL            = 0b00,
+            p_RXCDR_CFG0                   = 0b0000000000000011,
+            p_RXCDR_CFG0_GEN3              = 0b0000000000000011,
+            p_RXCDR_CFG1                   = 0b0000000000000000,
+            p_RXCDR_CFG1_GEN3              = 0b0000000000000000,
+            p_RXCDR_CFG2                   = 0b0000001001101001,
+            p_RXCDR_CFG2_GEN2              = 0b1001101001,
+            p_RXCDR_CFG2_GEN3              = 0b0000001001101001,
+            p_RXCDR_CFG2_GEN4              = 0b0000000101100100,
+            p_RXCDR_CFG3                   = 0b0000000000010000,
+            p_RXCDR_CFG3_GEN2              = 0b010000,
+            p_RXCDR_CFG3_GEN3              = 0b0000000000010000,
+            p_RXCDR_CFG3_GEN4              = 0b0000000000010010,
+            p_RXCDR_CFG4                   = 0b0101110011110110,
+            p_RXCDR_CFG4_GEN3              = 0b0101110011110110,
+            p_RXCDR_CFG5                   = 0b1011010001101011,
+            p_RXCDR_CFG5_GEN3              = 0b0001010001101011,
+            p_RXCDR_LOCK_CFG0              = 0b0010001000000001,
+            p_RXCDR_LOCK_CFG1              = 0b1001111111111111,
+            p_RXCDR_LOCK_CFG2              = 0b0111011111000011,
+            p_RXCDR_LOCK_CFG3              = 0b0000000000000001,
+            p_RXCDR_LOCK_CFG4              = 0b0000000000000000,
+            p_RXCFOK_CFG0                  = 0b0000000000000000,
+            p_RXCFOK_CFG1                  = 0b1000000000010101,
+            p_RXCFOK_CFG2                  = 0b0000001010101110,
+            p_RXCKCAL1_IQ_LOOP_RST_CFG     = 0b0000000000000100,
+            p_RXCKCAL1_I_LOOP_RST_CFG      = 0b0000000000000100,
+            p_RXCKCAL1_Q_LOOP_RST_CFG      = 0b0000000000000100,
+            p_RXCKCAL2_DX_LOOP_RST_CFG     = 0b0000000000000100,
+            p_RXCKCAL2_D_LOOP_RST_CFG      = 0b0000000000000100,
+            p_RXCKCAL2_S_LOOP_RST_CFG      = 0b0000000000000100,
+            p_RXCKCAL2_X_LOOP_RST_CFG      = 0b0000000000000100,
+            p_RXDFELPM_KL_CFG0             = 0b0000000000000000,
+            p_RXDFELPM_KL_CFG1             = 0b1010000011100010,
+            p_RXDFELPM_KL_CFG2             = 0b0000000100000000,
+            p_RXDFE_GC_CFG0                = 0b0000000000000000,
+            p_RXDFE_GC_CFG1                = 0b1000000000000000,
+            p_RXDFE_GC_CFG2                = 0b1111111111100000,
+            p_RXDFE_H2_CFG0                = 0b0000000000000000,
+            p_RXDFE_H2_CFG1                = 0b0000000000000010,
+            p_RXDFE_H3_CFG0                = 0b0000000000000000,
+            p_RXDFE_H3_CFG1                = 0b1000000000000010,
+            p_RXDFE_H4_CFG0                = 0b0000000000000000,
+            p_RXDFE_H4_CFG1                = 0b1000000000000010,
+            p_RXDFE_H5_CFG0                = 0b0000000000000000,
+            p_RXDFE_H5_CFG1                = 0b1000000000000010,
+            p_RXDFE_H6_CFG0                = 0b0000000000000000,
+            p_RXDFE_H6_CFG1                = 0b1000000000000010,
+            p_RXDFE_H7_CFG0                = 0b0000000000000000,
+            p_RXDFE_H7_CFG1                = 0b1000000000000010,
+            p_RXDFE_H8_CFG0                = 0b0000000000000000,
+            p_RXDFE_H8_CFG1                = 0b1000000000000010,
+            p_RXDFE_H9_CFG0                = 0b0000000000000000,
+            p_RXDFE_H9_CFG1                = 0b1000000000000010,
+            p_RXDFE_HA_CFG0                = 0b0000000000000000,
+            p_RXDFE_HA_CFG1                = 0b1000000000000010,
+            p_RXDFE_HB_CFG0                = 0b0000000000000000,
+            p_RXDFE_HB_CFG1                = 0b1000000000000010,
+            p_RXDFE_HC_CFG0                = 0b0000000000000000,
+            p_RXDFE_HC_CFG1                = 0b1000000000000010,
+            p_RXDFE_HD_CFG0                = 0b0000000000000000,
+            p_RXDFE_HD_CFG1                = 0b1000000000000010,
+            p_RXDFE_HE_CFG0                = 0b0000000000000000,
+            p_RXDFE_HE_CFG1                = 0b1000000000000010,
+            p_RXDFE_HF_CFG0                = 0b0000000000000000,
+            p_RXDFE_HF_CFG1                = 0b1000000000000010,
+            p_RXDFE_KH_CFG0                = 0b0000000000000000,
+            p_RXDFE_KH_CFG1                = 0b1000000000000000,
+            p_RXDFE_KH_CFG2                = 0b0010011000010011,
+            p_RXDFE_KH_CFG3                = 0b0100000100011100,
+            p_RXDFE_OS_CFG0                = 0b0000000000000000,
+            p_RXDFE_OS_CFG1                = 0b1000000000000010,
+            p_RXDFE_PWR_SAVING             = 0b1,
+            p_RXDFE_UT_CFG0                = 0b0000000000000000,
+            p_RXDFE_UT_CFG1                = 0b0000000000000011,
+            p_RXDFE_UT_CFG2                = 0b0000000000000000,
+            p_RXDFE_VP_CFG0                = 0b0000000000000000,
+            p_RXDFE_VP_CFG1                = 0b1000000000110011,
+            p_RXDLY_CFG                    = 0b0000000000010000,
+            p_RXELECIDLE_CFG               = "SIGCFG_4",
+            p_RXLPM_GC_CFG                 = 0b1000000000000000,
+            p_RXLPM_OS_CFG0                = 0b0000000000000000,
+            p_RXLPM_OS_CFG1                = 0b1000000000000010,
+            p_RXPHDLY_CFG                  = 0b0010000001110000,
+            p_RXPHSLIP_CFG                 = 0b1001100100110011,
+            p_RXPI_AUTO_BW_SEL_BYPASS      = 0b0,
+            p_RXPI_CFG0                    = 0b0000000000000010,
+            p_RXPI_CFG1                    = 0b0000000000010101,
+            p_RXPI_SEL_LC                  = 0b00,
+            p_RXPI_STARTCODE               = 0b00,
+            p_RXREFCLKDIV2_SEL             = 0b0,
+            p_RX_BIAS_CFG0                 = 0b0001010101010100,
+            p_RX_CM_SEL                    = 3,
+            p_RX_CM_TRIM                   = 10,
+            p_RX_CTLE3_LPF                 = 0b11111111,
+            p_RX_DEGEN_CTRL                = 0b011,
+            p_RX_DFELPM_CFG0               = 6,
+            p_RX_DFELPM_CFG1               = 0b1,
+            p_RX_DFE_AGC_CFG0              = 0b10,
+            p_RX_DFE_AGC_CFG1              = 4,
+            p_RX_DFE_KL_LPM_KH_CFG0        = 1,
+            p_RX_DFE_KL_LPM_KH_CFG1        = 4,
+            p_RX_DFE_KL_LPM_KL_CFG0        = 0b01,
+            p_RX_DFE_KL_LPM_KL_CFG1        = 4,
+            p_RX_DIV2_MODE_B               = 0b0,
+            p_RX_EN_CTLE_RCAL_B            = 0b0,
+            p_RX_EXT_RL_CTRL               = 0b000000000,
+            p_RX_PMA_RSV0                  = 0b0000000000000000,
+            p_RX_PROGDIV_RATE              = 0b0000000000000001,
+            p_RX_RESLOAD_CTRL              = 0b0000,
+            p_RX_RESLOAD_OVRD              = 0b0,
+            p_RX_SUM_IREF_TUNE             = 0b1001,
+            p_RX_SUM_RESLOAD_CTRL          = 0b0011,
+            p_RX_SUM_VCMTUNE               = 0b1010,
+            p_RX_SUM_VREF_TUNE             = 0b100,
+            p_RX_TUNE_AFE_OS               = 0b00,
+            p_RX_VREG_CTRL                 = 0b101,
+            p_RX_VREG_PDB                  = 0b1,
+            p_RX_WIDEMODE_CDR              = 0b01,
+            p_RX_WIDEMODE_CDR_GEN3         = 0b00,
+            p_RX_WIDEMODE_CDR_GEN4         = 0b01,
+            p_RX_XMODE_SEL                 = 0b0,
+            p_SAMPLE_CLK_PHASE             = 0b0,
+            p_SAS_12G_MODE                 = 0b0,
+            p_SATA_BURST_SEQ_LEN           = 0b1111,
+            p_SIM_DEVICE                   = "ULTRASCALE_PLUS",
+            p_SIM_MODE                     = "FAST",
+            p_SIM_TX_EIDLE_DRIVE_LEVEL     = "Z",
+            p_SRSTMODE                     = 0b0,
+            p_TEMPERATURE_PAR              = 0b0010,
+            p_TERM_RCAL_CFG                = 0b100001000010001,
+            p_TXDLY_CFG                    = 0b1000000000010000,
+            p_TXDLY_LCFG                   = 0b0000000000110000,
+            p_TXPHDLY_CFG0                 = 0b0110000001110000,
+            p_TXPHDLY_CFG1                 = 0b0000000000001110,
+            p_TXPH_CFG                     = 0b0000001100100011,
+            p_TXPH_CFG2                    = 0b0000000000000000,
+            p_TXPI_CFG                     = 0b0000000001010100,
+            p_TXPI_CFG0                    = 0b00,
+            p_TXPI_CFG1                    = 0b00,
+            p_TXPI_CFG2                    = 0b00,
+            p_TXPI_CFG3                    = 0b0,
+            p_TXPI_CFG4                    = 0b0,
+            p_TXPI_CFG5                    = 0b000,
+            p_TXPI_INVSTROBE_SEL           = 0b0,
+            p_TXPI_PPM                     = 0b0,
+            p_TXREFCLKDIV2_SEL             = 0b0,
+            p_TX_DCC_LOOP_RST_CFG          = 0b0000000000000100,
+            p_TX_DEEMPH2                   = 0b000000,
+            p_TX_DEEMPH3                   = 0b000000,
+            p_TX_DRVMUX_CTRL               = 2,
+            p_TX_FIFO_BYP_EN               = 0b0,
+            p_TX_MARGIN_FULL_0             = 0b1011111,
+            p_TX_MARGIN_FULL_1             = 0b1011110,
+            p_TX_MARGIN_FULL_2             = 0b1011100,
+            p_TX_MARGIN_FULL_3             = 0b1011010,
+            p_TX_MARGIN_FULL_4             = 0b1011000,
+            p_TX_PHICAL_CFG0               = 0b0000000000000000,
+            p_TX_PHICAL_CFG1               = 0b0111111000000000,
+            p_TX_PHICAL_CFG2               = 0b0000001000000001,
+            p_TX_PI_BIASSET                = 1,
+            p_TX_PI_IBIAS_MID              = 0b00,
+            p_TX_PMA_RSV0                  = 0b0000000000001000,
+            p_TX_PREDRV_CTRL               = 2,
+            p_TX_PROGDIV_RATE              = 0b0000000000000001,
+            p_TX_RXDETECT_REF              = 4,
+            p_TX_SW_MEAS                   = 0b00,
+            p_TX_VREG_CTRL                 = 0b000,
+            p_TX_VREG_PDB                  = 0b0,
+            p_TX_VREG_VREFSEL              = 0b00,
+            p_USB_BOTH_BURST_IDLE          = 0b0,
+            p_USB_BURSTMAX_U3WAKE          = 0b1111111,
+            p_USB_BURSTMIN_U3WAKE          = 0b1100011,
+            p_USB_CLK_COR_EQ_EN            = 0b0,
+            p_USB_EXT_CNTL                 = 0b1,
+            p_USB_IDLEMAX_POLLING          = 0b1010111011,
+            p_USB_IDLEMIN_POLLING          = 0b0100101011,
+            p_USB_LFPSPING_BURST           = 0b000000101,
+            p_USB_LFPSPOLLING_BURST        = 0b000110001,
+            p_USB_LFPSPOLLING_IDLE_MS      = 0b000000100,
+            p_USB_LFPSU1EXIT_BURST         = 0b000011101,
+            p_USB_LFPSU2LPEXIT_BURST_MS    = 0b001100011,
+            p_USB_LFPSU3WAKE_BURST_MS      = 0b111110011,
+            p_USB_LFPS_TPERIOD             = 0b0011,
+            p_USB_LFPS_TPERIOD_ACCURATE    = 0b1,
+            p_USB_MODE                     = 0b0,
+            p_USB_PCIE_ERR_REP_DIS         = 0b0,
+            p_USB_PING_SATA_MAX_INIT       = 21,
+            p_USB_PING_SATA_MIN_INIT       = 12,
+            p_USB_POLL_SATA_MAX_BURST      = 8,
+            p_USB_POLL_SATA_MIN_BURST      = 4,
+            p_USB_RAW_ELEC                 = 0b0,
+            p_USB_RXIDLE_P0_CTRL           = 0b1,
+            p_USB_TXIDLE_TUNE_ENABLE       = 0b1,
+            p_USB_U1_SATA_MAX_WAKE         = 7,
+            p_USB_U1_SATA_MIN_WAKE         = 4,
+            p_USB_U2_SAS_MAX_COM           = 64,
+            p_USB_U2_SAS_MIN_COM           = 36,
+            p_Y_ALL_MODE                   = 0b0,
+        )
+
+        # Ultrascale+ only ports (only inputs mentionned in UG576)
+        self.gth_params.update(
+            # Reset modes
+            i_GTRXRESETSEL      = 0,
+            i_GTTXRESETSEL      = 0,
+
+            # CDR
+            i_INCPCTRL          = 0,
+            i_CDRSTEPDIR        = 0,
+            i_CDRSTEPSQ         = 0,
+            i_CDRSTEPSX         = 0,
+
+            # PCIe related
+            i_CPLLFREQLOCK      = 0,
+            i_QPLL0FREQLOCK     = 0,
+            i_QPLL1FREQLOCK     = 0,
+
+            # DRP
+            i_DRPRST            = 0,
+
+            # RX Startup/Reset
+            i_RXCKCALRESET      = 0,
+            i_RXCKCALSTART      = 0,
+
+            # RX AFE
+            i_RXTERMINATION     = 0,
+
+            # RX Equalizer
+            i_FREQOS            = 0,
+            i_RXDFECFOKFCNUM    = 0xD,
+            i_RXDFECFOKFEN      = 0,
+            i_RXDFECFOKFPULSE   = 0,
+            i_RXDFECFOKHOLD     = 0,
+            i_RXDFECFOKOVREN    = 0,
+            i_RXDFEKHHOLD       = 0,
+            i_RXDFEKHOVRDEN     = 0,
+            i_RXAFECFOKEN       = 1,
+
+            # TX Startup/Reset
+            i_TXDCCFORCESTART   = 0,
+            i_TXDCCRESET        = 0,
+        )
+
+        # Full list of Ultrascale+ only ports
+            # CDRSTEPDIR
+            # CDRSTEPSQ
+            # CDRSTEPSX
+            # CPLLFREQLOCK
+            # DRPRST
+            # FREQOS
+            # GTRXRESETSEL
+            # GTTXRESETSEL
+            # INCPCTRL
+            # QPLL0FREQLOCK
+            # QPLL1FREQLOCK
+            # RXAFECFOKEN
+            # RXCKCALRESET
+            # RXCKCALSTART
+            # RXDFECFOKFCNUM
+            # RXDFECFOKFEN
+            # RXDFECFOKFPULSE
+            # RXDFECFOKHOLD
+            # RXDFECFOKOVREN
+            # RXDFEKHHOLD
+            # RXDFEKHOVRDEN
+            # RXEQTRAINING
+            # RXTERMINATION
+            # TXDCCFORCESTART
+            # TXDCCRESET
+            # TXLFPSTRESET
+            # TXLFPSU2LPEXIT
+            # TXLFPSU3WAKE
+            # TXMUXDCDEXHOLD
+            # TXMUXDCDORWREN
+            # TXONESZEROS
+            # DMONITOROUTCLK
+            # POWERPRESENT
+            # RXCKCALDONE
+            # RXLFPSTRESETDET
+            # RXLFPSU2LPEXITDET
+            # RXLFPSU3WAKEDET
+            # TXDCCDONE
