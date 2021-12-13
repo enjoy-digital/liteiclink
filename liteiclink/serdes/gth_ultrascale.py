@@ -792,7 +792,7 @@ class GTH(Module, AutoCSR):
             i_RXRATE          = 0,
             i_RXSYSCLKSEL     = 0b00,
             i_RXOUTCLKSEL     = 0b010,
-            i_RXPLLCLKSEL     = 0b00,
+            i_RXPLLCLKSEL     = 0b00 if use_cpll else 0b11 if use_qpll0 else 0b10,
             o_RXOUTCLK        = self.rxoutclk,
             i_RXUSRCLK        = ClockSignal("rx"),
             i_RXUSRCLK2       = ClockSignal("rx"),
