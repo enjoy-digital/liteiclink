@@ -1138,7 +1138,7 @@ class GTY(Module, AutoCSR):
         ]
 
         # RX Datapath and PRBS ---------------------------------------------------------------------
-        self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, True))
+        self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, True, wrap=True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
             self.rx_prbs.pause.eq(rx_prbs_pause),

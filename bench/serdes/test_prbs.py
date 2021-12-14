@@ -125,6 +125,8 @@ def prbs_test(csr_csv="csr.csv", port=1234, serdes=0, mode="prbs7", square_wave=
             serdes.rx_prbs_config.write(prbs_pause | prbs_modes[mode])
             errors = serdes.rx_prbs_errors.read()
             serdes.rx_prbs_config.write(prbs_modes[mode])
+            if errors < errors_last:
+                errors_last -= 1 << 32
             if not first:
                 errors_total += (errors - errors_last)
             # Log
