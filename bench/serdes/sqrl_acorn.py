@@ -11,7 +11,7 @@ import argparse
 
 from migen import *
 
-from litex_boards.platforms import acorn_cle_215
+from litex_boards.platforms import sqrl_acorn
 
 from litex.build.generic_platform import *
 
@@ -135,13 +135,13 @@ def main():
     parser.add_argument("--linerate",  default="2.5e9",     help="Linerate (default: 2.5e9)")
     args = parser.parse_args()
 
-    platform = acorn_cle_215.Platform()
+    platform = sqrl_acorn.Platform()
     platform.add_extension(_transceiver_io)
     soc = GTPTestSoC(platform,
         connector = args.connector,
         linerate  = float(args.linerate),
     )
-    builder = Builder(soc, csr_csv="acorn_cle_215.csv")
+    builder = Builder(soc, csr_csv="sqrl_acorn.csv")
     builder.build(run=args.build)
 
     if args.load:
