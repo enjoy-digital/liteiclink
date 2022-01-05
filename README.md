@@ -4,7 +4,7 @@
                              / /__/ / __/ -_)/ // /__/ /__/ / _ \/  '_/
                             /____/_/\__/\__/___/\___/____/_/_//_/_/\_\
 
-                                Copyright 2017-2020 / EnjoyDigital
+                                Copyright 2017-2022 / EnjoyDigital
 
                             Small footprint and configurable Inter-Chip
                              communication cores powered by Migen & LiteX
