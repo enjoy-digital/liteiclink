@@ -71,12 +71,10 @@ class GTHTestSoC(SoCMini):
         sys_clk_freq = int(125e6)
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq,
-            ident         = "LiteICLink bench on KCU105",
-            ident_version = True,
-            with_uart     = True,
-            uart_name     = "bridge"
-        )
+        SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteICLink bench on KCU105")
+
+        # UARTBone ---------------------------------------------------------------------------------
+        self.add_uartbone()
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = CRG(platform.request("clk125"), platform.request("cpu_reset"))

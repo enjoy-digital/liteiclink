@@ -75,12 +75,10 @@ class SerDesTestSoC(SoCMini):
         sys_clk_freq = int(100e6)
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq,
-            ident         = "LiteICLink bench on Versa ECP5",
-            ident_version = True,
-            with_uart     = True,
-            uart_name     = "bridge"
-        )
+        SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteICLink bench on Versa ECP5")
+
+        # UARTBone ---------------------------------------------------------------------------------
+        self.add_uartbone()
 
         # CRG --------------------------------------------------------------------------------------
         refclk_from_pll = {
