@@ -745,7 +745,7 @@ class SerDesECP5(Module, AutoCSR):
         self._tx_produce_square_wave = CSRStorage(fields=[
                 CSRField("enable", size=1, values=[
                     ("``0b0``", "Normal operation."),
-                    ("``0b1``", "TX square wave genration enabled (linerate observation/checks).")
+                    ("``0b1``", "TX square wave generation enabled (linerate observation/checks).")
                 ])
             ])
         self._rx_enable = CSRStorage(fields=[
