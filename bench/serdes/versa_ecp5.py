@@ -172,7 +172,7 @@ class SerDesTestSoC(SoCMini):
         self.comb += platform.request("user_led", 1).eq(rx_counter[26])
 
         tx_counter = Signal(32)
-        self.sync.tx += tx_counter.eq(rx_counter + 1)
+        self.sync.tx += tx_counter.eq(tx_counter + 1)
         self.comb += platform.request("user_led", 2).eq(tx_counter[26])
 
         # Analyzer ---------------------------------------------------------------------------------
