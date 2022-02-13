@@ -307,6 +307,7 @@ class SerdesInit(Module):
         self.rx_los = _rx_los = Signal()
         self.specials += MultiReg(tx_lol, _tx_lol)
         self.specials += MultiReg(rx_lol, _rx_lol)
+        self.specials += MultiReg(rx_los, _rx_los)
 
         timer = WaitTimer(1024)
         self.submodules += timer
