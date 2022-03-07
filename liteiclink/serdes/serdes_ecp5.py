@@ -295,6 +295,7 @@ class SerDesECP5SCIReconfig(Module, AutoCSR):
 
 class SerdesInit(Module):
     def __init__(self, tx_lol, rx_lol, rx_los):
+        self.rst     = Signal()
         self.tx_rst  = Signal()
         self.rx_rst  = Signal()
         self.pcs_rst = Signal()
@@ -310,9 +311,12 @@ class SerdesInit(Module):
 
         timer = WaitTimer(1024)
         self.submodules += timer
-        timer.wait.reset = 1
+        self.comb += timer.wait.eq(~self.rst)
 
-        self.submodules.fsm = fsm = FSM(reset_state="RESET-ALL")
+        fsm = FSM(reset_state="RESET-ALL")
+        fsm = ResetInserter()(fsm)
+        self.submodules.fsm = fsm
+        self.comb += fsm.reset.eq(self.rst)
         fsm.act("RESET-ALL",
             # Reset TX Serdes, RX Serdes and PCS.
             self.tx_rst.eq(1),
@@ -523,15 +527,15 @@ class SerDesECP5(Module, AutoCSR):
             p_CHX_DEC_BYPASS        = "0b1",    # Bypass 8b10b encoder
 
             # CHX receive --------------------------------------------------------------------------
-            # CHX RX ­— power management
+            # CHX RX — power management
             p_CHX_RPWDNB            = "0b1",
             i_CHX_FFC_RXPWDNB       = 1,
 
-            # CHX RX ­— reset
+            # CHX RX — reset
             i_CHX_FFC_RRST          = ~self.rx_enable | init.rx_rst,
             i_CHX_FFC_LANE_RX_RST   = ~self.rx_enable | init.pcs_rst,
 
-            # CHX RX ­— input
+            # CHX RX — input
             i_CHX_HDINP             = rx_pads.p,
             i_CHX_HDINN             = rx_pads.n,
 
@@ -624,11 +628,11 @@ class SerDesECP5(Module, AutoCSR):
             p_CHX_TPWDNB            = "0b1",
             i_CHX_FFC_TXPWDNB       = 1,
 
-            # CHX TX ­— reset
+            # CHX TX — reset
             i_D_FFC_TRST            = ~self.tx_enable | init.tx_rst,
             i_CHX_FFC_LANE_TX_RST   = ~self.tx_enable | init.pcs_rst,
 
-            # CHX TX ­— output
+            # CHX TX - output
             o_CHX_HDOUTP            = tx_pads.p,
             o_CHX_HDOUTN            = tx_pads.n,
 
@@ -655,7 +659,7 @@ class SerDesECP5(Module, AutoCSR):
             p_CHX_TDRV_SLICE5_CUR   = "0b00",   # 800 uA
             p_CHX_TDRV_SLICE5_SEL   = "0b00",   # power down
 
-            # CHX TX ­— clocking
+            # CHX TX — clocking
             o_CHX_FF_TX_PCLK        = self.txoutclk,
             i_CHX_FF_TXI_CLK        = ClockSignal("tx"),
 
