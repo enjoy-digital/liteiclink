@@ -128,7 +128,6 @@ class SerDesTestSoC(SoCMini):
         serdes0.add_stream_endpoints()
         serdes0.add_controls()
         serdes0.add_clock_cycles()
-        self.add_csr("serdes0")
 
         platform.add_period_constraint(serdes0.txoutclk, 1e9/serdes0.tx_clk_freq)
         platform.add_period_constraint(serdes0.rxoutclk, 1e9/serdes0.rx_clk_freq)
@@ -172,7 +171,7 @@ class SerDesTestSoC(SoCMini):
         self.comb += platform.request("user_led", 1).eq(rx_counter[26])
 
         tx_counter = Signal(32)
-        self.sync.tx += tx_counter.eq(rx_counter + 1)
+        self.sync.tx += tx_counter.eq(tx_counter + 1)
         self.comb += platform.request("user_led", 2).eq(tx_counter[26])
 
         # Analyzer ---------------------------------------------------------------------------------
@@ -182,7 +181,6 @@ class SerDesTestSoC(SoCMini):
             serdes0.init.tx_lol,
             serdes0.init.rx_lol,
             ], depth=512)
-        self.add_csr("analyzer")
 
         # Debug ------------------------------------------------------------------------------------
         self.platform.add_extension([("debug", 0, Pins("X3:4"), IOStandard("LVCMOS33"))])
