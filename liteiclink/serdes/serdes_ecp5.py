@@ -308,6 +308,7 @@ class SerdesInit(Module):
         self.rx_los = _rx_los = Signal()
         self.specials += MultiReg(tx_lol, _tx_lol)
         self.specials += MultiReg(rx_lol, _rx_lol)
+        self.specials += MultiReg(rx_los, _rx_los)
 
         timer = WaitTimer(1024)
         self.submodules += timer
@@ -748,7 +749,7 @@ class SerDesECP5(Module, AutoCSR):
         self._tx_produce_square_wave = CSRStorage(fields=[
                 CSRField("enable", size=1, values=[
                     ("``0b0``", "Normal operation."),
-                    ("``0b1``", "TX square wave genration enabled (linerate observation/checks).")
+                    ("``0b1``", "TX square wave generation enabled (linerate observation/checks).")
                 ])
             ])
         self._rx_enable = CSRStorage(fields=[
