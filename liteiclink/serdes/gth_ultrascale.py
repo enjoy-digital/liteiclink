@@ -1250,7 +1250,7 @@ class GTH4(GTHBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Ultrascale+ only params
+        # Ultrascale+ only params 1/2
         self.gth_params.update(
             p_ADAPT_CFG0                   = 0b0001000000000000,
             p_ADAPT_CFG1                   = 0b1100100000000000,
@@ -1487,6 +1487,10 @@ class GTH4(GTHBase):
             p_TX_VREG_CTRL                 = 0b000,
             p_TX_VREG_PDB                  = 0b0,
             p_TX_VREG_VREFSEL              = 0b00,
+        )
+
+        # Ultrascale+ only params 2/2
+        self.gth_params.update(
             p_USB_BOTH_BURST_IDLE          = 0b0,
             p_USB_BURSTMAX_U3WAKE          = 0b1111111,
             p_USB_BURSTMIN_U3WAKE          = 0b1100011,
