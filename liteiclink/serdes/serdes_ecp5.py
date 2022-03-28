@@ -832,4 +832,3 @@ class SerDesECP5(Module, AutoCSR):
         self.specials.dcu0 = Instance("DCUA", **serdes_params)
         self.dcu0.attr.add(("LOC", "DCU{}".format(self.dual)))
         self.dcu0.attr.add(("CHAN", "CH{}".format(self.channel)))
-        self.dcu0.attr.add(("BEL", "X42/Y71/DCU"))
