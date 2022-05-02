@@ -12,7 +12,7 @@ import argparse
 from migen import *
 from migen.genlib.io import CRG
 
-from litex_boards.platforms import xcu1525
+from litex_boards.platforms import sqrl_xcu1525
 
 from litex.build.generic_platform import *
 
@@ -181,7 +181,7 @@ def main():
     parser.add_argument("--pll",       default="cpll",      help="PLL: cpll (default) or qpll")
     args = parser.parse_args()
 
-    platform = xcu1525.Platform()
+    platform = sqrl_xcu1525.Platform()
     platform.add_extension(_transceiver_io)
     soc = GTYTestSoC(platform,
         connector = args.connector,

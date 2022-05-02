@@ -12,7 +12,7 @@ import argparse
 from migen import *
 from migen.genlib.io import CRG
 
-from litex_boards.platforms import kc705
+from litex_boards.platforms import xilinx_kc705
 
 from litex.build.generic_platform import *
 
@@ -136,7 +136,7 @@ def main():
     parser.add_argument("--pll",       default="cpll",      help="PLL: cpll (default) or qpll")
     args = parser.parse_args()
 
-    platform = kc705.Platform()
+    platform = xilinx_kc705.Platform()
     platform.add_extension(_transceiver_io)
     soc = GTXTestSoC(platform,
         connector = args.connector,

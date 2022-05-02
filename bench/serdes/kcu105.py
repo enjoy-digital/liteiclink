@@ -12,7 +12,7 @@ import argparse
 from migen import *
 from migen.genlib.io import CRG
 
-from litex_boards.platforms import kcu105
+from litex_boards.platforms import xilinx_kcu105
 
 from litex.build.generic_platform import *
 
@@ -167,7 +167,7 @@ def main():
     parser.add_argument("--linerate",  default="2.5e9",     help="Linerate (default: 2.5e9)")
     args = parser.parse_args()
 
-    platform = kcu105.Platform()
+    platform = xilinx_kcu105.Platform()
     platform.add_extension(_transceiver_io)
     soc = GTHTestSoC(platform,
         connector = args.connector,

@@ -14,8 +14,8 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.generic_platform import *
 
-from litex_boards.platforms import ulx3s
-from litex_boards.targets.ulx3s import _CRG
+from litex_boards.platforms import radiona_ulx3s
+from litex_boards.targets.radiona_ulx3s import _CRG
 
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc import SoCRegion
@@ -177,7 +177,7 @@ def main():
     parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer")
     args = parser.parse_args()
 
-    platform = ulx3s.Platform(toolchain="trellis")
+    platform = radiona_ulx3s.Platform(toolchain="trellis")
     platform.add_extension(serwb_io)
     soc     = SerWBTestSoC(platform, loopback=args.loopback, with_analyzer=args.with_analyzer)
     builder = Builder(soc, csr_csv="csr.csv")

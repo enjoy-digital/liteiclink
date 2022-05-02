@@ -13,11 +13,10 @@ from migen import *
 from migen.genlib.misc import WaitTimer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from litex.soc.interconnect.csr import *
-
 from litex.build.generic_platform import *
-from litex_boards.platforms import nexys_video as nexys
+from litex_boards.platforms import digilent_nexys_video
 
+from litex.soc.interconnect.csr import *
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
@@ -183,7 +182,7 @@ def main():
     parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer")
     args = parser.parse_args()
 
-    platform = nexys.Platform()
+    platform = digilent_nexys_video.Platform()
     platform.add_extension(serwb_io)
     soc     = SerWBTestSoC(platform, low_speed=args.low_speed, with_analyzer=args.with_analyzer)
     builder = Builder(soc, csr_csv="csr.csv")

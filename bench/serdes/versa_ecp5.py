@@ -14,7 +14,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.generic_platform import *
 
-from litex_boards.platforms import versa_ecp5
+from litex_boards.platforms import lattice_versa_ecp5
 
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
@@ -197,7 +197,7 @@ def main():
     parser.add_argument("--linerate",  default="2.5e9",     help="Linerate (default: 2.5e9)")
     args = parser.parse_args()
 
-    platform = versa_ecp5.Platform(toolchain=args.toolchain)
+    platform = lattice_versa_ecp5.Platform(toolchain=args.toolchain)
     platform.add_extension(_transceiver_io)
     soc = SerDesTestSoC(platform,
         connector = args.connector,
