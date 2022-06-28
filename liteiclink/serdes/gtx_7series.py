@@ -86,11 +86,12 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 class GTXQuadPLL(Module):
     def __init__(self, refclk, refclk_freq, linerate):
-        self.clk    = Signal()
-        self.refclk = Signal()
-        self.reset  = Signal()
-        self.lock   = Signal()
-        self.config = self.compute_config(refclk_freq, linerate)
+        self.clk       = Signal()
+        self.refclk    = Signal()
+        self.reset     = Signal()
+        self.lock      = Signal()
+        self.powerdown = Signal()
+        self.config    = self.compute_config(refclk_freq, linerate)
 
         # DRP
         self.drp = DRPInterface()
@@ -126,6 +127,7 @@ class GTXQuadPLL(Module):
                 p_QPLL_REFCLK_DIV  = self.config["m"],
                 i_GTREFCLK0        = refclk,
                 i_QPLLRESET        = self.reset,
+                i_QPLLPD           = self.powerdown,
 
                 o_QPLLOUTCLK       = self.clk,
                 o_QPLLOUTREFCLK    = self.refclk,
@@ -653,7 +655,7 @@ class GTX(Module, AutoCSR):
 
             # Power-Down Ports
             i_RXPD             = Cat(rx_init.gtXxpd, rx_init.gtXxpd),
-            i_TXPD             = 0b00,
+            i_TXPD             = Cat(tx_init.gtXxpd, tx_init.gtXxpd),
 
             # RX 8B/10B Decoder Ports
             i_SETERRSTATUS     = 0,
