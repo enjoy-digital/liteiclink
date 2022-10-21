@@ -178,7 +178,6 @@ class SerWBSoC(SoCCore):
         # Etherbone---------------------------------------------------------------------------------
         # phy
         self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth"))
-        self.add_csr("ethphy")
         # core
         ethcore = LiteEthUDPIPCore(self.ethphy,
             mac_address = 0x10e2d5000000,
@@ -213,7 +212,6 @@ class SerWBSoC(SoCCore):
             pads         = serwb_master_pads,
             mode         = "master",
             init_timeout = 128)
-        self.add_csr("serwb_master_phy")
 
         # Slave
         self.submodules.serwb_slave_phy = SERWBPHY(
@@ -221,7 +219,6 @@ class SerWBSoC(SoCCore):
             pads         = serwb_slave_pads,
             mode         ="slave",
             init_timeout = 128)
-        self.add_csr("serwb_slave_phy")
 
         # Wishbone Slave
         serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave")

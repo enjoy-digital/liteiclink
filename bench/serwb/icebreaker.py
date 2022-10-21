@@ -21,7 +21,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.builder import *
 from litex.soc.interconnect import wishbone
-from litex.soc.cores.up5kspram import Up5kSPRAM
+from litex.soc.cores.ram import Up5kSPRAM
 
 from liteiclink.serwb.genphy import SERWBPHY
 from liteiclink.serwb.core import SERWBCore
@@ -62,7 +62,7 @@ class SerWBTestSoC(SoCMini):
             ident          = "LiteICLink SerWB bench on iCEBreaker",
             ident_version  = True,
             with_uart      = True,
-            uart_name      = "bridge")
+            uart_name      = "uartbone")
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -94,14 +94,12 @@ class SerWBTestSoC(SoCMini):
             device = platform.device,
             pads   = serwb_master_pads,
             mode   = "master")
-        self.add_csr("serwb_master_phy")
 
         # Slave
         self.submodules.serwb_slave_phy = SERWBPHY(
             device = platform.device,
             pads   = serwb_slave_pads,
             mode   ="slave")
-        self.add_csr("serwb_slave_phy")
 
         # Wishbone Slave
         serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave",

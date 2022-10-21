@@ -90,7 +90,7 @@ class SerWBTestSoC(SoCMini):
             ident          = "LiteICLink SerWB bench on Nexys Video",
             ident_version  = True,
             with_uart      = True,
-            uart_name      = "bridge")
+            uart_name      = "uartbone")
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -118,14 +118,12 @@ class SerWBTestSoC(SoCMini):
             device = platform.device,
             pads   = platform.request("serwb_master"),
             mode   = "master")
-        self.add_csr("serwb_master_phy")
 
         # Slave
         self.submodules.serwb_slave_phy = phy_cls(
             device = platform.device,
             pads   = platform.request("serwb_slave"),
             mode   ="slave")
-        self.add_csr("serwb_slave_phy")
 
         # Wishbone Slave
         serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave")
@@ -170,7 +168,6 @@ class SerWBTestSoC(SoCMini):
                 self.serwb_slave_phy.serdes.rx.datapath.decoder.source,
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
-            self.add_csr("analyzer")
 
 # Build --------------------------------------------------------------------------------------------
 

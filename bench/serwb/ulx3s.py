@@ -60,7 +60,7 @@ class SerWBTestSoC(SoCMini):
             ident          = "LiteICLink SerWB bench on ULX3S",
             ident_version  = True,
             with_uart      = True,
-            uart_name      = "bridge")
+            uart_name      = "uartbone")
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -94,7 +94,6 @@ class SerWBTestSoC(SoCMini):
             pads   = serwb_master_pads,
             mode   = "master")
         self.submodules.serwb_master_phy = serwb_master_phy
-        self.add_csr("serwb_master_phy")
 
         # Core
         serwb_master_core = SERWBCore(serwb_master_phy, self.clk_freq, mode="slave",
@@ -120,7 +119,6 @@ class SerWBTestSoC(SoCMini):
         self.specials += AsyncResetSynchronizer(self.cd_serwb, ResetSignal("sys"))
         serwb_slave_phy = ClockDomainsRenamer("serwb")(serwb_slave_phy)
         self.submodules.serwb_slave_phy = serwb_slave_phy
-        self.add_csr("serwb_slave_phy")
 
         # Core
         serwb_slave_core = SERWBCore(serwb_slave_phy, self.clk_freq, mode="master",
@@ -165,7 +163,6 @@ class SerWBTestSoC(SoCMini):
                 serwb_slave_phy.serdes.rx.datapath.decoder.source,
             ]
             self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
-            self.add_csr("analyzer")
 
 # Build --------------------------------------------------------------------------------------------
 
