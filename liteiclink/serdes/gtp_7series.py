@@ -163,7 +163,7 @@ class GTP(Module, AutoCSR):
         clock_aligner_comma = 0b0101111100,
         tx_polarity         = 0,
         rx_polarity         = 0):
-        assert data_width in [20]
+        assert data_width in [20, 40]
 
         # TX controls
         self.tx_enable              = Signal(reset=1)
@@ -206,7 +206,7 @@ class GTP(Module, AutoCSR):
         # Control/Status CDC
         tx_produce_square_wave = Signal()
         tx_produce_pattern     = Signal()
-        tx_pattern             = Signal(20)
+        tx_pattern             = Signal(data_width)
         tx_prbs_config         = Signal(2)
 
         rx_prbs_config = Signal(2)
@@ -299,7 +299,7 @@ class GTP(Module, AutoCSR):
             p_CLK_COR_SEQ_2_USE          = "FALSE",
             p_CLK_COR_KEEP_IDLE          = "FALSE",
             p_CLK_COR_MAX_LAT            = 10 if data_width == 20 else 19,
-            p_CLK_COR_MIN_LAT            = 8 if data_width == 20 else 15,
+            p_CLK_COR_MIN_LAT            = 8  if data_width == 20 else 15,
             p_CLK_COR_PRECEDENCE         = "TRUE",
             p_CLK_COR_REPEAT_WAIT        = 0,
             p_CLK_COR_SEQ_LEN            = 1,
