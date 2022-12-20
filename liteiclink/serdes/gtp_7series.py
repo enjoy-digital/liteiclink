@@ -155,7 +155,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 # GTP ----------------------------------------------------------------------------------------------
 
 class GTP(Module, AutoCSR):
-    def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq,
+    def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq, qpll_reset=True,
         data_width          = 20,
         tx_buffer_enable    = False,
         rx_buffer_enable    = False,
@@ -254,9 +254,10 @@ class GTP(Module, AutoCSR):
         # PLL --------------------------------------------------------------------------------------
         self.comb += [
             tx_init.plllock.eq(qpll.lock),
-            rx_init.plllock.eq(qpll.lock),
-            qpll.reset.eq(tx_init.pllreset)
+            rx_init.plllock.eq(qpll.lock)
         ]
+        if qpll_reset:
+            self.comb += qpll.reset.eq(tx_init.pllreset)
 
         # DRP mux ----------------------------------------------------------------------------------
         self.submodules.drp_mux = drp_mux = DRPMux()
