@@ -1039,7 +1039,7 @@ class GTX(Module, AutoCSR):
         ]
         for i in range(nwords):
             self.comb += self.decoders[i].input.eq(rxdata[10*i:10*(i+1)])
-        self.comb += self.rx_prbs.i.eq(rxdata)
+        self.sync.rx += self.rx_prbs.i.eq(rxdata)
 
         # Clock Aligner ----------------------------------------------------------------------------
         if clock_aligner:

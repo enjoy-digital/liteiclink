@@ -711,7 +711,7 @@ class SerDesECP5(Module, AutoCSR):
         ]
         for i in range(nwords):
             self.sync.rx += self.decoders[i].input.eq(rx_data[10*i:10*(i+1)])
-        self.comb += self.rx_prbs.i.eq(rx_data)
+        self.sync.rx += self.rx_prbs.i.eq(rx_data)
 
     def add_stream_endpoints(self):
         self.sink   =   sink = stream.Endpoint([("data", self.nwords*8), ("ctrl", self.nwords)])
