@@ -20,7 +20,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.code_8b10b import K
 
-from liteiclink.serdes.gth_ultrascale import GTHChannelPLL, GTHQuadPLL, GTH
+from liteiclink.serdes.gth_ultrascale import GTHChannelPLL, GTH3
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -111,7 +111,7 @@ class GTHTestSoC(SoCMini):
         # GTH --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
-        self.submodules.serdes0 = serdes0 = GTH(cpll, tx_pads, rx_pads, sys_clk_freq,
+        self.submodules.serdes0 = serdes0 = GTH3(cpll, tx_pads, rx_pads, sys_clk_freq,
             tx_buffer_enable = True,
             rx_buffer_enable = True,
             clock_aligner    = False)
