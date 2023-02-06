@@ -86,10 +86,11 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 class GTHQuadPLLBase(Module):
     def __init__(self, refclk, refclk_freq, linerate):
-        self.clk    = Signal()
-        self.refclk = Signal()
-        self.reset  = Signal()
-        self.lock   = Signal()
+        self.clk       = Signal()
+        self.refclk    = Signal()
+        self.reset     = Signal()
+        self.lock      = Signal()
+        self.powerdown = Signal()
         self.config = config = self.compute_config(refclk_freq, linerate)
 
         # # #
@@ -119,10 +120,10 @@ class GTHQuadPLLBase(Module):
             i_QPLL0CLKRSVD1    = 0,
             i_QPLL0LOCKDETCLK  = ClockSignal(),
             i_QPLL0LOCKEN      = 1,
-            o_QPLL0LOCK        = self.lock if use_qpll0 else Signal(),
-            o_QPLL0OUTCLK      = self.clk if use_qpll0 else Signal(),
-            o_QPLL0OUTREFCLK   = self.refclk if use_qpll0 else Signal(),
-            i_QPLL0PD          = 0 if use_qpll0 else 1,
+            o_QPLL0LOCK        = self.lock      if use_qpll0 else Signal(),
+            o_QPLL0OUTCLK      = self.clk       if use_qpll0 else Signal(),
+            o_QPLL0OUTREFCLK   = self.refclk    if use_qpll0 else Signal(),
+            i_QPLL0PD          = self.powerdown if use_qpll0 else 1,
             i_QPLL0REFCLKSEL   = 0b001,
             i_QPLL0RESET       = self.reset,
 
@@ -133,10 +134,10 @@ class GTHQuadPLLBase(Module):
             i_QPLL1CLKRSVD1    = 0,
             i_QPLL1LOCKDETCLK  = ClockSignal(),
             i_QPLL1LOCKEN      = 1,
-            o_QPLL1LOCK        = self.lock if use_qpll1 else Signal(),
-            o_QPLL1OUTCLK      = self.clk if use_qpll1 else Signal(),
-            o_QPLL1OUTREFCLK   = self.refclk if use_qpll1 else Signal(),
-            i_QPLL1PD          = 0 if use_qpll1 else 1,
+            o_QPLL1LOCK        = self.lock      if use_qpll1 else Signal(),
+            o_QPLL1OUTCLK      = self.clk       if use_qpll1 else Signal(),
+            o_QPLL1OUTREFCLK   = self.refclk    if use_qpll1 else Signal(),
+            i_QPLL1PD          = self.powerdown if use_qpll1 else 1,
             i_QPLL1REFCLKSEL   = 0b001,
             i_QPLL1RESET       = self.reset,
         )
