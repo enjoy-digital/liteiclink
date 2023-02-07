@@ -47,6 +47,7 @@ class GTYChannelPLL(Module):
         raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
 
     def __repr__(self):
+        config = self.config
         r = """
 GTYChannelPLL
 ==============
@@ -74,13 +75,13 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
              = {vco_freq}GHz
     LINERATE = CLKOUT x 2 / D = {vco_freq}GHz x 2 / {d}
              = {linerate}GHz
-""".format(clkin    = self.config["clkin"]/1e6,
-           n1       = self.config["n1"],
-           n2       = self.config["n2"],
-           m        = self.config["m"],
-           vco_freq = self.config["vco_freq"]/1e9,
-           d        = self.config["d"],
-           linerate = self.config["linerate"]/1e9)
+""".format(clkin    = config["clkin"]/1e6,
+           n1       = config["n1"],
+           n2       = config["n2"],
+           m        = config["m"],
+           vco_freq = config["vco_freq"]/1e9,
+           d        = config["d"],
+           linerate = config["linerate"]/1e9)
         return r
 
 # GTY Quad PLL -------------------------------------------------------------------------------------
@@ -359,7 +360,7 @@ class GTY(Module, AutoCSR):
         # Control/Status CDC
         tx_produce_square_wave = Signal()
         tx_produce_pattern     = Signal()
-        tx_pattern             = Signal(20)
+        tx_pattern             = Signal(data_width)
         tx_prbs_config         = Signal(2)
 
         rx_prbs_config = Signal(2)
@@ -398,9 +399,10 @@ class GTY(Module, AutoCSR):
         # PLL ----------------------------------------------------------------------------------
         self.comb += [
             tx_init.plllock.eq(pll.lock),
-            rx_init.plllock.eq(pll.lock),
-            pll.reset.eq(tx_init.pllreset)
+            rx_init.plllock.eq(pll.lock)
         ]
+        if pll_master:
+            self.comb += pll.reset.eq(tx_init.pllreset)
 
         # DRP mux ----------------------------------------------------------------------------------
         self.submodules.drp_mux = drp_mux = DRPMux()
@@ -411,6 +413,7 @@ class GTY(Module, AutoCSR):
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
         rxphaligndone = Signal()
+
         self.gty_params = dict(
             p_ACJTAG_DEBUG_MODE            = 0b0,
             p_ACJTAG_MODE                  = 0b0,
