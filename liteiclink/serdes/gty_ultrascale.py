@@ -95,6 +95,9 @@ class GTYQuadPLL(Module):
         self.powerdown = Signal()
         self.config = config = self.compute_config(refclk_freq, linerate)
 
+        # DRP
+        self.drp = DRPInterface()
+
         # # #
 
         use_qpll0 = config["qpll"] == "qpll0"
@@ -123,6 +126,7 @@ class GTYQuadPLL(Module):
             p_PPF0_CFG              = 0b0000101100000000,  # FIXME: 12g: 0b0000011000000000, 10g: 0b0000010000000000
             p_PPF1_CFG              = 0b0000011000000000,
 
+            # QPLL0 Parameters
             p_QPLL0_CFG0            = 0b0011001100011100,
             p_QPLL0_CFG1            = 0b1101000000111000,
             p_QPLL0_CFG1_G3         = 0b1101000000111000,
@@ -148,6 +152,7 @@ class GTYQuadPLL(Module):
             p_QPLL0_SDM_CFG1        = 0b0000000000000000,
             p_QPLL0_SDM_CFG2        = 0b0000000000000000,
 
+            # QPLL1 Parameters
             p_QPLL1_CFG0            = 0b0011001100011100,
             p_QPLL1_CFG1            = 0b1101000000111000,
             p_QPLL1_CFG1_G3         = 0b1101000000111000,
@@ -188,6 +193,15 @@ class GTYQuadPLL(Module):
             i_BGRCALOVRD      = 0b11111,
             i_BGRCALOVRDENB   = 0b1,
             i_RCALENB         = 1,
+
+            # DRP
+            i_DRPADDR         = self.drp.addr,
+            i_DRPCLK          = self.drp.clk,
+            i_DRPDI           = self.drp.di,
+            o_DRPDO           = self.drp.do,
+            i_DRPEN           = self.drp.en,
+            o_DRPRDY          = self.drp.rdy,
+            i_DRPWE           = self.drp.we,
 
             # QPLL0
             i_SDM0DATA        = round(config["f"]*(2**24)),

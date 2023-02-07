@@ -94,6 +94,9 @@ class GTHQuadPLLBase(Module):
         self.powerdown = Signal()
         self.config = config = self.compute_config(refclk_freq, linerate)
 
+        # DRP
+        self.drp = DRPInterface()
+
         # # #
 
         use_qpll0 = config["qpll"] == "qpll0"
@@ -113,6 +116,15 @@ class GTHQuadPLLBase(Module):
             i_BGRCALOVRD       = 0b11111,
             i_BGRCALOVRDENB    = 0b1,
             i_RCALENB          = 1,
+
+            # DRP
+            i_DRPADDR          = self.drp.addr,
+            i_DRPCLK           = self.drp.clk,
+            i_DRPDI            = self.drp.di,
+            o_DRPDO            = self.drp.do,
+            i_DRPEN            = self.drp.en,
+            o_DRPRDY           = self.drp.rdy,
+            i_DRPWE            = self.drp.we,
 
             # QPLL0
             p_QPLL0_FBDIV      = config["n"],
