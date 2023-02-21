@@ -9,6 +9,8 @@ from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.soc.cores.clock import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect import stream
@@ -265,7 +267,6 @@ class GTP(Module, AutoCSR):
         drp_mux.add_interface(self.drp)
 
         # GTPE2_CHANNEL instance -------------------------------------------------------------------
-        class Open(Signal): pass
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
         rxphaligndone = Signal()

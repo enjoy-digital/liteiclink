@@ -6,6 +6,8 @@
 
 import math
 
+from litex.gen import *
+
 from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -423,7 +425,6 @@ class GTY(Module, AutoCSR):
         drp_mux.add_interface(self.drp)
 
         # GTYE4_CHANNEL instance -------------------------------------------------------------------
-        class Open(Signal): pass
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
         rxphaligndone = Signal()
