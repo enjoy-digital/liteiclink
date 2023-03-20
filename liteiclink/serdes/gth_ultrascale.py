@@ -187,7 +187,7 @@ class GTHQuadPLLBase(Module):
     def __repr__(self):
         config = self.config
         r = """
-GTXQuadPLL
+GTHQuadPLL
 ===========
   overview:
   ---------
