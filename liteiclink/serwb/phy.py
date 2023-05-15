@@ -353,7 +353,7 @@ class _SerdesControl(Module, AutoCSR):
 # SERWB PHY ----------------------------------------------------------------------------------------
 
 class SERWBPHY(Module, AutoCSR):
-    def __init__(self, device, pads, mode="master", init_timeout=2**15):
+    def __init__(self, device, pads, mode="master", init_timeout=2**15, serdes_data_width=8):
         self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
@@ -361,10 +361,11 @@ class SERWBPHY(Module, AutoCSR):
         # SerDes
         if device[:4] == "xcku":
             taps = 512
+            assert serdes_data_width==8
             self.submodules.serdes = KUSerdes(pads, mode)
         elif device[:4] == "xc7a":
             taps = 32
-            self.submodules.serdes = S7Serdes(pads, mode)
+            self.submodules.serdes = S7Serdes(pads, mode, serdes_data_width)
         else:
             raise NotImplementedError
 
