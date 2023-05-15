@@ -19,7 +19,8 @@ from liteiclink.serwb.datapath import TXDatapath, RXDatapath
 # S7 SerDes Clocking -------------------------------------------------------------------------------
 
 class _S7SerdesClocking(LiteXModule):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads, mode="master", data_width=8):
+        assert data_width in [4,6,8] # valid serdese2 ddr rates
         self.refclk = Signal()
 
         # # #
@@ -28,7 +29,7 @@ class _S7SerdesClocking(LiteXModule):
         # ------------
         # Generate the linerate/10 clock. Slave will re-multiply it.
         if mode == "master":
-            self.converter = converter = stream.Converter(40, 8)
+            self.converter = converter = stream.Converter(40, data_width)
             self.comb += [
                 converter.sink.valid.eq(1),
                 converter.source.ready.eq(1),
@@ -36,7 +37,7 @@ class _S7SerdesClocking(LiteXModule):
             ]
             self.specials += [
                 Instance("OSERDESE2",
-                    p_DATA_WIDTH     = 8,
+                    p_DATA_WIDTH     = data_width,
                     p_TRISTATE_WIDTH = 1,
                     p_DATA_RATE_OQ   = "DDR",
                     p_DATA_RATE_TQ   = "BUF",
@@ -44,16 +45,9 @@ class _S7SerdesClocking(LiteXModule):
 
                     i_OCE    = 1,
                     i_RST    = ResetSignal("sys"),
-                    i_CLK    = ClockSignal("sys4x"),
+                    i_CLK    = ClockSignal(f"sys{data_width//2}x"),
                     i_CLKDIV = ClockSignal("sys"),
-                    i_D1     = converter.source.data[0],
-                    i_D2     = converter.source.data[1],
-                    i_D3     = converter.source.data[2],
-                    i_D4     = converter.source.data[3],
-                    i_D5     = converter.source.data[4],
-                    i_D6     = converter.source.data[5],
-                    i_D7     = converter.source.data[6],
-                    i_D8     = converter.source.data[7],
+                    **{f"i_D{i+1}" : converter.source.data[i] for i in range(data_width)},
                     o_OQ     = self.refclk,
                 ),
                 DifferentialOutput(self.refclk, pads.clk_p, pads.clk_n)
@@ -68,7 +62,8 @@ class _S7SerdesClocking(LiteXModule):
 # S7 SerDes TX -------------------------------------------------------------------------------------
 
 class _S7SerdesTX(LiteXModule):
-    def __init__(self, pads):
+    def __init__(self, pads, data_width=8):
+        assert data_width in [4,6,8] # valid serdese2 ddr rates
         # Control
         self.idle  = idle  = Signal()
         self.comma = comma = Signal()
@@ -81,7 +76,7 @@ class _S7SerdesTX(LiteXModule):
 
         # Datapath.
         # ---------
-        self.datapath = datapath = TXDatapath(8)
+        self.datapath = datapath = TXDatapath(data_width)
         self.comb += [
             sink.connect(datapath.sink),
             datapath.source.ready.eq(1),
@@ -91,12 +86,12 @@ class _S7SerdesTX(LiteXModule):
 
         # Output Data (DDR with sys4x).
         # -----------------------------
-        self.data = data = Signal(8)
+        self.data = data = Signal(data_width)
         data_serialized  = Signal()
         self.comb += data.eq(datapath.source.data)
         self.specials += [
             Instance("OSERDESE2",
-                p_DATA_WIDTH     = 8,
+                p_DATA_WIDTH     = data_width,
                 p_TRISTATE_WIDTH = 1,
                 p_DATA_RATE_OQ   = "DDR",
                 p_DATA_RATE_TQ   = "BUF",
@@ -104,16 +99,9 @@ class _S7SerdesTX(LiteXModule):
 
                 i_OCE    = 1,
                 i_RST    = ResetSignal("sys"),
-                i_CLK    = ClockSignal("sys4x"),
+                i_CLK    = ClockSignal(f"sys{data_width//2}x"),
                 i_CLKDIV = ClockSignal("sys"),
-                i_D1     = data[0],
-                i_D2     = data[1],
-                i_D3     = data[2],
-                i_D4     = data[3],
-                i_D5     = data[4],
-                i_D6     = data[5],
-                i_D7     = data[6],
-                i_D8     = data[7],
+                **{f"i_D{i+1}" : data[i] for i in range(data_width)},
                 o_OQ     = data_serialized,
             ),
             DifferentialOutput(data_serialized, pads.tx_p, pads.tx_n),
@@ -122,7 +110,8 @@ class _S7SerdesTX(LiteXModule):
 # S7 SerDes RX -------------------------------------------------------------------------------------
 
 class _S7SerdesRX(LiteXModule):
-    def __init__(self, pads):
+    def __init__(self, pads, data_width=8):
+        assert data_width in [4,6,8] # valid serdese2 ddr rates
         # Control.
         self.delay_rst = delay_rst = Signal()
         self.delay_inc = delay_inc = Signal()
@@ -137,14 +126,14 @@ class _S7SerdesRX(LiteXModule):
 
         # # #
 
-        _shift = Signal(3)
+        _shift = Signal(max=data_width)
         self.sync += If(self.shift_inc, _shift.eq(_shift + 1))
 
         # Data input (DDR with sys4x).
         # ----------------------------
         data_nodelay      = Signal()
         data_delayed      = Signal()
-        self.data = data  = Signal(8)
+        self.data = data  = Signal(data_width)
         self.specials += [
             DifferentialInput(pads.rx_p, pads.rx_n, data_nodelay),
             Instance("IDELAYE2",
@@ -166,7 +155,7 @@ class _S7SerdesRX(LiteXModule):
                 o_DATAOUT  = data_delayed,
             ),
             Instance("ISERDESE2",
-                p_DATA_WIDTH     = 8,
+                p_DATA_WIDTH     = data_width,
                 p_DATA_RATE      = "DDR",
                 p_SERDES_MODE    = "MASTER",
                 p_INTERFACE_TYPE = "NETWORKING",
@@ -176,28 +165,21 @@ class _S7SerdesRX(LiteXModule):
                 i_DDLY    = data_delayed,
                 i_CE1     = 1,
                 i_RST     = ResetSignal("sys"),
-                i_CLK     = ClockSignal("sys4x"),
-                i_CLKB    =~ClockSignal("sys4x"),
+                i_CLK     = ClockSignal(f"sys{data_width//2}x"),
+                i_CLKB    =~ClockSignal(f"sys{data_width//2}x"),
                 i_CLKDIV  = ClockSignal("sys"),
                 i_BITSLIP = shift_inc,
-                o_Q8      = data[0],
-                o_Q7      = data[1],
-                o_Q6      = data[2],
-                o_Q5      = data[3],
-                o_Q4      = data[4],
-                o_Q3      = data[5],
-                o_Q2      = data[6],
-                o_Q1      = data[7],
+                **{f"o_Q{data_width-i}" : data[i] for i in range(data_width)},
             )
         ]
 
         # Datapath.
         # ---------
-        self.datapath = datapath = RXDatapath(8)
+        self.datapath = datapath = RXDatapath(data_width)
         self.comb += [
             datapath.sink.valid.eq(1),
             datapath.sink.data.eq(data),
-            datapath.shift_inc.eq(self.shift_inc & (_shift == 0b111)),
+            datapath.shift_inc.eq(self.shift_inc & (_shift == data_width-1)),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
             comma.eq(datapath.comma),
@@ -207,8 +189,8 @@ class _S7SerdesRX(LiteXModule):
 
 @ResetInserter()
 class S7Serdes(LiteXModule):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads, mode="master", data_width=8):
         assert mode in ["master", "slave"]
-        self.clocking = _S7SerdesClocking(pads, mode)
-        self.tx       = _S7SerdesTX(pads)
-        self.rx       = _S7SerdesRX(pads)
+        self.clocking = _S7SerdesClocking(pads, mode, data_width)
+        self.tx       = _S7SerdesTX(pads, data_width)
+        self.rx       = _S7SerdesRX(pads, data_width)
