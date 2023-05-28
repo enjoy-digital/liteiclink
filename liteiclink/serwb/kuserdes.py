@@ -102,7 +102,7 @@ class _KUSerdesRX(Module):
         # Control
         self.delay_rst     = Signal()
         self.delay_inc     = Signal()
-        self.shift = shift = Signal(6)
+        self.shift_inc = shift_inc = Signal()
 
         # Status
         self.idle  = idle = Signal()
@@ -158,7 +158,7 @@ class _KUSerdesRX(Module):
         self.comb += [
             datapath.sink.valid.eq(1),
             datapath.sink.data.eq(data),
-            datapath.shift.eq(shift),
+            datapath.shift_inc.eq(shift_inc),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
             comma.eq(datapath.comma)

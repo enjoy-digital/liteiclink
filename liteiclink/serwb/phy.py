@@ -105,7 +105,6 @@ class _SerdesMasterInit(Module):
             ),
             serdes.tx.comma.eq(1)
         )
-        self.comb += serdes.rx.shift.eq(shift)
         fsm.act("INC-DELAY-SHIFT",
             NextState("WAIT-STABLE"),
             If(delay == (taps - 1),
@@ -116,7 +115,8 @@ class _SerdesMasterInit(Module):
                     NextValue(delay_min,       0),
                     NextValue(delay_max_found, 0),
                     NextValue(delay_max,       0),
-                    NextValue(shift, shift + 1)
+                    NextValue(shift, shift + 1),
+                    serdes.rx.shift_inc.eq(1)
                 ),
                 NextValue(delay, 0),
                 serdes.rx.delay_rst.eq(1)
@@ -171,7 +171,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
         self.delay_min_found = delay_min_found = Signal()
         self.delay_max       = delay_max       = Signal(max=taps)
         self.delay_max_found = delay_max_found = Signal()
-        self.shift         = shift         = Signal(max=40)
+        self.shift           = shift           = Signal(max=40)
 
         # Timer
         self.submodules.timer = timer = WaitTimer(timeout)
@@ -224,7 +224,6 @@ class _SerdesSlaveInit(Module, AutoCSR):
             ),
             serdes.tx.idle.eq(1)
         )
-        self.comb += serdes.rx.shift.eq(shift)
         fsm.act("INC-DELAY-SHIFT",
             NextState("WAIT-STABLE"),
             If(delay == (taps - 1),
@@ -235,7 +234,8 @@ class _SerdesSlaveInit(Module, AutoCSR):
                     NextValue(delay_min,       0),
                     NextValue(delay_max_found, 0),
                     NextValue(delay_max,       0),
-                    NextValue(shift, shift + 1)
+                    NextValue(shift, shift + 1),
+                    serdes.rx.shift_inc.eq(1)
                 ),
                 NextValue(delay, 0),
                 serdes.rx.delay_rst.eq(1)
