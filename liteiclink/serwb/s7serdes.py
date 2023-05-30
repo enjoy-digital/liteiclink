@@ -49,15 +49,21 @@ class _S7SerdesClocking(LiteXModule):
                     i_CLKDIV = ClockSignal("sys"),
                     **{f"i_D{i+1}" : converter.source.data[i] for i in range(data_width)},
                     o_OQ     = self.refclk,
-                ),
-                DifferentialOutput(self.refclk, pads.clk_p, pads.clk_n)
+                )
             ]
+            if hasattr(pads, "clk_p"):
+                self.specials += DifferentialOutput(self.refclk, pads.clk_p, pads.clk_n)
+            else:
+                self.comb += pads.clk.eq(self.refclk)
 
         # Slave Mode.
         # -----------
         # Multiply the clock provided by Master with a PLL/MMCM.
         if mode == "slave":
-            self.specials += DifferentialInput(pads.clk_p, pads.clk_n, self.refclk)
+            if hasattr(pads, "clk_p"):
+                self.specials += DifferentialInput(pads.clk_p, pads.clk_n, self.refclk)
+            else:
+                self.comb += self.refclk.eq(pads.clk)
 
 # S7 SerDes TX -------------------------------------------------------------------------------------
 
@@ -103,9 +109,12 @@ class _S7SerdesTX(LiteXModule):
                 i_CLKDIV = ClockSignal("sys"),
                 **{f"i_D{i+1}" : data[i] for i in range(data_width)},
                 o_OQ     = data_serialized,
-            ),
-            DifferentialOutput(data_serialized, pads.tx_p, pads.tx_n),
+            )
         ]
+        if hasattr(pads, "tx_p"):
+            self.specials += DifferentialOutput(data_serialized, pads.tx_p, pads.tx_n)
+        else:
+            self.comb += pads.tx.eq(data_serialized)
 
 # S7 SerDes RX -------------------------------------------------------------------------------------
 
@@ -134,8 +143,13 @@ class _S7SerdesRX(LiteXModule):
         data_nodelay      = Signal()
         data_delayed      = Signal()
         self.data = data  = Signal(data_width)
+        
+        if hasattr(pads, "rx_p"):
+            self.specials += DifferentialInput(pads.rx_p, pads.rx_n, data_nodelay)
+        else:
+            self.comb += data_nodelay.eq(pads.rx)
+
         self.specials += [
-            DifferentialInput(pads.rx_p, pads.rx_n, data_nodelay),
             Instance("IDELAYE2",
                 p_DELAY_SRC             = "IDATAIN",
                 p_SIGNAL_PATTERN        = "DATA",
