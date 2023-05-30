@@ -31,7 +31,7 @@ design flow by generating the verilog rtl that you will use as a standard core.
 -----------
 SerWB:
   - Wishbone over 3 LVDS I/Os (high speed) or 3 Single-Ended I/Os (low speed).
-  - Artix7, Kintex7, Virtex7, Kintex Ultrascale high-speed PHYs.
+  - Spartan6, Artix7, Kintex7, Virtex7, Kintex Ultrascale high-speed PHYs.
   - Vendor agnostic low-speed PHY.
   - 8B/10B, integrated gearbox.
   - Up to 1.25Gbps linerate / 32 bits @ 31.25Mhz user interface.

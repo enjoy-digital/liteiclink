@@ -14,6 +14,7 @@ from litex.soc.interconnect.csr import *
 
 from liteiclink.serwb.kuserdes import KUSerdes
 from liteiclink.serwb.s7serdes import S7Serdes
+from liteiclink.serwb.s6serdes import S6Serdes
 from liteiclink.serwb.efinixserdes import EfinixSerdes
 
 
@@ -417,7 +418,13 @@ class SERWBPHY(LiteXModule):
             assert clk_ratio == "1:1"
             taps = 32
             self.serdes = S7Serdes(pads, mode, serdes_data_width)
-
+        
+        # Xilinx Spartan6
+        elif device[:4] == "xc6s":
+            # Be aware of Design Advisory for Spartan-6 Table2:
+            # https://support.xilinx.com/s/article/38408?language=en_US
+            taps = 255
+            self.serdes = S6Serdes(pads, mode, serdes_data_width)
 
         # Efinix Titanium.
         elif device[:2] == "Ti":
