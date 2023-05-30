@@ -363,7 +363,7 @@ class SERWBPHY(Module, AutoCSR):
             taps = 512
             assert serdes_data_width==8
             self.submodules.serdes = KUSerdes(pads, mode)
-        elif device[:4] == "xc7a":
+        elif device[:3] == "xc7":
             taps = 32
             self.submodules.serdes = S7Serdes(pads, mode, serdes_data_width)
         else:
