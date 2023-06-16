@@ -11,6 +11,8 @@ import argparse
 
 from migen import *
 
+from litex.gen import *
+
 from litex_boards.platforms import sqrl_acorn
 
 from litex.build.generic_platform import *
@@ -38,16 +40,16 @@ _transceiver_io = [
 
 # CRG ----------------------------------------------------------------------------------------------
 
-class CRG(Module):
+class CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq):
-        self.rst = Signal()
-        self.clock_domains.cd_sys       = ClockDomain()
+        self.rst    = Signal()
+        self.cd_sys = ClockDomain()
 
         # Clk/Rst
         clk200 = platform.request("clk200")
 
         # PLL
-        self.submodules.pll = pll = S7PLL()
+        self.pll = pll = S7PLL()
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk200, 200e6)
         pll.create_clkout(self.cd_sys,       sys_clk_freq)
@@ -66,10 +68,10 @@ class GTPTestSoC(SoCMini):
         self.add_uartbone()
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = CRG(platform, sys_clk_freq)
+        self.crg = CRG(platform, sys_clk_freq)
 
         # GTP RefClk -------------------------------------------------------------------------------
-        self.clock_domains.cd_refclk = ClockDomain()
+        self.cd_refclk = ClockDomain()
         self.crg.pll.create_clkout(self.cd_refclk, 125e6)
         platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
@@ -82,7 +84,7 @@ class GTPTestSoC(SoCMini):
         # GTP --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
-        self.submodules.serdes0 = serdes0 = GTP(pll, tx_pads, rx_pads, sys_clk_freq,
+        self.serdes0 = serdes0 = GTP(pll, tx_pads, rx_pads, sys_clk_freq,
             tx_buffer_enable = True,
             rx_buffer_enable = True,
             clock_aligner    = False)

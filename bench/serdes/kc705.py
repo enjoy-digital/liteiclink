@@ -12,6 +12,8 @@ import argparse
 from migen import *
 from migen.genlib.io import CRG
 
+from litex.gen import *
+
 from litex_boards.platforms import xilinx_kc705
 
 from litex.build.generic_platform import *
@@ -60,7 +62,7 @@ class GTXTestSoC(SoCMini):
         self.add_uartbone()
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = CRG(platform.request("clk156"), platform.request("cpu_reset"))
+        self.crg = CRG(platform.request("clk156"), platform.request("cpu_reset"))
         platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/156e6)
 
         # GTX RefClk -------------------------------------------------------------------------------
@@ -81,7 +83,7 @@ class GTXTestSoC(SoCMini):
         # GTX --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
-        self.submodules.serdes0 = serdes0 = GTX(pll, tx_pads, rx_pads, sys_clk_freq,
+        self.serdes0 = serdes0 = GTX(pll, tx_pads, rx_pads, sys_clk_freq,
             tx_buffer_enable = True,
             rx_buffer_enable = True,
             clock_aligner    = False)

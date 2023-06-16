@@ -12,6 +12,8 @@ import argparse
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
+
 from litex.build.generic_platform import *
 
 from litex_boards.platforms import lattice_versa_ecp5
@@ -39,11 +41,11 @@ _transceiver_io = [
 
 # CRG ----------------------------------------------------------------------------------------------
 
-class _CRG(Module):
+class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq, refclk_from_pll, refclk_freq):
-        self.clock_domains.cd_sys = ClockDomain()
-        self.clock_domains.cd_por = ClockDomain(reset_less=True)
-        self.clock_domains.cd_ref = ClockDomain(reset_less=True)
+        self.cd_sys = ClockDomain()
+        self.cd_por = ClockDomain(reset_less=True)
+        self.cd_ref = ClockDomain(reset_less=True)
 
         # # #
 
@@ -60,7 +62,7 @@ class _CRG(Module):
         self.sync.por += If(~por_done, por_count.eq(por_count - 1))
 
         # PLL
-        self.submodules.pll = pll = ECP5PLL()
+        self.pll = pll = ECP5PLL()
         pll.register_clkin(clk100, 100e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, with_reset=False)
         if refclk_from_pll:
@@ -94,7 +96,7 @@ class SerDesTestSoC(SoCMini):
             2.5e9:    156.25e6,
             3.0e9:    150e6,
             5.0e9:    250e6}[linerate]
-        self.submodules.crg = _CRG(platform, sys_clk_freq, refclk_from_pll, refclk_freq)
+        self.crg = _CRG(platform, sys_clk_freq, refclk_from_pll, refclk_freq)
 
         # SerDes RefClk ----------------------------------------------------------------------------
         if refclk_from_pll:
@@ -122,7 +124,7 @@ class SerDesTestSoC(SoCMini):
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
         channel = 1 if connector == "sma" else 0
-        self.submodules.serdes0 = serdes0 = SerDesECP5(serdes_pll, tx_pads, rx_pads,
+        self.serdes0 = serdes0 = SerDesECP5(serdes_pll, tx_pads, rx_pads,
             channel    = channel,
             data_width = 20)
         serdes0.add_stream_endpoints()
@@ -176,7 +178,7 @@ class SerDesTestSoC(SoCMini):
 
         # Analyzer ---------------------------------------------------------------------------------
         from litescope import LiteScopeAnalyzer
-        self.submodules.analyzer = LiteScopeAnalyzer([
+        self.analyzer = LiteScopeAnalyzer([
             serdes0.init.fsm,
             serdes0.init.tx_lol,
             serdes0.init.rx_lol,

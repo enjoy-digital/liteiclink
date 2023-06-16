@@ -12,6 +12,8 @@ import argparse
 from migen import *
 from migen.genlib.io import CRG
 
+from litex.gen import *
+
 from litex_boards.platforms import xilinx_kcu105
 
 from litex.build.generic_platform import *
@@ -77,7 +79,7 @@ class GTHTestSoC(SoCMini):
         self.add_uartbone()
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = CRG(platform.request("clk125"), platform.request("cpu_reset"))
+        self.crg = CRG(platform.request("clk125"), platform.request("cpu_reset"))
         platform.add_period_constraint(self.crg.cd_sys.clk, 1e9/125e6)
 
         # 125Mhz clock -> user_sma --> user_sma_mgt_refclk -----------------------------------------
@@ -111,7 +113,7 @@ class GTHTestSoC(SoCMini):
         # GTH --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
         rx_pads = platform.request(connector + "_rx")
-        self.submodules.serdes0 = serdes0 = GTH3(cpll, tx_pads, rx_pads, sys_clk_freq,
+        self.serdes0 = serdes0 = GTH3(cpll, tx_pads, rx_pads, sys_clk_freq,
             tx_buffer_enable = True,
             rx_buffer_enable = True,
             clock_aligner    = False)

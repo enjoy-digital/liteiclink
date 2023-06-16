@@ -12,6 +12,8 @@ import argparse
 from migen import *
 from migen.genlib.io import CRG
 
+from litex.gen import *
+
 from litex_boards.platforms import sqrl_xcu1525
 
 from litex.build.generic_platform import *
@@ -69,14 +71,14 @@ _transceiver_io = [
 
 # CRG ----------------------------------------------------------------------------------------------
 
-class _CRG(Module):
+class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq):
-        self.clock_domains.cd_sys = ClockDomain()
+        self.cd_sys = ClockDomain()
 
         # # #
 
         # PLL
-        self.submodules.pll = pll = USPMMCM(speedgrade=-2)
+        self.pll = pll = USPMMCM(speedgrade=-2)
         pll.register_clkin(platform.request("clk300"), 300e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
 
@@ -94,7 +96,7 @@ class GTYTestSoC(SoCMini):
         self.add_uartbone()
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = _CRG(platform, sys_clk_freq)
+        self.crg = _CRG(platform, sys_clk_freq)
 
         # GTY RefClk -------------------------------------------------------------------------------
         refclk      = Signal()
@@ -121,7 +123,7 @@ class GTYTestSoC(SoCMini):
             if use_qpll:
                 pll = GTYQuadPLL(refclk, 156.25e6, linerate)
                 print(pll)
-                self.submodules.pll = pll
+                self.pll = pll
             else:
                 pll = GTYChannelPLL(refclk, 156.25e6, linerate)
                 print(pll)
@@ -165,7 +167,7 @@ class GTYTestSoC(SoCMini):
             self.serdes0.cd_tx.rst,
             self.serdes0.cd_rx.rst,
         ]
-        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals,
+        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 512,
             clock_domain = "sys",
             csr_csv      = "analyzer.csv")
