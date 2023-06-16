@@ -328,7 +328,8 @@ class GTY(Module, AutoCSR):
         clock_aligner       = True,
         clock_aligner_comma = 0b0101111100,
         tx_polarity         = 0,
-        rx_polarity         = 0):
+        rx_polarity         = 0,
+        pll_master          = True):
         assert data_width in [20, 40, 80]
 
         # TX controls
