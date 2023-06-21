@@ -112,7 +112,7 @@ class _SerdesRX(Module):
 @ResetInserter()
 class _Serdes(Module):
     def __init__(self, pads, mode="master"):
-        if hasattr(pads, "clk"):
+        if hasattr(pads, "clk") or hasattr(pads, "clk_p"):
             self.submodules.clocking = _SerdesClocking(pads, mode)
         self.submodules.tx       = _SerdesTX(pads)
         self.submodules.rx       = _SerdesRX(pads)
