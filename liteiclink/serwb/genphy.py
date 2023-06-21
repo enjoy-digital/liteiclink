@@ -101,7 +101,7 @@ class _SerdesRX(Module):
         self.comb += [
             datapath.sink.valid.eq(1),
             datapath.sink.data.eq(data),
-            datapath.shift.eq(self.shift),
+            datapath.shift_inc.eq(self.shift),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
             comma.eq(datapath.comma)
