@@ -60,10 +60,25 @@ class TXDatapath(Module):
         )
 
 # RXAligner ----------------------------------------------------------------------------------------
+"""
+RXAligner
+*********
 
+This module aligns the data stream. When shifting is enabled, this module stops
+forwarding data from `sink` to `source` while accepting and ignoring new data on the `sink`.
+
+This module guarantees the removal of one data element (phy_dw bits) from the stream
+when shift_inc is asserted for one cycle.
+
+There must be data on the stream between successive shift_inc operations, otherwise
+this module will shift less than expected.
+
+ * ``phy_dw`` the width of the data signal.
+ * ``shift_inc`` enable the shifting if != 0
+"""
 class RXAligner(Module):
-    def __init__(self, phy_dw, shift=None):
-        self.shift  = Signal() if shift is None else shift
+    def __init__(self, phy_dw, shift_inc=None):
+        self.shift_inc  = Signal() if shift_inc is None else shift_inc
         self.sink   = sink   = stream.Endpoint([("data", phy_dw)])
         self.source = source = stream.Endpoint([("data", phy_dw)])
 
@@ -71,7 +86,7 @@ class RXAligner(Module):
 
         _shift = Signal()
         self.sync += [
-            If(self.shift,
+            If(self.shift_inc,
                 _shift.eq(1),
             ).Elif(sink.valid & sink.ready,
                 _shift.eq(0),
@@ -89,7 +104,7 @@ class RXAligner(Module):
 
 class RXDatapath(Module):
     def __init__(self, phy_dw, with_scrambling=False):
-        self.shift  = shift  = Signal(6)
+        self.shift_inc  = shift_inc  = Signal()
         self.sink   = sink   = stream.Endpoint([("data", phy_dw)])
         self.source = source = stream.Endpoint([("data", 32)])
         self.idle   = idle   = Signal()
@@ -98,7 +113,7 @@ class RXDatapath(Module):
         # # #
 
         # Aligner
-        self.submodules.aligner = aligner = RXAligner(phy_dw, shift)
+        self.submodules.aligner = aligner = RXAligner(phy_dw, shift_inc)
 
         # Converter
         self.submodules.converter = converter = stream.Converter(phy_dw, 40)
