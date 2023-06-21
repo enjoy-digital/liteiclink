@@ -3,12 +3,14 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
 
 from migen import *
+
+from litex.gen import *
 
 from litex.build.generic_platform import *
 from litex.build.sim import SimPlatform
@@ -71,7 +73,7 @@ class SerWBMinSoC(SoCMini):
         SoCMini.__init__(self, platform, clk_freq=sys_clk_freq)
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = CRG(platform.request("sys_clk"))
+        self.crg = CRG(platform.request("sys_clk"))
 
         # SerWB ------------------------------------------------------------------------------------
 
@@ -173,20 +175,20 @@ class SerWBSoC(SoCCore):
             uart_name     = "sim")
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = CRG(platform.request("sys_clk"))
+        self.crg = CRG(platform.request("sys_clk"))
 
         # Etherbone---------------------------------------------------------------------------------
         # phy
-        self.submodules.ethphy = LiteEthPHYModel(self.platform.request("eth"))
+        self.ethphy = LiteEthPHYModel(self.platform.request("eth"))
         # core
         ethcore = LiteEthUDPIPCore(self.ethphy,
             mac_address = 0x10e2d5000000,
             ip_address  = "192.168.1.50",
             clk_freq    = sys_clk_freq)
-        self.submodules.ethcore = ethcore
+        self.ethcore = ethcore
         # etherbone
-        self.submodules.etherbone = LiteEthEtherbone(self.ethcore.udp, 1234, mode="master")
-        self.add_wb_master(self.etherbone.wishbone.bus)
+        self.etherbone = LiteEthEtherbone(self.ethcore.udp, 1234, mode="master")
+        self.bus.add_master(master=self.etherbone.wishbone.bus)
 
         # SerWB ------------------------------------------------------------------------------------
         # SerWB simple test with a SerWB Master added as a Slave peripheral to the SoC and connected
@@ -207,14 +209,14 @@ class SerWBSoC(SoCCore):
         self.comb += serwb_master_pads.rx.eq(serwb_slave_pads.tx)
 
         # Master
-        self.submodules.serwb_master_phy = SERWBPHY(
+        self.serwb_master_phy = SERWBPHY(
             device       = platform.device,
             pads         = serwb_master_pads,
             mode         = "master",
             init_timeout = 128)
 
         # Slave
-        self.submodules.serwb_slave_phy = SERWBPHY(
+        self.serwb_slave_phy = SERWBPHY(
             device       = platform.device,
             pads         = serwb_slave_pads,
             mode         ="slave",
@@ -229,7 +231,7 @@ class SerWBSoC(SoCCore):
         self.submodules += serwb_slave_core
 
         # Wishbone SRAM
-        self.submodules.serwb_sram = wishbone.SRAM(8192)
+        self.serwb_sram = wishbone.SRAM(8192)
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
         self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
 

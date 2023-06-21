@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 # LiteICLink SerWB test utility.

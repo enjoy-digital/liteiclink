@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
@@ -12,6 +12,8 @@ import argparse
 from migen import *
 from migen.genlib.misc import WaitTimer
 from migen.genlib.resetsync import AsyncResetSynchronizer
+
+from litex.gen import *
 
 from litex.build.generic_platform import *
 from litex_boards.platforms import digilent_nexys_video
@@ -56,22 +58,22 @@ serwb_io = [
 
 # CRG ----------------------------------------------------------------------------------------------
 
-class _CRG(Module):
+class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq):
-        self.clock_domains.cd_sys       = ClockDomain()
-        self.clock_domains.cd_sys4x     = ClockDomain(reset_less=True)
-        self.clock_domains.cd_idelay    = ClockDomain()
+        self.cd_sys    = ClockDomain()
+        self.cd_sys4x  = ClockDomain(reset_less=True)
+        self.cd_idelay = ClockDomain()
 
         # # #
 
-        self.submodules.pll = pll = S7PLL(speedgrade=-1)
+        self.pll = pll = S7PLL(speedgrade=-1)
         self.comb += pll.reset.eq(~platform.request("cpu_reset"))
         pll.register_clkin(platform.request("clk100"), 100e6)
         pll.create_clkout(self.cd_sys,       sys_clk_freq)
         pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
         pll.create_clkout(self.cd_idelay,    200e6)
 
-        self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_idelay)
+        self.idelayctrl = S7IDELAYCTRL(self.cd_idelay)
 
 # SerWBTestSoC ------------------------------------------------------------------------------------
 
@@ -93,7 +95,7 @@ class SerWBTestSoC(SoCMini):
             uart_name      = "uartbone")
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = _CRG(platform, sys_clk_freq)
+        self.crg = _CRG(platform, sys_clk_freq)
 
 
         # SerWB ------------------------------------------------------------------------------------
@@ -114,13 +116,13 @@ class SerWBTestSoC(SoCMini):
         phy_cls = SERWBLowSpeedPHY if low_speed else SERWBPHY
 
         # Master
-        self.submodules.serwb_master_phy = phy_cls(
+        self.serwb_master_phy = phy_cls(
             device = platform.device,
             pads   = platform.request("serwb_master"),
             mode   = "master")
 
         # Slave
-        self.submodules.serwb_slave_phy = phy_cls(
+        self.serwb_slave_phy = phy_cls(
             device = platform.device,
             pads   = platform.request("serwb_slave"),
             mode   ="slave")
@@ -134,7 +136,7 @@ class SerWBTestSoC(SoCMini):
         self.submodules += serwb_slave_core
 
         # Wishbone SRAM
-        self.submodules.serwb_sram = wishbone.SRAM(8192)
+        self.serwb_sram = wishbone.SRAM(8192)
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
         self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
 
@@ -167,7 +169,7 @@ class SerWBTestSoC(SoCMini):
                 self.serwb_slave_phy.serdes.tx.idle,
                 self.serwb_slave_phy.serdes.rx.datapath.decoder.source,
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
+            self.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
 
 # Build --------------------------------------------------------------------------------------------
 

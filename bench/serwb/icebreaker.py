@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -11,6 +11,8 @@ import argparse
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
+
+from litex.gen import *
 
 from litex.build.generic_platform import *
 
@@ -65,7 +67,7 @@ class SerWBTestSoC(SoCMini):
             uart_name      = "uartbone")
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = _CRG(platform, sys_clk_freq)
+        self.crg = _CRG(platform, sys_clk_freq)
 
         # SerWB ------------------------------------------------------------------------------------
         # SerWB simple test with a SerWB Master added as a Slave peripheral to the SoC and connected
@@ -90,13 +92,13 @@ class SerWBTestSoC(SoCMini):
             serwb_slave_pads  = platform.request("serwb_slave")
 
         # Master
-        self.submodules.serwb_master_phy = SERWBPHY(
+        self.serwb_master_phy = SERWBPHY(
             device = platform.device,
             pads   = serwb_master_pads,
             mode   = "master")
 
         # Slave
-        self.submodules.serwb_slave_phy = SERWBPHY(
+        self.serwb_slave_phy = SERWBPHY(
             device = platform.device,
             pads   = serwb_slave_pads,
             mode   ="slave")
@@ -116,7 +118,7 @@ class SerWBTestSoC(SoCMini):
         self.submodules += serwb_slave_core
 
         # Wishbone SRAM
-        self.submodules.serwb_sram = Up5kSPRAM(size=64*kB)
+        self.serwb_sram = Up5kSPRAM(size=64*kB)
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
         self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
 

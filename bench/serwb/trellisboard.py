@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -11,6 +11,8 @@ import argparse
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
+
+from litex.gen import *
 
 from litex.build.generic_platform import *
 
@@ -64,7 +66,7 @@ class SerWBTestSoC(SoCMini):
             uart_name      = "uartbone")
 
         # CRG --------------------------------------------------------------------------------------
-        self.submodules.crg = _CRG(platform, sys_clk_freq)
+        self.crg = _CRG(platform, sys_clk_freq)
 
         # SerWB ------------------------------------------------------------------------------------
         # SerWB simple test with a SerWB Master added as a Slave peripheral to the SoC and connected
@@ -94,7 +96,7 @@ class SerWBTestSoC(SoCMini):
             device = platform.device,
             pads   = serwb_master_pads,
             mode   = "master")
-        self.submodules.serwb_master_phy = serwb_master_phy
+        self.serwb_master_phy = serwb_master_phy
 
         # Core
         serwb_master_core = SERWBCore(serwb_master_phy, self.clk_freq, mode="slave",
@@ -112,14 +114,14 @@ class SerWBTestSoC(SoCMini):
             device = platform.device,
             pads   = serwb_slave_pads,
             mode   ="slave")
-        self.clock_domains.cd_serwb = ClockDomain()
+        self.cd_serwb = ClockDomain()
         if hasattr(serwb_slave_phy.serdes, "clocking"):
             self.comb += self.cd_serwb.clk.eq(serwb_slave_phy.serdes.clocking.refclk)
         else:
             self.comb += self.cd_serwb.clk.eq(ClockSignal("sys"))
         self.specials += AsyncResetSynchronizer(self.cd_serwb, ResetSignal("sys"))
         serwb_slave_phy = ClockDomainsRenamer("serwb")(serwb_slave_phy)
-        self.submodules.serwb_slave_phy = serwb_slave_phy
+        self.serwb_slave_phy = serwb_slave_phy
 
         # Core
         serwb_slave_core = SERWBCore(serwb_slave_phy, self.clk_freq, mode="master",
@@ -163,7 +165,7 @@ class SerWBTestSoC(SoCMini):
                 serwb_slave_phy.serdes.tx.idle,
                 serwb_slave_phy.serdes.rx.datapath.decoder.source,
             ]
-            self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
+            self.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
 
 # Build --------------------------------------------------------------------------------------------
 
