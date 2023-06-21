@@ -12,6 +12,7 @@ from litex.soc.interconnect.csr import *
 
 from liteiclink.serwb.kuserdes import KUSerdes
 from liteiclink.serwb.s7serdes import S7Serdes
+from liteiclink.serwb.s6serdes import S6Serdes
 
 
 # SerDes Initialization/Synchronisation ------------------------------------------------------------
@@ -353,7 +354,7 @@ class _SerdesControl(Module, AutoCSR):
 # SERWB PHY ----------------------------------------------------------------------------------------
 
 class SERWBPHY(Module, AutoCSR):
-    def __init__(self, device, pads, mode="master", init_timeout=2**15):
+    def __init__(self, device, pads, mode="master", init_timeout=2**15, serdes_data_width=8):
         self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
@@ -361,10 +362,21 @@ class SERWBPHY(Module, AutoCSR):
         # SerDes
         if device[:4] == "xcku":
             taps = 512
+            assert serdes_data_width==8
             self.submodules.serdes = KUSerdes(pads, mode)
-        elif device[:4] == "xc7a":
+        elif device[:3] == "xc7":
             taps = 32
-            self.submodules.serdes = S7Serdes(pads, mode)
+            self.submodules.serdes = S7Serdes(pads, mode, serdes_data_width)
+        elif device[:4] == "xc6s":
+            # See Design Advisory for Spartan-6 Table2:
+            # https://support.xilinx.com/s/article/38408?language=en_US
+            max_taps = {188: 107, 200: 101, 266:72, 333: 54, 400: 43, 533: 28, 625: 22,
+                        667: 20, 800: 14, 945: 9, 1000: 8, 1050: 7, 1080: 6}
+            sys_freq = 50 # todo: how to get that information?
+            datarate = sys_freq * serdes_data_width
+            datarate_in_max_taps = max((x for x in max_taps.keys() if x <= datarate))
+            taps = max_taps[datarate_in_max_taps]
+            self.submodules.serdes = S6Serdes(pads, mode, serdes_data_width)
         else:
             raise NotImplementedError
 
