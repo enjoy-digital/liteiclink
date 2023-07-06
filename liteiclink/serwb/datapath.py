@@ -6,7 +6,8 @@
 
 from migen import *
 from migen.genlib.io import *
-from migen.genlib.misc import WaitTimer
+
+from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import stream
 from litex.soc.cores.code_8b10b import K, StreamEncoder, StreamDecoder

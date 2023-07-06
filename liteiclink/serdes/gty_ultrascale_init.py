@@ -7,8 +7,10 @@
 from math import ceil
 
 from migen import *
-from migen.genlib.cdc import MultiReg
-from migen.genlib.misc import WaitTimer
+
+from litex.gen.genlib.cdc import MultiReg
+
+from litex.gen.genlib.misc import WaitTimer
 
 
 __all__ = ["GTYTXInit", "GTYRXInit"]

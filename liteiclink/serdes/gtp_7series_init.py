@@ -8,7 +8,8 @@ from math import ceil
 
 from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
-from migen.genlib.misc import WaitTimer
+
+from litex.gen.genlib.misc import WaitTimer
 
 from liteiclink.serdes.common import *
 
