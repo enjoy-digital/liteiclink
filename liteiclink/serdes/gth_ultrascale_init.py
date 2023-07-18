@@ -32,6 +32,10 @@ class GTHInit(Module):
         self.Xxsyncdone      = Signal() # i
         self.Xxuserrdy       = Signal() # o
 
+        # DRP (optional)
+        self.drp_start       = Signal()        # o
+        self.drp_done        = Signal(reset=1) # i
+
         # # #
 
         # Double-latch transceiver asynch outputs
@@ -87,6 +91,14 @@ class GTHInit(Module):
             self.pllreset.eq(1),
             pll_reset_timer.wait.eq(1),
             If(pll_reset_timer.done,
+                NextState("DRP")
+            )
+        )
+        fsm.act("DRP",
+            gtXxreset.eq(1),
+            self.pllreset.eq(1),
+            self.drp_start.eq(1),
+            If(self.drp_done,
                 NextState("RELEASE_PLL_RESET")
             )
         )
