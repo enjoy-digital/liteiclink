@@ -67,7 +67,7 @@ class GTYInit(Module):
         fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
         self.submodules.fsm = fsm
 
-        ready_timer = WaitTimer(int(10e-3*sys_clk_freq))
+        ready_timer = WaitTimer(10e-3*sys_clk_freq)
         self.submodules += ready_timer
         self.comb += [
             ready_timer.wait.eq(~self.done & ~fsm.reset),

@@ -106,7 +106,7 @@ class GTPTXInit(Module):
             )
         )
         # Wait 500ns after configuration before releasing GTP reset (to follow AR43482)
-        init_delay = WaitTimer(int(500e-9*sys_clk_freq))
+        init_delay = WaitTimer(500e-9*sys_clk_freq)
         self.submodules += init_delay
         self.comb += init_delay.wait.eq(1)
         fsm.act("WAIT-INIT-DELAY",
@@ -164,7 +164,7 @@ class GTPTXInit(Module):
         )
 
         # FSM watchdog / restart
-        watchdog = WaitTimer(int(1e-3*sys_clk_freq))
+        watchdog = WaitTimer(1e-3*sys_clk_freq)
         self.submodules += watchdog
         self.comb += [
             watchdog.wait.eq(~fsm.reset & ~self.done),
@@ -245,7 +245,7 @@ class GTPRXInit(Module):
             NextState("WAIT-INIT-DELAY")
         )
         # Wait 500ns after configuration before releasing GTP reset (to follow AR43482)
-        init_delay = WaitTimer(int(500e-9*sys_clk_freq))
+        init_delay = WaitTimer(500e-9*sys_clk_freq)
         self.submodules += init_delay
         self.comb += init_delay.wait.eq(1)
         fsm.act("WAIT-INIT-DELAY",
@@ -329,7 +329,7 @@ class GTPRXInit(Module):
         )
 
         # FSM watchdog / restart
-        watchdog = WaitTimer(int(4e-3*sys_clk_freq))
+        watchdog = WaitTimer(4e-3*sys_clk_freq)
         self.submodules += watchdog
         self.comb += [
             watchdog.wait.eq(~fsm.reset & ~self.done),
