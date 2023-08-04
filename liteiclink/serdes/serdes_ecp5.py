@@ -8,6 +8,7 @@ from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect.csr import *
@@ -17,7 +18,7 @@ from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 # SerDesECP5PLL ------------------------------------------------------------------------------------
 
-class SerDesECP5PLL(Module):
+class SerDesECP5PLL(LiteXModule):
     def __init__(self, refclk, refclk_freq, linerate):
         self.refclk = refclk
         self.config = self.compute_config(refclk_freq, linerate)
@@ -82,7 +83,7 @@ CLKIN +-->  M  +--> VCO +--> /D  +--> LINERATE
 
 # SerDesSCI ----------------------------------------------------------------------------------------
 
-class SerDesECP5SCI(Module):
+class SerDesECP5SCI(LiteXModule):
     def __init__(self, serdes):
         self.dual_sel = Signal()
         self.chan_sel = Signal()
@@ -101,7 +102,7 @@ class SerDesECP5SCI(Module):
         self.sci_wdata = sci_wdata = Signal(8)
         self.sci_rdata = sci_rdata = Signal(8)
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             self.done.eq(1),
             If(self.we,
@@ -138,7 +139,7 @@ class SerDesECP5SCI(Module):
         )
 
 @ResetInserter()
-class SerDesECP5SCIReconfig(Module, AutoCSR):
+class SerDesECP5SCIReconfig(LiteXModule):
     def __init__(self, serdes):
         self.loopback    = Signal()
         self.rx_polarity = Signal()
@@ -157,13 +158,12 @@ class SerDesECP5SCIReconfig(Module, AutoCSR):
 
         # # #
 
-        sci = SerDesECP5SCI(serdes)
-        self.submodules.sci = sci
+        self.sci = sci = SerDesECP5SCI(serdes)
 
         first = Signal()
         data  = Signal(8)
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             self.done.status.eq(1),
             If(self.pause.storage,
@@ -294,7 +294,7 @@ class SerDesECP5SCIReconfig(Module, AutoCSR):
 
 # SerdesInit ---------------------------------------------------------------------------------------
 
-class SerdesInit(Module):
+class SerdesInit(LiteXModule):
     def __init__(self, tx_lol, rx_lol, rx_los):
         self.rst     = Signal()
         self.tx_rst  = Signal()
@@ -317,7 +317,7 @@ class SerdesInit(Module):
 
         fsm = FSM(reset_state="RESET-ALL")
         fsm = ResetInserter()(fsm)
-        self.submodules.fsm = fsm
+        self.fsm = fsm
         self.comb += fsm.reset.eq(self.rst)
         fsm.act("RESET-ALL",
             # Reset TX Serdes, RX Serdes and PCS.
@@ -359,7 +359,7 @@ class SerdesInit(Module):
 
 # SerDesECP5 ---------------------------------------------------------------------------------------
 
-class SerDesECP5(Module, AutoCSR):
+class SerDesECP5(LiteXModule):
     def __init__(self, pll, tx_pads, rx_pads,
         dual        = 0,
         channel     = 0,
@@ -399,8 +399,8 @@ class SerDesECP5(Module, AutoCSR):
 
         self.nwords = nwords = data_width//10
 
-        self.submodules.encoder  = ClockDomainsRenamer("tx")(Encoder(nwords, True))
-        self.submodules.decoders = [ClockDomainsRenamer("rx")(Decoder(True)) for _ in range(nwords)]
+        self.encoder  = ClockDomainsRenamer("tx")(Encoder(nwords, True))
+        self.decoders = [ClockDomainsRenamer("rx")(Decoder(True)) for _ in range(nwords)]
 
         # Transceiver direct clock outputs (useful to specify clock constraints)
         self.txoutclk = Signal()
@@ -447,15 +447,15 @@ class SerDesECP5(Module, AutoCSR):
         ]
 
         # DCU init ---------------------------------------------------------------------------------
-        self.submodules.init = init = SerdesInit(tx_lol, rx_lol, rx_los)
+        self.init = init = SerdesInit(tx_lol, rx_lol, rx_los)
 
         # Clocking ---------------------------------------------------------------------------------
-        self.clock_domains.cd_tx = ClockDomain()
+        self.cd_tx = ClockDomain()
         self.comb += self.cd_tx.clk.eq(self.txoutclk)
         self.specials += AsyncResetSynchronizer(self.cd_tx, ~init.ready)
         self.comb += self.tx_ready.eq(init.ready)
 
-        self.clock_domains.cd_rx = ClockDomain()
+        self.cd_rx = ClockDomain()
         self.comb += self.cd_rx.clk.eq(self.rxoutclk)
         self.specials += AsyncResetSynchronizer(self.cd_rx, ~init.ready)
         self.comb += self.rx_ready.eq(init.ready)
@@ -674,8 +674,7 @@ class SerDesECP5(Module, AutoCSR):
         )
 
         # SCI Reconfiguration ----------------------------------------------------------------------
-        sci_reconfig = SerDesECP5SCIReconfig(self)
-        self.submodules.sci_reconfig = sci_reconfig
+        self.sci_reconfig = sci_reconfig = SerDesECP5SCIReconfig(self)
         self.comb += sci_reconfig.reset.eq(~self.init.ready)
         self.comb += sci_reconfig.sci.dual_sel.eq(dual)
         self.comb += sci_reconfig.loopback.eq(self.loopback)
@@ -685,7 +684,7 @@ class SerDesECP5(Module, AutoCSR):
         self.comb += sci_reconfig.rx_cdr_hold.eq(self.rx_cdr_hold)
 
         # TX Datapath and PRBS ---------------------------------------------------------------------
-        self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, reverse=True))
+        self.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, reverse=True))
         self.comb += self.tx_prbs.config.eq(tx_prbs_config)
         self.comb += [
             self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
@@ -702,7 +701,7 @@ class SerDesECP5(Module, AutoCSR):
         ]
 
         # RX Datapath and PRBS ---------------------------------------------------------------------
-        self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, reverse=True))
+        self.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, reverse=True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
             self.rx_prbs.pause.eq(rx_prbs_pause),

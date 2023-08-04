@@ -9,6 +9,7 @@ from math import ceil
 from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 
+from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from liteiclink.serdes.common import *
@@ -18,7 +19,7 @@ __all__ = ["GTPTXInit", "GTPRXInit"]
 
 # GTP TX Init --------------------------------------------------------------------------------------
 
-class GTPTXInit(Module):
+class GTPTXInit(LiteXModule):
     def __init__(self, sys_clk_freq, buffer_enable):
         self.done            = Signal() # o
         self.restart         = Signal() # i
@@ -83,8 +84,7 @@ class GTPTXInit(Module):
         self.comb += txphaligndone_rising.eq(txphaligndone & ~txphaligndone_r)
 
         # FSM
-        fsm = ResetInserter()(FSM(reset_state="POWER-DOWN"))
-        self.submodules.fsm = fsm
+        self.fsm = fsm =ResetInserter()(FSM(reset_state="POWER-DOWN"))
         fsm.act("POWER-DOWN",
             gttxreset.eq(1),
             gttxpd.eq(1),
@@ -173,7 +173,7 @@ class GTPTXInit(Module):
 
 # GTP RX Init --------------------------------------------------------------------------------------
 
-class GTPRXInit(Module):
+class GTPRXInit(LiteXModule):
     def __init__(self, sys_clk_freq, buffer_enable):
         self.done            = Signal()
         self.restart         = Signal()
@@ -237,8 +237,7 @@ class GTPRXInit(Module):
             self.rxuserrdy.eq(rxuserrdy)
         ]
 
-        fsm = ResetInserter()(FSM(reset_state="POWER-DOWN"))
-        self.submodules.fsm = fsm
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="POWER-DOWN"))
         fsm.act("POWER-DOWN",
             gtrxreset.eq(1),
             gtrxpd.eq(1),

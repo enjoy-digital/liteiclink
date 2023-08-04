@@ -9,6 +9,7 @@ from math import ceil
 from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 
+from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 
@@ -16,7 +17,7 @@ __all__ = ["GTXTXInit", "GTXRXInit"]
 
 # GTX Init -----------------------------------------------------------------------------------------
 
-class GTXInit(Module):
+class GTXInit(LiteXModule):
     def __init__(self, sys_clk_freq, buffer_enable):
         self.done            = Signal() # o
         self.restart         = Signal() # i
@@ -69,8 +70,7 @@ class GTXInit(Module):
         ]
 
         # FSM
-        fsm = ResetInserter()(FSM(reset_state="POWER-DOWN"))
-        self.submodules.fsm = fsm
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="POWER-DOWN"))
         fsm.act("POWER-DOWN",
             gtXxreset.eq(1),
             gtXxpd.eq(1),

@@ -24,7 +24,7 @@ from liteiclink.serdes.common import *
 
 # GTH Channel PLL ----------------------------------------------------------------------------------
 
-class GTHChannelPLL(Module):
+class GTHChannelPLL(LiteXModule):
     def __init__(self, refclk, refclk_freq, linerate):
         self.refclk = refclk
         self.reset  = Signal()
@@ -88,7 +88,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 # GTH Quad PLL -------------------------------------------------------------------------------------
 
-class GTHQuadPLLBase(Module):
+class GTHQuadPLLBase(LiteXModule):
     def __init__(self, refclk, refclk_freq, linerate):
         self.clk       = Signal()
         self.refclk    = Signal()
@@ -273,7 +273,7 @@ class GTH3QuadPLL(GTHQuadPLLBase):
 
 # GTH3 ---------------------------------------------------------------------------------------------
 
-class GTH3(Module, AutoCSR):
+class GTH3(LiteXModule):
     def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq,
         data_width          = 20,
         tx_buffer_enable    = False,
@@ -316,7 +316,7 @@ class GTH3(Module, AutoCSR):
 
         self.nwords = nwords = data_width//10
 
-        self.submodules.encoder = ClockDomainsRenamer("tx")(Encoder(nwords, True))
+        self.encoder = ClockDomainsRenamer("tx")(Encoder(nwords, True))
         self.decoders = [ClockDomainsRenamer("rx")(Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
 
@@ -353,14 +353,14 @@ class GTH3(Module, AutoCSR):
         # # #
 
         # TX init ----------------------------------------------------------------------------------
-        self.submodules.tx_init = tx_init = GTHTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
+        self.tx_init = tx_init = GTHTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
         self.comb += [
             self.tx_ready.eq(tx_init.done),
             tx_init.restart.eq(~self.tx_enable)
         ]
 
         # RX init ----------------------------------------------------------------------------------
-        self.submodules.rx_init = rx_init = GTHRXInit(sys_clk_freq, buffer_enable=rx_buffer_enable)
+        self.rx_init = rx_init = GTHRXInit(sys_clk_freq, buffer_enable=rx_buffer_enable)
         self.comb += [
             self.rx_ready.eq(rx_init.done),
             rx_init.restart.eq(~self.rx_enable)
@@ -375,7 +375,7 @@ class GTH3(Module, AutoCSR):
             self.comb += pll.reset.eq(tx_init.pllreset)
 
         # DRP mux ----------------------------------------------------------------------------------
-        self.submodules.drp_mux = drp_mux = DRPMux()
+        self.drp_mux = drp_mux = DRPMux()
         drp_mux.add_interface(self.drp)
 
         # GTHE3_CHANNEL instance -------------------------------------------------------------------
@@ -902,7 +902,7 @@ class GTH3(Module, AutoCSR):
         tx_reset_deglitched = Signal()
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
-        self.clock_domains.cd_tx = ClockDomain()
+        self.cd_tx = ClockDomain()
         if not tx_buffer_enable:
             tx_bufg_div = pll.config["clkin"]/self.tx_clk_freq
         else:
@@ -918,14 +918,14 @@ class GTH3(Module, AutoCSR):
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
         self.sync.tx += rx_reset_deglitched.eq(~rx_init.done)
-        self.clock_domains.cd_rx = ClockDomain()
+        self.cd_rx = ClockDomain()
         self.specials += [
             Instance("BUFG_GT", i_I=self.rxoutclk, o_O=self.cd_rx.clk),
             AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
         ]
 
         # TX Datapath and PRBS ---------------------------------------------------------------------
-        self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, reverse=True))
+        self.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, reverse=True))
         self.comb += self.tx_prbs.config.eq(tx_prbs_config)
         self.comb += [
             self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
@@ -940,7 +940,7 @@ class GTH3(Module, AutoCSR):
         ]
 
         # RX Datapath and PRBS ---------------------------------------------------------------------
-        self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, reverse=True))
+        self.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, reverse=True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
             self.rx_prbs.pause.eq(rx_prbs_pause),
@@ -953,7 +953,7 @@ class GTH3(Module, AutoCSR):
         # Clock Aligner ----------------------------------------------------------------------------
         if clock_aligner:
             clock_aligner = BruteforceClockAligner(clock_aligner_comma, self.tx_clk_freq)
-            self.submodules.clock_aligner = clock_aligner
+            self.clock_aligner = clock_aligner
             ps_restart = PulseSynchronizer("tx", "sys")
             self.submodules += ps_restart
             self.comb += [

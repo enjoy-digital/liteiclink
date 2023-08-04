@@ -9,6 +9,8 @@ from math import ceil
 from migen import *
 from migen.genlib.cdc import MultiReg
 
+from litex.gen import *
+
 from litex.gen.genlib.misc import WaitTimer
 
 
@@ -16,7 +18,7 @@ __all__ = ["GTHTXInit", "GTHRXInit"]
 
 # GTH Init -----------------------------------------------------------------------------------------
 
-class GTHInit(Module):
+class GTHInit(LiteXModule):
     def __init__(self, sys_clk_freq, rx, buffer_enable):
         self.done            = Signal() # o
         self.restart         = Signal() # i
@@ -67,11 +69,10 @@ class GTHInit(Module):
         pll_reset_timer  = WaitTimer(pll_reset_cycles)
         self.submodules += pll_reset_timer
 
-        fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
-        self.submodules.fsm = fsm
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
 
         ready_timer = WaitTimer(10e-3*sys_clk_freq)
-        self.submodules.ready_timer = ready_timer
+        self.ready_timer = ready_timer
         self.comb += [
             ready_timer.wait.eq(~self.done & ~fsm.reset),
             fsm.reset.eq(self.restart | ready_timer.done)

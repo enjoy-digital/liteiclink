@@ -24,7 +24,7 @@ from liteiclink.serdes.common import *
 
 # GTP Quad PLL -------------------------------------------------------------------------------------
 
-class GTPQuadPLL(Module):
+class GTPQuadPLL(LiteXModule):
     def __init__(self, refclk, refclk_freq, linerate, channel=0, shared=False):
         assert channel in [0, 1]
         self.channel = channel
@@ -156,7 +156,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 
 # GTP ----------------------------------------------------------------------------------------------
 
-class GTP(Module, AutoCSR):
+class GTP(LiteXModule):
     def __init__(self, qpll, tx_pads, rx_pads, sys_clk_freq, qpll_reset=True,
         data_width          = 20,
         tx_buffer_enable    = False,
@@ -194,7 +194,7 @@ class GTP(Module, AutoCSR):
 
         self.nwords = nwords = data_width//10
 
-        self.submodules.encoder = ClockDomainsRenamer("tx")(Encoder(nwords, True))
+        self.encoder = ClockDomainsRenamer("tx")(Encoder(nwords, True))
         self.decoders = [ClockDomainsRenamer("rx")(Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
 
@@ -240,14 +240,14 @@ class GTP(Module, AutoCSR):
         }
 
         # TX init ----------------------------------------------------------------------------------
-        self.submodules.tx_init = tx_init = GTPTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
+        self.tx_init = tx_init = GTPTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
         self.comb += [
             self.tx_ready.eq(tx_init.done),
             tx_init.restart.eq(~self.tx_enable)
         ]
 
         # RX init ----------------------------------------------------------------------------------
-        self.submodules.rx_init = rx_init = GTPRXInit(sys_clk_freq, buffer_enable=rx_buffer_enable)
+        self.rx_init = rx_init = GTPRXInit(sys_clk_freq, buffer_enable=rx_buffer_enable)
         self.comb += [
             self.rx_ready.eq(rx_init.done),
             rx_init.restart.eq(~self.rx_enable)
@@ -262,7 +262,7 @@ class GTP(Module, AutoCSR):
             self.comb += qpll.reset.eq(tx_init.pllreset)
 
         # DRP mux ----------------------------------------------------------------------------------
-        self.submodules.drp_mux = drp_mux = DRPMux()
+        self.drp_mux = drp_mux = DRPMux()
         drp_mux.add_interface(rx_init.drp)
         drp_mux.add_interface(self.drp)
 
@@ -932,7 +932,7 @@ class GTP(Module, AutoCSR):
         tx_reset_deglitched = Signal()
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
-        self.clock_domains.cd_tx = ClockDomain()
+        self.cd_tx = ClockDomain()
 
         txoutclk_bufg = Signal()
         self.specials += Instance("BUFG",
@@ -976,7 +976,7 @@ class GTP(Module, AutoCSR):
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
         self.sync.tx += rx_reset_deglitched.eq(~rx_init.done)
-        self.clock_domains.cd_rx = ClockDomain()
+        self.cd_rx = ClockDomain()
         self.specials += [
             Instance("BUFG",
                 i_I = self.rxoutclk,
@@ -986,7 +986,7 @@ class GTP(Module, AutoCSR):
         ]
 
         # TX Datapath and PRBS ---------------------------------------------------------------------
-        self.submodules.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, reverse=True))
+        self.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, reverse=True))
         self.comb += self.tx_prbs.config.eq(tx_prbs_config)
         self.comb += [
             self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
@@ -1001,7 +1001,7 @@ class GTP(Module, AutoCSR):
         ]
 
         # RX Datapath and PRBS ---------------------------------------------------------------------
-        self.submodules.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, reverse=True))
+        self.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, reverse=True))
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
             self.rx_prbs.pause.eq(rx_prbs_pause),
@@ -1014,7 +1014,7 @@ class GTP(Module, AutoCSR):
         # Clock Aligner ----------------------------------------------------------------------------
         if clock_aligner:
             clock_aligner = BruteforceClockAligner(clock_aligner_comma, self.tx_clk_freq, check_period=10e-3)
-            self.submodules.clock_aligner = clock_aligner
+            self.clock_aligner = clock_aligner
             ps_restart = PulseSynchronizer("tx", "sys")
             self.submodules += ps_restart
             self.comb += [

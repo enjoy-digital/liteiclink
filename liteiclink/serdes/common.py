@@ -6,6 +6,8 @@
 
 from migen import *
 
+from litex.gen import *
+
 # DRP ----------------------------------------------------------------------------------------------
 
 _drp_layout = [
@@ -22,10 +24,12 @@ _drp_layout = [
 class DRPInterface(Record):
     def __init__(self, address_width=9, data_width=16):
         Record.__init__(self, set_layout_parameters(_drp_layout,
-            address_width=address_width, data_width=data_width))
+            address_width = address_width,
+            data_width    = data_width,
+        ))
 
 
-class DRPMux(Module, DRPInterface):
+class DRPMux(LiteXModule, DRPInterface):
     def __init__(self, **kwargs):
         DRPInterface.__init__(self, **kwargs)
         self.sel = Signal(4)
