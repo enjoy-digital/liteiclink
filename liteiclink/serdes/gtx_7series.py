@@ -213,7 +213,7 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
 # GTX ----------------------------------------------------------------------------------------------
 
 class GTX(LiteXModule):
-    def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq,
+    def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq, tx_clk=None, rx_clk=None,
         data_width          = 20,
         tx_buffer_enable    = False,
         rx_buffer_enable    = False,
@@ -965,56 +965,76 @@ class GTX(LiteXModule):
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.cd_tx = ClockDomain()
 
-        txoutclk_bufg = Signal()
-        self.specials += Instance("BUFG",
-            i_I = self.txoutclk,
-            o_O = txoutclk_bufg,
-        )
+        # Use/generate local tx_clk.
+        # --------------------------
+        if tx_clk is None:
+            txoutclk_bufg = Signal()
+            self.specials += Instance("BUFG",
+                i_I = self.txoutclk,
+                o_O = txoutclk_bufg,
+            )
 
-        if not tx_buffer_enable:
-            txoutclk_div = pll.config["clkin"]/self.tx_clk_freq
+            if not tx_buffer_enable:
+                txoutclk_div = pll.config["clkin"]/self.tx_clk_freq
+            else:
+                txoutclk_div = 1
+            # Use txoutclk_bufg when divider is 1
+            if txoutclk_div == 1:
+                self.comb += self.cd_tx.clk.eq(txoutclk_bufg)
+                self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
+            # Use a BUFR when integer divider (with BUFR_DIVIDE)
+            elif txoutclk_div == int(txoutclk_div):
+                txoutclk_bufr = Signal()
+                self.specials += [
+                    Instance("BUFR",
+                        p_BUFR_DIVIDE = str(int(txoutclk_div)),
+                        i_CE = 1,
+                        i_I  = txoutclk_bufg,
+                        o_O  = txoutclk_bufr,
+                    ),
+                    Instance("BUFG",
+                        i_I = txoutclk_bufr,
+                        o_O = self.cd_tx.clk,
+                    ),
+                    AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
+                ]
+            # Use a PLL when non-integer divider
+            else:
+                txoutclk_pll = S7PLL()
+                self.comb += txoutclk_pll.reset.eq(tx_reset_deglitched)
+                self.submodules += txoutclk_pll
+                txoutclk_pll.register_clkin(txoutclk_bufg, pll.config["clkin"])
+                txoutclk_pll.create_clkout(self.cd_tx, self.tx_clk_freq)
+
+        # Use provided/shared tx_clk.
+        # ---------------------------
         else:
-            txoutclk_div = 1
-        # Use txoutclk_bufg when divider is 1
-        if txoutclk_div == 1:
-            self.comb += self.cd_tx.clk.eq(txoutclk_bufg)
+            assert tx_buffer_enable
+            self.cd_tx.clk = tx_clk # Override instead of assign to only keep one real clk.
             self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
-        # Use a BUFR when integer divider (with BUFR_DIVIDE)
-        elif txoutclk_div == int(txoutclk_div):
-            txoutclk_bufr = Signal()
-            self.specials += [
-                Instance("BUFR",
-                    p_BUFR_DIVIDE = str(int(txoutclk_div)),
-                    i_CE = 1,
-                    i_I  = txoutclk_bufg,
-                    o_O  = txoutclk_bufr,
-                ),
-                Instance("BUFG",
-                    i_I = txoutclk_bufr,
-                    o_O = self.cd_tx.clk,
-                ),
-                AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
-            ]
-        # Use a PLL when non-integer divider
-        else:
-            txoutclk_pll = S7PLL()
-            self.comb += txoutclk_pll.reset.eq(tx_reset_deglitched)
-            self.submodules += txoutclk_pll
-            txoutclk_pll.register_clkin(txoutclk_bufg, pll.config["clkin"])
-            txoutclk_pll.create_clkout(self.cd_tx, self.tx_clk_freq)
 
         # RX clocking ------------------------------------------------------------------------------
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
         self.sync.tx += rx_reset_deglitched.eq(~rx_init.done)
         self.cd_rx = ClockDomain()
-        self.specials += [
-            Instance("BUFG",
-                i_I = self.rxoutclk,
-                o_O = self.cd_rx.clk,
-            ),
-            AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
-        ]
+
+        # Use/generate local rx_clk.
+        # --------------------------
+        if rx_clk is None:
+            self.specials += [
+                Instance("BUFG",
+                    i_I = self.rxoutclk,
+                    o_O = self.cd_rx.clk,
+                ),
+                AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
+            ]
+        # Use provided/shared rx_clk.
+        # ---------------------------
+        else:
+            assert rx_buffer_enable
+            self.cd_rx.clk = rx_clk # Override instead of assign to only keep one real clk.
+            self.specials += AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
 
         # TX Datapath and PRBS ---------------------------------------------------------------------
         self.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, reverse=True))

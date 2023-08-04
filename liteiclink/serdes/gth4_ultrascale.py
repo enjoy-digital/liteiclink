@@ -305,7 +305,7 @@ class GTH4QuadPLL(GTHQuadPLLBase):
 # GTH4 ---------------------------------------------------------------------------------------------
 
 class GTH4(LiteXModule):
-    def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq,
+    def __init__(self, pll, tx_pads, rx_pads, sys_clk_freq, tx_clk=None, rx_clk=None,
         data_width          = 20,
         tx_buffer_enable    = False,
         rx_buffer_enable    = False,
@@ -1077,26 +1077,47 @@ class GTH4(LiteXModule):
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.cd_tx = ClockDomain()
-        if not tx_buffer_enable:
-            tx_bufg_div = pll.config["clkin"]/self.tx_clk_freq
+
+        # Use/generate local tx_clk.
+        # --------------------------
+        if tx_clk is None:
+            if not tx_buffer_enable:
+                tx_bufg_div = pll.config["clkin"]/self.tx_clk_freq
+            else:
+                tx_bufg_div = 1
+            assert tx_bufg_div == int(tx_bufg_div)
+            self.specials += [
+                Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_tx.clk,
+                    i_DIV=int(tx_bufg_div)-1),
+                AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
+            ]
+
+        # Use provided/shared tx_clk.
+        # ---------------------------
         else:
-            tx_bufg_div = 1
-        assert tx_bufg_div == int(tx_bufg_div)
-        self.specials += [
-            Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_tx.clk,
-                i_DIV=int(tx_bufg_div)-1),
-            AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
-        ]
+            assert tx_buffer_enable
+            self.cd_tx.clk = tx_clk # Override instead of assign to only keep one real clk.
+            self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
 
         # RX clocking ------------------------------------------------------------------------------
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
         self.sync.tx += rx_reset_deglitched.eq(~rx_init.done)
         self.cd_rx = ClockDomain()
-        self.specials += [
-            Instance("BUFG_GT", i_I=self.rxoutclk, o_O=self.cd_rx.clk),
-            AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
-        ]
+
+        # Use/generate local rx_clk.
+        # --------------------------
+        if rx_clk is None:
+            self.specials += [
+                Instance("BUFG_GT", i_I=self.rxoutclk, o_O=self.cd_rx.clk),
+                AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
+            ]
+        # Use provided/shared rx_clk.
+        # ---------------------------
+        else:
+            assert rx_buffer_enable
+            self.cd_rx.clk = rx_clk # Override instead of assign to only keep one real clk.
+            self.specials += AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
 
         # TX Datapath and PRBS ---------------------------------------------------------------------
         self.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, reverse=True))
