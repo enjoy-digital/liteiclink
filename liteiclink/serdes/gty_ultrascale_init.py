@@ -7,9 +7,10 @@
 from math import ceil
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
-from litex.gen.genlib.cdc import MultiReg
+
 from litex.gen.genlib.misc import WaitTimer
 
 
@@ -32,6 +33,10 @@ class GTYInit(LiteXModule):
         self.Xxphaligndone   = Signal() # i
         self.Xxsyncdone      = Signal() # i
         self.Xxuserrdy       = Signal() # o
+
+        # DRP (optional)
+        self.drp_start       = Signal()        # o
+        self.drp_done        = Signal(reset=1) # i
 
         # # #
 
@@ -67,7 +72,7 @@ class GTYInit(LiteXModule):
         self.fsm = fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
 
         ready_timer = WaitTimer(10e-3*sys_clk_freq)
-        self.submodules += ready_timer
+        self.ready_timer = ready_timer
         self.comb += [
             ready_timer.wait.eq(~self.done & ~fsm.reset),
             fsm.reset.eq(self.restart | ready_timer.done)
@@ -87,6 +92,14 @@ class GTYInit(LiteXModule):
             self.pllreset.eq(1),
             pll_reset_timer.wait.eq(1),
             If(pll_reset_timer.done,
+                NextState("DRP")
+            )
+        )
+        fsm.act("DRP",
+            gtXxreset.eq(1),
+            self.pllreset.eq(1),
+            self.drp_start.eq(1),
+            If(self.drp_done,
                 NextState("RELEASE_PLL_RESET")
             )
         )
