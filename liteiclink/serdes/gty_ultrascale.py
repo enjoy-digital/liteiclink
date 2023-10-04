@@ -6,8 +6,6 @@
 
 import math
 
-from litex.gen import *
-
 from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -441,11 +439,11 @@ class GTY(LiteXModule):
                                              0b1111101100011100,
             p_ADAPT_CFG2                   = 0b0000000000000000,
             p_ALIGN_COMMA_DOUBLE           = "FALSE",
-            p_ALIGN_COMMA_ENABLE           = 0b0000000000,
-            p_ALIGN_COMMA_WORD             = 1,
-            p_ALIGN_MCOMMA_DET             = "FALSE",
+            p_ALIGN_COMMA_ENABLE           = 0b1111111111,
+            p_ALIGN_COMMA_WORD             = 2 if data_width == 20 else 4,
+            p_ALIGN_MCOMMA_DET             = "TRUE",
             p_ALIGN_MCOMMA_VALUE           = 0b1010000011,
-            p_ALIGN_PCOMMA_DET             = "FALSE",
+            p_ALIGN_PCOMMA_DET             = "TRUE",
             p_ALIGN_PCOMMA_VALUE           = 0b0101111100,
             p_A_RXOSCALRESET               = 0b0,
             p_A_RXPROGDIVRESET             = 0b0,
@@ -516,9 +514,9 @@ class GTY(LiteXModule):
             p_CTLE3_OCAP_EXT_EN            = 0b0,
             p_DDI_CTRL                     = 0b00,
             p_DDI_REALIGN_WAIT             = 15,
-            p_DEC_MCOMMA_DETECT            = "FALSE",
-            p_DEC_PCOMMA_DETECT            = "FALSE",
-            p_DEC_VALID_COMMA_ONLY         = "FALSE",
+            p_DEC_MCOMMA_DETECT            = "TRUE",
+            p_DEC_PCOMMA_DETECT            = "TRUE",
+            p_DEC_VALID_COMMA_ONLY         = "TRUE",
             p_DELAY_ELEC                   = 0b0,
             p_DMONITOR_CFG0                = 0b0000000000,
             p_DMONITOR_CFG1                = 0b00000000,
@@ -747,7 +745,7 @@ class GTY(LiteXModule):
             p_RXPRBS_LINKACQ_CNT           = 15,
             p_RXREFCLKDIV2_SEL             = 0b0,
             p_RXSLIDE_AUTO_WAIT            = 7,
-            p_RXSLIDE_MODE                 = "OFF",
+            p_RXSLIDE_MODE                 = "OFF" if rx_buffer_enable else "PCS",
             p_RXSYNC_MULTILANE             = 0b0,
             p_RXSYNC_OVRD                  = 0b0,
             p_RXSYNC_SKIP_DA               = 0b0,
@@ -1080,11 +1078,6 @@ class GTY(LiteXModule):
             i_RXCDRRESET       = 0,
             i_RXCHBONDEN       = 0,
 
-            # COMMA DETECT
-            i_RXCOMMADETEN     = 0,
-            i_RXMCOMMAALIGNEN  = 0,
-            i_RXPCOMMAALIGNEN  = 0,
-
             # RX AFE
             i_RXDFEXYDEN       = 1,
             i_RXLPMEN          = 1,
@@ -1097,6 +1090,15 @@ class GTY(LiteXModule):
             o_RXOUTCLK        = self.rxoutclk,
             i_RXUSRCLK        = ClockSignal("rx"),
             i_RXUSRCLK2       = ClockSignal("rx"),
+
+            # RX Byte and Word Alignment Ports
+            o_RXBYTEISALIGNED      = Open(),
+            o_RXBYTEREALIGN        = Open(),
+            o_RXCOMMADET           = Open(),
+            i_RXCOMMADETEN         = 1,
+            i_RXMCOMMAALIGNEN      = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
+            i_RXPCOMMAALIGNEN      = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
+            i_RXSLIDE              = 0,
 
             # RX data
             o_RXCTRL0         = Cat(*[rxdata[10*i+8] for i in range(nwords)]),
