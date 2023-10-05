@@ -918,7 +918,7 @@ class GTY(LiteXModule):
             p_TX_PMA_RSV0                = 0b0000000000000000,
             p_TX_PMA_RSV1                = 0b0000000000000000,
             p_TX_PROGCLK_SEL             = "PREPI",
-            p_TX_PROGDIV_CFG             = data_width*pll.config["d"]/2,
+            p_TX_PROGDIV_CFG             = 0,
             p_TX_PROGDIV_RATE            = 0b0000000000000001,
             p_TX_RXDETECT_CFG            = 0b00000000110010,
             p_TX_RXDETECT_REF            = 5,
