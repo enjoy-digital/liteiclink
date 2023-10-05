@@ -27,6 +27,7 @@ class GTYInit(LiteXModule):
         self.plllock         = Signal() # i
         self.pllreset        = Signal() # o
         self.gtXxreset       = Signal() # o
+        self.gtXxpd          = Signal() # o
         self.Xxresetdone     = Signal() # i
         self.Xxdlysreset     = Signal() # o
         self.Xxdlysresetdone = Signal() # i
@@ -56,10 +57,12 @@ class GTYInit(LiteXModule):
 
         # Deglitch FSM outputs driving transceiver asynch inputs
         gtXxreset   = Signal()
+        gtXxpd      = Signal()
         Xxdlysreset = Signal()
         Xxuserrdy   = Signal()
         self.sync += [
             self.gtXxreset.eq(gtXxreset),
+            self.gtXxpd.eq(gtXxpd),
             self.Xxdlysreset.eq(Xxdlysreset),
             self.Xxuserrdy.eq(Xxuserrdy)
         ]
@@ -69,7 +72,7 @@ class GTYInit(LiteXModule):
         pll_reset_timer  = WaitTimer(pll_reset_cycles)
         self.submodules += pll_reset_timer
 
-        self.fsm = fsm = ResetInserter()(FSM(reset_state="RESET_ALL"))
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="POWER_DOWN"))
 
         ready_timer = WaitTimer(10e-3*sys_clk_freq)
         self.ready_timer = ready_timer
@@ -87,8 +90,9 @@ class GTYInit(LiteXModule):
         self.sync += Xxphaligndone_r.eq(Xxphaligndone)
         self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
 
-        fsm.act("RESET_ALL",
+        fsm.act("POWER_DOWN",
             gtXxreset.eq(1),
+            gtXxpd.eq(1),
             self.pllreset.eq(1),
             pll_reset_timer.wait.eq(1),
             If(pll_reset_timer.done,
@@ -168,7 +172,7 @@ class GTYInit(LiteXModule):
         fsm.act("READY",
             Xxuserrdy.eq(1),
             self.done.eq(1),
-            If(self.restart, NextState("RESET_ALL"))
+            If(self.restart, NextState("POWER_DOWN"))
         )
 
 # GTY TX Init --------------------------------------------------------------------------------------
