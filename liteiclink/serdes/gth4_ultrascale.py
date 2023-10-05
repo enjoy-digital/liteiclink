@@ -994,7 +994,7 @@ class GTH4(LiteXModule):
             i_TXUSRCLK2       = ClockSignal("tx"),
 
             # TX electrical
-            i_TXPD            = 0b00,
+            i_TXPD            = Cat(tx_init.gtXxpd, tx_init.gtXxpd),
             i_TXDIFFCTRL      = 0b1100,
             i_TXINHIBIT       = self.tx_inhibit,
 
@@ -1058,7 +1058,7 @@ class GTH4(LiteXModule):
             o_RXDATA          = Cat(*[rxdata[10*i:10*i+8] for i in range(nwords)]),
 
             # RX electrical
-            i_RXPD            = 0b00,
+            i_RXPD            = Cat(rx_init.gtXxpd, rx_init.gtXxpd),
             i_RXELECIDLEMODE  = 0b11,
 
             # Polarity
