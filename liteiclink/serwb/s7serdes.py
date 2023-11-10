@@ -1,11 +1,12 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 
+from litex.gen import *
 from litex.gen.genlib.misc import BitSlip, WaitTimer
 
 from litex.build.io import *
@@ -17,15 +18,17 @@ from liteiclink.serwb.datapath import TXDatapath, RXDatapath
 
 # S7 SerDes Clocking -------------------------------------------------------------------------------
 
-class _S7SerdesClocking(Module):
+class _S7SerdesClocking(LiteXModule):
     def __init__(self, pads, mode="master"):
         self.refclk = Signal()
 
         # # #
 
-        # In Master mode, generate the linerate/10 clock. Slave will re-multiply it.
+        # Master Mode.
+        # ------------
+        # Generate the linerate/10 clock. Slave will re-multiply it.
         if mode == "master":
-            self.submodules.converter = converter = stream.Converter(40, 8)
+            self.converter = converter = stream.Converter(40, 8)
             self.comb += [
                 converter.sink.valid.eq(1),
                 converter.source.ready.eq(1),
@@ -56,26 +59,29 @@ class _S7SerdesClocking(Module):
                 DifferentialOutput(self.refclk, pads.clk_p, pads.clk_n)
             ]
 
-        # In Slave mode, multiply the clock provided by Master with a PLL/MMCM.
-        elif mode == "slave":
+        # Slave Mode.
+        # -----------
+        # Multiply the clock provided by Master with a PLL/MMCM.
+        if mode == "slave":
             self.specials += DifferentialInput(pads.clk_p, pads.clk_n, self.refclk)
 
 # S7 SerDes TX -------------------------------------------------------------------------------------
 
-class _S7SerdesTX(Module):
+class _S7SerdesTX(LiteXModule):
     def __init__(self, pads):
         # Control
         self.idle  = idle  = Signal()
         self.comma = comma = Signal()
 
-        # Datapath
+        # Datapath.
         self.sink = sink = stream.Endpoint([("data", 32)])
 
         # # #
 
 
-        # Datapath
-        self.submodules.datapath = datapath = TXDatapath(8)
+        # Datapath.
+        # ---------
+        self.datapath = datapath = TXDatapath(8)
         self.comb += [
             sink.connect(datapath.sink),
             datapath.source.ready.eq(1),
@@ -83,7 +89,8 @@ class _S7SerdesTX(Module):
             datapath.comma.eq(comma)
         ]
 
-        # Data output (DDR with sys4x)
+        # Output Data (DDR with sys4x).
+        # -----------------------------
         self.data = data = Signal(8)
         data_serialized  = Signal()
         self.comb += data.eq(datapath.source.data)
@@ -114,15 +121,15 @@ class _S7SerdesTX(Module):
 
 # S7 SerDes RX -------------------------------------------------------------------------------------
 
-class _S7SerdesRX(Module):
+class _S7SerdesRX(LiteXModule):
     def __init__(self, pads):
-        # Control
-        self.delay_rst     = Signal()
-        self.delay_inc     = Signal()
-        self.shift_inc     = Signal()
+        # Control.
+        self.delay_rst = delay_rst = Signal()
+        self.delay_inc = delay_inc = Signal()
+        self.shift_inc = shift_inc = Signal()
 
-        # Status
-        self.idle  = idle = Signal()
+        # Status.
+        self.idle  =  idle = Signal()
         self.comma = comma = Signal()
 
         # Datapath
@@ -133,7 +140,8 @@ class _S7SerdesRX(Module):
         _shift = Signal(3)
         self.sync += If(self.shift_inc, _shift.eq(_shift + 1))
 
-        # Data input (DDR with sys4x)
+        # Data input (DDR with sys4x).
+        # ----------------------------
         data_nodelay      = Signal()
         data_delayed      = Signal()
         self.data = data  = Signal(8)
@@ -150,8 +158,8 @@ class _S7SerdesRX(Module):
                 p_IDELAY_VALUE          = 0,
 
                 i_C        = ClockSignal(),
-                i_LD       = self.delay_rst,
-                i_CE       = self.delay_inc,
+                i_LD       = delay_rst,
+                i_CE       = delay_inc,
                 i_LDPIPEEN = 0,
                 i_INC      = 1,
                 i_IDATAIN  = data_nodelay,
@@ -171,7 +179,7 @@ class _S7SerdesRX(Module):
                 i_CLK     = ClockSignal("sys4x"),
                 i_CLKB    =~ClockSignal("sys4x"),
                 i_CLKDIV  = ClockSignal("sys"),
-                i_BITSLIP = self.shift_inc,
+                i_BITSLIP = shift_inc,
                 o_Q8      = data[0],
                 o_Q7      = data[1],
                 o_Q6      = data[2],
@@ -183,8 +191,9 @@ class _S7SerdesRX(Module):
             )
         ]
 
-        # Datapath
-        self.submodules.datapath = datapath = RXDatapath(8)
+        # Datapath.
+        # ---------
+        self.datapath = datapath = RXDatapath(8)
         self.comb += [
             datapath.sink.valid.eq(1),
             datapath.sink.data.eq(data),
@@ -197,8 +206,9 @@ class _S7SerdesRX(Module):
 # S7 SerDes ----------------------------------------------------------------------------------------
 
 @ResetInserter()
-class S7Serdes(Module):
+class S7Serdes(LiteXModule):
     def __init__(self, pads, mode="master"):
-        self.submodules.clocking = _S7SerdesClocking(pads, mode)
-        self.submodules.tx       = _S7SerdesTX(pads)
-        self.submodules.rx       = _S7SerdesRX(pads)
+        assert mode in ["master", "slave"]
+        self.clocking = _S7SerdesClocking(pads, mode)
+        self.tx       = _S7SerdesTX(pads)
+        self.rx       = _S7SerdesRX(pads)

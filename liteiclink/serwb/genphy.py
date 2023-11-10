@@ -1,13 +1,14 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 
 from litex.build.io import *
 
+from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import stream
@@ -17,7 +18,7 @@ from liteiclink.serwb.datapath import TXDatapath, RXDatapath
 
 # SerDes Clocking ----------------------------------------------------------------------------------
 
-class _SerdesClocking(Module):
+class _SerdesClocking(LiteXModule):
     def __init__(self, pads, mode="master"):
         self.refclk = Signal()
 
@@ -43,19 +44,20 @@ class _SerdesClocking(Module):
 
 # SerDes TX ----------------------------------------------------------------------------------------
 
-class _SerdesTX(Module):
+class _SerdesTX(LiteXModule):
     def __init__(self, pads):
-        # Control
+        # Control.
         self.idle  = idle  = Signal()
         self.comma = comma = Signal()
 
-        # Datapath
+        # Datapath.
         self.sink = sink = stream.Endpoint([("data", 32)])
 
         # # #
 
-        # Datapath
-        self.submodules.datapath = datapath = TXDatapath(1)
+        # Datapath.
+        # ---------
+        self.datapath = datapath = TXDatapath(1)
         self.comb += [
             sink.connect(datapath.sink),
             datapath.source.ready.eq(1),
@@ -63,7 +65,8 @@ class _SerdesTX(Module):
             datapath.comma.eq(comma)
         ]
 
-        # Output data (on rising edge of sys_clk)
+        # Output data (on rising edge of sys_clk).
+        # ----------------------------------------
         self.data = data = Signal()
         self.sync += data.eq(datapath.source.data)
         if hasattr(pads, "tx_p"):
@@ -73,21 +76,22 @@ class _SerdesTX(Module):
 
 # SerDes RX ----------------------------------------------------------------------------------------
 
-class _SerdesRX(Module):
+class _SerdesRX(LiteXModule):
     def __init__(self, pads):
-        # Control
+        # Control.
         self.shift = shift = Signal(6)
 
-        # Status
+        # Status.
         self.idle  = idle  = Signal()
         self.comma = comma = Signal()
 
-        # Datapath
+        # Datapath.
         self.source = source = stream.Endpoint([("data", 32)])
 
         # # #
 
-        # Input data (on rising edge of sys_clk)
+        # Input data (on rising edge of sys_clk).
+        # ---------------------------------------
         self.data = data = Signal()
         data_d = Signal()
         if hasattr(pads, "rx_p"):
@@ -97,8 +101,9 @@ class _SerdesRX(Module):
         else:
             self.sync += data.eq(pads.rx)
 
-        # Datapath
-        self.submodules.datapath = datapath = RXDatapath(1)
+        # Datapath.
+        # ---------
+        self.datapath = datapath = RXDatapath(1)
         self.comb += [
             datapath.sink.valid.eq(1),
             datapath.sink.data.eq(data),
@@ -111,12 +116,12 @@ class _SerdesRX(Module):
 # SerDes -------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class _Serdes(Module):
+class _Serdes(LiteXModule):
     def __init__(self, pads, mode="master"):
         if hasattr(pads, "clk") or hasattr(pads, "clk_p"):
-            self.submodules.clocking = _SerdesClocking(pads, mode)
-        self.submodules.tx       = _SerdesTX(pads)
-        self.submodules.rx       = _SerdesRX(pads)
+            self.clocking = _SerdesClocking(pads, mode)
+        self.tx = _SerdesTX(pads)
+        self.rx = _SerdesRX(pads)
 
 
 # SerDes Initialization/Synchronisation ------------------------------------------------------------
@@ -132,21 +137,24 @@ class _Serdes(Module):
 # SerDes Master Init -------------------------------------------------------------------------------
 
 @ResetInserter()
-class _SerdesMasterInit(Module):
+class _SerdesMasterInit(LiteXModule):
     def __init__(self, serdes, timeout):
         self.ready = Signal()
         self.error = Signal()
 
         # # #
 
-        # Shift
+        # Shift.
+        # ------
         self.shift = shift = Signal(max=40)
 
-        # Timer
-        self.submodules.timer = timer = WaitTimer(timeout)
+        # Timer.
+        # ------
+        self.timer = timer = WaitTimer(timeout)
 
-        # FSM
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        # FSM.
+        # ----
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(shift, 0),
             NextState("RESET-SLAVE"),
@@ -208,21 +216,24 @@ class _SerdesMasterInit(Module):
 # SerDes Slave Init --------------------------------------------------------------------------------
 
 @ResetInserter()
-class _SerdesSlaveInit(Module, AutoCSR):
+class _SerdesSlaveInit(LiteXModule):
     def __init__(self, serdes, timeout):
         self.ready = Signal()
         self.error = Signal()
 
         # # #
 
-        # Shift
+        # Shift.
+        # ------
         self.shift = shift = Signal(max=40)
 
-        # Timer
-        self.submodules.timer = timer = WaitTimer(timeout)
+        # Timer.
+        # ------
+        self.timer = timer = WaitTimer(timeout)
 
-        # FSM
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        # FSM.
+        # ----
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(shift, 0),
             timer.wait.eq(1),
@@ -279,15 +290,18 @@ class _SerdesSlaveInit(Module, AutoCSR):
 
 # SerDes Init Control ------------------------------------------------------------------------------
 
-class _SerdesControl(Module, AutoCSR):
+class _SerdesControl(LiteXModule):
     def __init__(self, serdes, init, mode="master"):
+        # Control/Status.
         if mode == "master":
             self.reset = CSR()
         self.ready = CSRStatus()
         self.error = CSRStatus()
 
+        # Shift.
         self.shift = CSRStatus(6)
 
+        # PRBS.
         self.prbs_error  = Signal()
         self.prbs_start  = CSR()
         self.prbs_cycles = CSRStorage(32)
@@ -295,27 +309,36 @@ class _SerdesControl(Module, AutoCSR):
 
         # # #
 
+        # Master Mode.
+        # ------------
         if mode == "master":
             # In Master mode, reset is coming from CSR, it resets the Master that will also reset
             # the Slave by putting the link in IDLE state.
             self.sync += init.reset.eq(self.reset.re)
-        else:
+
+        # Slave Mode.
+        # -----------
+        if mode == "slave":
             # In Slave mode, reset is coming from link, Master reset the Slave by putting the link
             # in IDLE state.
             self.sync += [
                 init.reset.eq(serdes.rx.idle),
                 serdes.reset.eq(serdes.rx.idle)
             ]
+
+        # Control/Status.
+        # ---------------
         self.comb += [
             self.ready.status.eq(init.ready),
             self.error.status.eq(init.error),
             self.shift.status.eq(init.shift)
         ]
 
-        # PRBS
+        # PRBS.
+        # -----
         prbs_cycles = Signal(32)
         prbs_errors = self.prbs_errors.status
-        self.submodules.prbs_fsm = prbs_fsm = FSM(reset_state="IDLE")
+        self.prbs_fsm = prbs_fsm = FSM(reset_state="IDLE")
         prbs_fsm.act("IDLE",
             NextValue(prbs_cycles, 0),
             If(self.prbs_start.re,
@@ -335,23 +358,29 @@ class _SerdesControl(Module, AutoCSR):
 
 # SERWB PHY ----------------------------------------------------------------------------------------
 
-class SERWBPHY(Module, AutoCSR):
+class SERWBPHY(LiteXModule):
     def __init__(self, device, pads, mode="master", init_timeout=2**16):
         self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
 
-        # SerDes
-        self.submodules.serdes = _Serdes(pads, mode)
+        # # #
 
-        # SerDes Init
+        # SerDes.
+        # -------
+        self.serdes = _Serdes(pads, mode)
+
+        # SerDes Init.
+        # ------------
         init_cls = {"master": _SerdesMasterInit, "slave":  _SerdesSlaveInit}[mode]
-        self.submodules.init = init_cls(self.serdes, init_timeout)
+        self.init = init_cls(self.serdes, init_timeout)
 
-        # SerDes Control
-        self.submodules.control = _SerdesControl(self.serdes, self.init, mode)
+        # SerDes Control.
+        # ---------------
+        self.control = _SerdesControl(self.serdes, self.init, mode)
 
-        # Dataflow
+        # Data-Path.
+        # ----------
         self.comb += [
             If(self.init.ready,
                 If(sink.valid,
@@ -363,6 +392,8 @@ class SERWBPHY(Module, AutoCSR):
             self.serdes.rx.source.ready.eq(1) # Always receiving.
         ]
 
+        # PRBS.
+        # -----
         # The PRBS test is using the scrambler/descrambler as PRBS, sending 0 to the scrambler and
         # checking that descrambler output is always 0.
         self.comb += self.control.prbs_error.eq(source.valid & source.ready & (source.data != 0))

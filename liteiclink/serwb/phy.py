@@ -1,11 +1,12 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 
+from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import stream
@@ -28,7 +29,7 @@ from liteiclink.serwb.s7serdes import S7Serdes
 # Serdes Master Init -------------------------------------------------------------------------------
 
 @ResetInserter()
-class _SerdesMasterInit(Module):
+class _SerdesMasterInit(LiteXModule):
     def __init__(self, serdes, taps, timeout):
         self.ready = Signal()
         self.error = Signal()
@@ -42,11 +43,13 @@ class _SerdesMasterInit(Module):
         self.delay_max_found = delay_max_found = Signal()
         self.shift           = shift           = Signal(max=40)
 
-        # Timer
-        self.submodules.timer = timer = WaitTimer(timeout)
+        # Timer.
+        # ------
+        self.timer = timer = WaitTimer(timeout)
 
-        # FSM
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        # FSM.
+        # ----
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(delay,           0),
             NextValue(delay_min,       0),
@@ -160,7 +163,7 @@ class _SerdesMasterInit(Module):
 # Serdes Slave Init --------------------------------------------------------------------------------
 
 @ResetInserter()
-class _SerdesSlaveInit(Module, AutoCSR):
+class _SerdesSlaveInit(LiteXModule):
     def __init__(self, serdes, taps, timeout):
         self.ready = Signal()
         self.error = Signal()
@@ -174,11 +177,13 @@ class _SerdesSlaveInit(Module, AutoCSR):
         self.delay_max_found = delay_max_found = Signal()
         self.shift           = shift           = Signal(max=40)
 
-        # Timer
-        self.submodules.timer = timer = WaitTimer(timeout)
+        # Timer.
+        # ------
+        self.timer = timer = WaitTimer(timeout)
 
-        # FSM
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        # FSM.
+        # ----
+        self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(delay,           0),
             NextValue(delay_min,       0),
@@ -287,7 +292,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
 
 # Serdes Init Control ------------------------------------------------------------------------------
 
-class _SerdesControl(Module, AutoCSR):
+class _SerdesControl(LiteXModule):
     def __init__(self, serdes, init, mode="master"):
         if mode == "master":
             self.reset = CSR()
@@ -308,17 +313,23 @@ class _SerdesControl(Module, AutoCSR):
 
         # # #
 
+        # Master Mode.
+        # ------------
         if mode == "master":
             # In Master mode, reset is coming from CSR, it resets the Master that will also reset
             # the Slave by putting the link in IDLE state.
             self.sync += init.reset.eq(self.reset.re)
-        else:
+        # Slave Mode.
+        # -----------
+        if mode == "slave":
             # In Slave mode, reset is coming from link, Master reset the Slave by putting the link
             # in IDLE state..
             self.sync += [
                 init.reset.eq(serdes.rx.idle),
                 serdes.reset.eq(serdes.rx.idle)
             ]
+        # Control/Status.
+        # ---------------
         self.comb += [
             self.ready.status.eq(init.ready),
             self.error.status.eq(init.error),
@@ -330,10 +341,11 @@ class _SerdesControl(Module, AutoCSR):
             self.shift.status.eq(init.shift)
         ]
 
-        # PRBS
+        # PRBS.
+        # -----
         prbs_cycles = Signal(32)
         prbs_errors = self.prbs_errors.status
-        self.submodules.prbs_fsm = prbs_fsm = FSM(reset_state="IDLE")
+        self.prbs_fsm = prbs_fsm = FSM(reset_state="IDLE")
         prbs_fsm.act("IDLE",
             NextValue(prbs_cycles, 0),
             If(self.prbs_start.re,
@@ -353,30 +365,39 @@ class _SerdesControl(Module, AutoCSR):
 
 # SERWB PHY ----------------------------------------------------------------------------------------
 
-class SERWBPHY(Module, AutoCSR):
+class SERWBPHY(LiteXModule):
     def __init__(self, device, pads, mode="master", init_timeout=2**15):
         self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
 
-        # SerDes
+        # # #
+
+        # SerDes.
+        # -------
         if device[:4] == "xcku":
             taps = 512
-            self.submodules.serdes = KUSerdes(pads, mode)
+            self.serdes = KUSerdes(pads, mode)
         elif device[:4] == "xc7a":
             taps = 32
-            self.submodules.serdes = S7Serdes(pads, mode)
+            self.serdes = S7Serdes(pads, mode)
         else:
             raise NotImplementedError
 
-        # SerDes Init
-        init_cls = {"master": _SerdesMasterInit, "slave":  _SerdesSlaveInit}[mode]
-        self.submodules.init = init_cls(self.serdes, taps, init_timeout)
+        # SerDes Init.
+        # ------------
+        init_cls = {
+            "master" : _SerdesMasterInit,
+            "slave"  : _SerdesSlaveInit,
+        }[mode]
+        self.init = init_cls(self.serdes, taps, init_timeout)
 
-        # SerDes Control
-        self.submodules.control = _SerdesControl(self.serdes, self.init, mode)
+        # SerDes Control.
+        # ---------------
+        self.control = _SerdesControl(self.serdes, self.init, mode)
 
-        # Dataflow
+        # Dataflow.
+        # ---------
         self.comb += [
             If(self.init.ready,
                 If(sink.valid,
@@ -389,6 +410,8 @@ class SERWBPHY(Module, AutoCSR):
             self.serdes.tx.sink.valid.eq(1) # Always transmitting
         ]
 
+        # PRBS.
+        # -----
         # The PRBS test is using the scrambler/descrambler as PRBS, sending 0 to the scrambler and
         # checking that descrambler output is always 0.
         self.comb += self.control.prbs_error.eq(source.valid & source.ready & (source.data != 0))

@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from math import ceil
@@ -28,9 +28,9 @@ def user_description(dw):
 
 class HeaderField:
     def __init__(self, byte, offset, width):
-        self.byte = byte
+        self.byte   = byte
         self.offset = offset
-        self.width = width
+        self.width  = width
 
 
 class Header:
@@ -81,7 +81,7 @@ class Header:
 
 # Packetizer ---------------------------------------------------------------------------------------
 
-class Packetizer(Module):
+class Packetizer(LiteXModule):
     def __init__(self):
         self.sink   = sink   = stream.Endpoint(user_description(32))
         self.source = source = stream.Endpoint(phy_description(32))
@@ -93,7 +93,9 @@ class Packetizer(Module):
         #   - Length   : 4 bytes
         #   - Payload
 
-        self.submodules.fsm = fsm = FSM(reset_state="PREAMBLE")
+        # FSM.
+        # ----
+        self.fsm = fsm = FSM(reset_state="PREAMBLE")
         fsm.act("PREAMBLE",
             If(sink.valid,
                 source.valid.eq(1),
@@ -121,24 +123,30 @@ class Packetizer(Module):
 
 # Depacketizer -------------------------------------------------------------------------------------
 
-class Depacketizer(Module):
+class Depacketizer(LiteXModule):
     def __init__(self, clk_freq, timeout=10):
         self.sink   = sink   = stream.Endpoint(phy_description(32))
         self.source = source = stream.Endpoint(user_description(32))
 
         # # #
 
-        count  = Signal(len(source.length))
-        length = Signal(len(source.length))
-
         # Packet description
         #   - Preamble : 4 bytes
         #   - Length   : 4 bytes
         #   - Payload
 
-        self.submodules.timer = timer = WaitTimer(clk_freq*timeout)
+        # Signals.
+        # --------
+        count  = Signal(len(source.length))
+        length = Signal(len(source.length))
 
-        self.submodules.fsm = fsm = FSM(reset_state="PREAMBLE")
+        # Timer.
+        # ------
+        self.timer = timer = WaitTimer(clk_freq*timeout)
+
+        # FSM.
+        # ----
+        self.fsm = fsm = FSM(reset_state="PREAMBLE")
         fsm.act("PREAMBLE",
             sink.ready.eq(1),
             If(sink.valid &

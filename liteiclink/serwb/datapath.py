@@ -1,12 +1,13 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 from migen.genlib.io import *
 
+from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import stream
@@ -14,9 +15,9 @@ from litex.soc.cores.code_8b10b import K, StreamEncoder, StreamDecoder
 
 from liteiclink.serwb.scrambler import Scrambler, Descrambler
 
-# TXDatapath ---------------------------------------------------------------------------------------
+# TX Datapath --------------------------------------------------------------------------------------
 
-class TXDatapath(Module):
+class TXDatapath(LiteXModule):
     def __init__(self, phy_dw, with_scrambling=False):
         self.idle   = idle   = Signal()
         self.comma  = comma  = Signal()
@@ -25,17 +26,21 @@ class TXDatapath(Module):
 
         # # #
 
-        # Scrambler
+        # Scrambler.
+        # ----------
         if with_scrambling:
-            self.submodules.scrambler = scrambler = Scrambler()
+            self.scrambler = scrambler = Scrambler()
 
-        # Line coding
-        self.submodules.encoder = encoder = StreamEncoder(nwords=4)
+        # Line coding.
+        # ------------
+        self.encoder = encoder = StreamEncoder(nwords=4)
 
-        # Converter
-        self.submodules.converter = converter = stream.Converter(40, phy_dw)
+        # Converter.
+        # ----------
+        self.converter = converter = stream.Converter(40, phy_dw)
 
-        # Dataflow
+        # Data-Path.
+        # ----------
         if with_scrambling:
             self.comb += sink.connect(scrambler.sink)
             self.comb += scrambler.source.connect(encoder.sink)
@@ -45,7 +50,8 @@ class TXDatapath(Module):
         self.comb += encoder.source.connect(converter.sink)
         self.comb += converter.source.connect(source)
 
-        # Send K28.5 if comma asserted.
+        # Encode Comma (K28.5).
+        # ---------------------
         self.comb += If(comma,
             sink.ready.eq(0),
             encoder.sink.valid.eq(1),
@@ -53,35 +59,34 @@ class TXDatapath(Module):
             encoder.sink.d.eq(K(28,5)),
         )
 
-        # Send Idle if idle asserted.
+        # Encode Idle.
+        # ------------
         self.comb += If(idle,
             sink.ready.eq(0),
             converter.sink.valid.eq(1),
             converter.sink.data.eq(0),
         )
 
-# RXAligner ----------------------------------------------------------------------------------------
-"""
-RXAligner
-*********
+# RX Aligner ---------------------------------------------------------------------------------------
 
-This module aligns the data stream. When shifting is enabled, this module stops
-forwarding data from `sink` to `source` while accepting and ignoring new data on the `sink`.
+class RXAligner(LiteXModule):
+    """
+    This module aligns the data stream. When shifting is enabled, this module stops
+    forwarding data from `sink` to `source` while accepting and ignoring new data on the `sink`.
 
-This module guarantees the removal of one data element (phy_dw bits) from the stream
-when shift_inc is asserted for one cycle.
+    This module guarantees the removal of one data element (phy_dw bits) from the stream
+    when shift_inc is asserted for one cycle.
 
-There must be data on the stream between successive shift_inc operations, otherwise
-this module will shift less than expected.
+    There must be data on the stream between successive shift_inc operations, otherwise
+    this module will shift less than expected.
 
- * ``phy_dw`` the width of the data signal.
- * ``shift_inc`` enable the shifting if != 0
-"""
-class RXAligner(Module):
+     * ``phy_dw`` the width of the data signal.
+     * ``shift_inc`` enable the shifting if != 0
+    """
     def __init__(self, phy_dw, shift_inc=None):
         self.shift_inc  = Signal() if shift_inc is None else shift_inc
-        self.sink   = sink   = stream.Endpoint([("data", phy_dw)])
-        self.source = source = stream.Endpoint([("data", phy_dw)])
+        self.sink       = sink   = stream.Endpoint([("data", phy_dw)])
+        self.source     = source = stream.Endpoint([("data", phy_dw)])
 
         # # #
 
@@ -103,30 +108,35 @@ class RXAligner(Module):
 
 # RXDatapath ---------------------------------------------------------------------------------------
 
-class RXDatapath(Module):
+class RXDatapath(LiteXModule):
     def __init__(self, phy_dw, with_scrambling=False):
         self.shift_inc  = shift_inc  = Signal()
-        self.sink   = sink   = stream.Endpoint([("data", phy_dw)])
-        self.source = source = stream.Endpoint([("data", 32)])
-        self.idle   = idle   = Signal()
-        self.comma  = comma  = Signal()
+        self.sink       = sink       = stream.Endpoint([("data", phy_dw)])
+        self.source     = source     = stream.Endpoint([("data", 32)])
+        self.idle       = idle       = Signal()
+        self.comma      = comma      = Signal()
 
         # # #
 
-        # Aligner
-        self.submodules.aligner = aligner = RXAligner(phy_dw, shift_inc)
+        # Aligner.
+        # --------
+        self.aligner = aligner = RXAligner(phy_dw, shift_inc)
 
-        # Converter
-        self.submodules.converter = converter = stream.Converter(phy_dw, 40)
+        # Converter.
+        # ----------
+        self.converter = converter = stream.Converter(phy_dw, 40)
 
-        # Line Coding
-        self.submodules.decoder = decoder = StreamDecoder(nwords=4)
+        # Line Coding.
+        # ------------
+        self.decoder = decoder = StreamDecoder(nwords=4)
 
-        # Descrambler
+        # Descrambler.
+        # ------------
         if with_scrambling:
-            self.submodules.descrambler = descrambler = Descrambler()
+            self.descrambler = descrambler = Descrambler()
 
-        # Dataflow
+        # Dataflow.
+        # ---------
         self.comb += [
             sink.connect(aligner.sink),
             aligner.source.connect(converter.sink),
@@ -139,7 +149,8 @@ class RXDatapath(Module):
             self.comb += decoder.source.connect(source, omit={"d", "k"})
             self.comb += source.data.eq(decoder.source.d)
 
-        # Decode Idle
+        # Decode Idle.
+        # ------------
         idle_timer = WaitTimer(32)
         self.submodules += idle_timer
         self.sync += If(converter.source.valid,
@@ -150,7 +161,8 @@ class RXDatapath(Module):
         )
         self.comb += idle.eq(idle_timer.done)
 
-        # Decode Comma
+        # Decode Comma (K28.5).
+        # ---------------------
         self.sync += If(decoder.source.valid,
             comma.eq(
                 (decoder.source.k == 1) &

@@ -1,11 +1,12 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 
+from litex.gen import *
 from litex.gen.genlib.misc import BitSlip, WaitTimer
 
 from litex.build.io import *
@@ -17,15 +18,17 @@ from liteiclink.serwb.datapath import TXDatapath, RXDatapath
 
 # KU SerDes Clocking -------------------------------------------------------------------------------
 
-class _KUSerdesClocking(Module):
+class _KUSerdesClocking(LiteXModule):
     def __init__(self, pads, mode="master"):
         self.refclk = Signal()
 
         # # #
 
-        # In Master mode, generate the linerate/10 clock. Slave will re-multiply it.
+        # Master Mode.
+        # ------------
+        # Generate the linerate/10 clock. Slave will re-multiply it.
         if mode == "master":
-            self.submodules.converter = converter = stream.Converter(40, 8)
+            self.converter = converter = stream.Converter(40, 8)
             self.comb += [
                 converter.sink.valid.eq(1),
                 converter.source.ready.eq(1),
@@ -48,26 +51,29 @@ class _KUSerdesClocking(Module):
                 DifferentialOutput(self.refclk, pads.clk_p, pads.clk_n)
             ]
 
-        # In Slave mode, multiply the clock provided by Master with a PLL/MMCM.
-        elif mode == "slave":
+        # Slave Mode.
+        # -----------
+        # Multiply the clock provided by Master with a PLL/MMCM.
+        if mode == "slave":
             self.specials += DifferentialInput(pads.clk_p, pads.clk_n, self.refclk)
 
 # KU SerDes TX -------------------------------------------------------------------------------------
 
-class _KUSerdesTX(Module):
+class _KUSerdesTX(LiteXModule):
     def __init__(self, pads):
-        # Control
+        # Control.
         self.idle  = idle  = Signal()
         self.comma = comma = Signal()
 
-        # Datapath
+        # Datapath.
         self.sink = sink = stream.Endpoint([("data", 32)])
 
         # # #
 
 
-        # Datapath
-        self.submodules.datapath = datapath = TXDatapath(8)
+        # Datapath.
+        # ---------
+        self.datapath = datapath = TXDatapath(8)
         self.comb += [
             sink.connect(datapath.sink),
             datapath.source.ready.eq(1),
@@ -75,7 +81,8 @@ class _KUSerdesTX(Module):
             datapath.comma.eq(comma)
         ]
 
-        # Output Data (DDR with sys4x)
+        # Output Data (DDR with sys4x).
+        # -----------------------------
         self.data = data = Signal(8)
         data_serialized  = Signal()
         self.comb += data.eq(datapath.source.data)
@@ -98,15 +105,15 @@ class _KUSerdesTX(Module):
 
 # KU SerDes RX -------------------------------------------------------------------------------------
 
-class _KUSerdesRX(Module):
+class _KUSerdesRX(LiteXModule):
     def __init__(self, pads):
-        # Control
-        self.delay_rst     = Signal()
-        self.delay_inc     = Signal()
+        # Control.
+        self.delay_rst = delay_rst = Signal()
+        self.delay_inc = delay_inc = Signal()
         self.shift_inc = shift_inc = Signal()
 
-        # Status
-        self.idle  = idle = Signal()
+        # Status.
+        self.idle  =  idle = Signal()
         self.comma = comma = Signal()
 
         # Datapath
@@ -114,7 +121,8 @@ class _KUSerdesRX(Module):
 
         # # #
 
-        # Data input (DDR with sys4x)
+        # Data input (DDR with sys4x).
+        # ----------------------------
         data_nodelay      = Signal()
         data_delayed      = Signal()
         self.data = data  = Signal(8)
@@ -132,11 +140,11 @@ class _KUSerdesRX(Module):
                 p_DELAY_VALUE      = 0,
 
                 i_CLK     = ClockSignal("sys"),
-                i_RST     = self.delay_rst,
+                i_RST     = delay_rst,
                 i_LOAD    = 0,
                 i_INC     = 1,
                 i_EN_VTC  = 0,
-                i_CE      = self.delay_inc,
+                i_CE      = delay_inc,
                 i_IDATAIN = data_nodelay,
                 o_DATAOUT = data_delayed
             ),
@@ -154,8 +162,9 @@ class _KUSerdesRX(Module):
             )
         ]
 
-        # Datapath
-        self.submodules.datapath = datapath = RXDatapath(8)
+        # Datapath.
+        # ---------
+        self.datapath = datapath = RXDatapath(8)
         self.comb += [
             datapath.sink.valid.eq(1),
             datapath.sink.data.eq(data),
@@ -168,8 +177,9 @@ class _KUSerdesRX(Module):
 # KU SerDes ----------------------------------------------------------------------------------------
 
 @ResetInserter()
-class KUSerdes(Module):
+class KUSerdes(LiteXModule):
     def __init__(self, pads, mode="master"):
-        self.submodules.clocking = _KUSerdesClocking(pads, mode)
-        self.submodules.tx       = _KUSerdesTX(pads)
-        self.submodules.rx       = _KUSerdesRX(pads)
+        assert mode in ["master", "slave"]
+        self.clocking = _KUSerdesClocking(pads, mode)
+        self.tx       = _KUSerdesTX(pads)
+        self.rx       = _KUSerdesRX(pads)
