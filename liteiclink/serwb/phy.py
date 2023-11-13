@@ -30,7 +30,7 @@ from liteiclink.serwb.s7serdes import S7Serdes
 
 @ResetInserter()
 class _SerdesMasterInit(LiteXModule):
-    def __init__(self, serdes, taps, timeout):
+    def __init__(self, serdes, taps, timeout, with_delay=True):
         self.ready = Signal()
         self.error = Signal()
 
@@ -93,7 +93,10 @@ class _SerdesMasterInit(LiteXModule):
                     If(timer.done,
                         timer.wait.eq(0),
                         NextValue(delay_min, delay),
-                        NextValue(delay_min_found, 1)
+                        NextValue(delay_min_found, 1),
+                        If(not with_delay,
+                            NextState("READY")
+                        )
                     )
                 ).Else(
                     NextState("INC-DELAY-SHIFT")
@@ -164,7 +167,7 @@ class _SerdesMasterInit(LiteXModule):
 
 @ResetInserter()
 class _SerdesSlaveInit(LiteXModule):
-    def __init__(self, serdes, taps, timeout):
+    def __init__(self, serdes, taps, timeout, with_delay=True):
         self.ready = Signal()
         self.error = Signal()
 
@@ -214,7 +217,10 @@ class _SerdesSlaveInit(LiteXModule):
                     If(timer.done,
                         timer.wait.eq(0),
                         NextValue(delay_min, delay),
-                        NextValue(delay_min_found, 1)
+                        NextValue(delay_min_found, 1),
+                        If(not with_delay,
+                            NextState("SEND-PATTERN")
+                        )
                     )
                 ).Else(
                     NextState("INC-DELAY-SHIFT")
