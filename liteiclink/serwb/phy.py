@@ -30,7 +30,7 @@ from liteiclink.serwb.s7serdes import S7Serdes
 
 @ResetInserter()
 class _SerdesMasterInit(LiteXModule):
-    def __init__(self, serdes, taps, timeout, with_delay=True):
+    def __init__(self, serdes, taps, timeout):
         self.ready = Signal()
         self.error = Signal()
 
@@ -94,15 +94,12 @@ class _SerdesMasterInit(LiteXModule):
                         timer.wait.eq(0),
                         NextValue(delay_min, delay),
                         NextValue(delay_min_found, 1),
-                        If(not with_delay,
-                            NextState("READY")
-                        )
                     )
                 ).Else(
                     NextState("INC-DELAY-SHIFT")
                 ),
             ).Else(
-                If(~serdes.rx.comma,
+                If(~serdes.rx.comma | (delay == (taps - 1)),
                     NextValue(delay_max, delay),
                     NextValue(delay_max_found, 1),
                     NextState("CHECK-SAMPLING-WINDOW")
@@ -134,9 +131,7 @@ class _SerdesMasterInit(LiteXModule):
             serdes.tx.comma.eq(1)
         )
         fsm.act("CHECK-SAMPLING-WINDOW",
-            If((delay_min == 0) |
-               (delay_max == (taps - 1)) |
-               ((delay_max - delay_min) < taps//16),
+            If((delay_max - delay_min) < taps//16,
                NextValue(delay_min_found, 0),
                NextValue(delay_max_found, 0),
                NextState("WAIT-STABLE")
@@ -167,7 +162,7 @@ class _SerdesMasterInit(LiteXModule):
 
 @ResetInserter()
 class _SerdesSlaveInit(LiteXModule):
-    def __init__(self, serdes, taps, timeout, with_delay=True):
+    def __init__(self, serdes, taps, timeout):
         self.ready = Signal()
         self.error = Signal()
 
@@ -218,15 +213,12 @@ class _SerdesSlaveInit(LiteXModule):
                         timer.wait.eq(0),
                         NextValue(delay_min, delay),
                         NextValue(delay_min_found, 1),
-                        If(not with_delay,
-                            NextState("SEND-PATTERN")
-                        )
                     )
                 ).Else(
                     NextState("INC-DELAY-SHIFT")
                 ),
             ).Else(
-                If(~serdes.rx.comma,
+                If(~serdes.rx.comma | (delay == (taps - 1)),
                     NextValue(delay_max, delay),
                     NextValue(delay_max_found, 1),
                     NextState("CHECK-SAMPLING-WINDOW")
@@ -258,9 +250,7 @@ class _SerdesSlaveInit(LiteXModule):
             serdes.tx.idle.eq(1)
         )
         fsm.act("CHECK-SAMPLING-WINDOW",
-            If((delay_min == 0) |
-               (delay_max == (taps - 1)) |
-               ((delay_max - delay_min) < taps//16),
+            If((delay_max - delay_min) < taps//16,
                NextValue(delay_min_found, 0),
                NextValue(delay_max_found, 0),
                NextState("WAIT-STABLE")
