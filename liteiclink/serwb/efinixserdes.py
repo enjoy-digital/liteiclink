@@ -16,9 +16,9 @@ from litex.soc.interconnect import stream
 
 from liteiclink.serwb.datapath import TXDatapath, RXDatapath
 
-from liteiclink.serwb.phy import _SerdesControl
-from liteiclink.serwb.phy import _SerdesMasterInit
-from liteiclink.serwb.phy import _SerdesSlaveInit
+#from liteiclink.serwb.phy import _SerdesControl
+#from liteiclink.serwb.phy import _SerdesMasterInit
+#from liteiclink.serwb.phy import _SerdesSlaveInit
 
 # BitSlip ------------------------------------------------------------------------------------------
 

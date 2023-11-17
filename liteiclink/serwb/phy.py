@@ -14,6 +14,7 @@ from litex.soc.interconnect.csr import *
 
 from liteiclink.serwb.kuserdes import KUSerdes
 from liteiclink.serwb.s7serdes import S7Serdes
+from liteiclink.serwb.efinixserdes import EfinixSerdes
 
 
 # SerDes Initialization/Synchronisation ------------------------------------------------------------
@@ -377,6 +378,12 @@ class SERWBPHY(LiteXModule):
         elif device[:4] == "xc7a":
             taps = 32
             self.serdes = S7Serdes(pads, mode)
+        elif device[:2] == "Ti":
+            taps = 64
+            self.serdes = EfinixSerdes(pads, mode)
+        elif device[:2] == "T1":
+            taps = 4 # FIXME: no delay
+            self.serdes = EfinixSerdes(pads, mode)
         else:
             raise NotImplementedError
 
