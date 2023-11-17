@@ -50,6 +50,13 @@ serwb_io = [
         Subsignal("rx_p",  Pins(f"{slave_connector}:7"),   IOStandard("1.8_V_LVCMOS")),
         Subsignal("rx_n",  Pins(f"{slave_connector}:9"),   IOStandard("1.8_V_LVCMOS")),
     ),
+
+    # USB-UART PMOD: https://store.digilentinc.com/pmod-usbuart-usb-to-uart-interface/
+    ("serial", 0,
+        Subsignal("tx", Pins("pmod_e:1")),
+        Subsignal("rx", Pins("pmod_e:2")),
+        IOStandard("3.3_V_LVTTL_/_LVCMOS")
+    ),
 ]
  
 # CRG ----------------------------------------------------------------------------------------------
@@ -82,9 +89,6 @@ class SerWBTestSoC(SoCMini):
 
     def __init__(self, platform, with_analyzer=True):
         sys_clk_freq = 40e6
-
-        # USBUART PMOD as Serial--------------------------------------------------------------------
-        platform.add_extension(efinix_trion_t120_bga576_dev_kit.usb_pmod_io("pmod_e"))
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
