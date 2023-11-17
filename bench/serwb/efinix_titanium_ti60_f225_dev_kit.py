@@ -3,8 +3,9 @@
 #
 # This file is part of LiteX-Boards.
 #
-# Copyright (c) 2021 Franck Jullien <franck.jullien@collshade.fr>
-# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2023 MoTeC
+# Copyright (c) 2023 Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
+# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -209,6 +210,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Use ----------------------------------------------------------------------------------------------
 
 # ./efinix_titanium_ti60_f225_dev_kit.py --build --load
 # litex_server --jtag --jtag-config=openocd_titanium_ft4232.cfg
