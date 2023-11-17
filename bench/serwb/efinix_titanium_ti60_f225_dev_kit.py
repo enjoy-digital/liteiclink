@@ -4,7 +4,6 @@
 # This file is part of LiteX-Boards.
 #
 # Copyright (c) 2021 Franck Jullien <franck.jullien@collshade.fr>
-# Copyright (c) 2021 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -13,9 +12,9 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from litex.gen import *
 
 from litex.build.generic_platform import *
-from litex_boards.platforms import efinix_trion_t120_bga576_dev_kit
+from litex_boards.platforms import efinix_titanium_ti60_f225_dev_kit
 
-from litex.soc.cores.clock import TRIONPLL
+from litex.soc.cores.clock import TITANIUMPLL
 
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc import SoCRegion
@@ -34,43 +33,47 @@ master_connector = "P2"
 slave_connector  = "P3"
 serwb_io = [
     ("serwb_master", 0,
-        Subsignal("clk_p", Pins(f"{master_connector}:1"),  IOStandard("1.8_V_LVCMOS")),
-        Subsignal("clk_n", Pins(f"{master_connector}:3"),  IOStandard("1.8_V_LVCMOS")),
-        Subsignal("tx_p",  Pins(f"{master_connector}:7"),  IOStandard("1.8_V_LVCMOS")),
-        Subsignal("tx_n",  Pins(f"{master_connector}:9"),  IOStandard("1.8_V_LVCMOS")),
-        Subsignal("rx_p",  Pins(f"{slave_connector}:13"),  IOStandard("1.8_V_LVCMOS")),
-        Subsignal("rx_n",  Pins(f"{slave_connector}:15"),  IOStandard("1.8_V_LVCMOS")),
+        Subsignal("clk_p", Pins(f"{master_connector}:2"),  IOStandard("1.8_V_LVCMOS")),
+        Subsignal("clk_n", Pins(f"{master_connector}:4"),  IOStandard("1.8_V_LVCMOS")),
+        Subsignal("tx_p",  Pins(f"{master_connector}:8"),  IOStandard("1.8_V_LVCMOS")),
+        Subsignal("tx_n",  Pins(f"{master_connector}:10"), IOStandard("1.8_V_LVCMOS")),
+        Subsignal("rx_p",  Pins(f"{master_connector}:14"), IOStandard("1.8_V_LVCMOS")),
+        Subsignal("rx_n",  Pins(f"{master_connector}:16"), IOStandard("1.8_V_LVCMOS")),
     ),
 
     ("serwb_slave", 0,
-        Subsignal("clk_p", Pins(f"{slave_connector}:1"),   IOStandard("1.8_V_LVCMOS")),
-        Subsignal("clk_n", Pins(f"{slave_connector}:3"),   IOStandard("1.8_V_LVCMOS")),
-        Subsignal("tx_p",  Pins(f"{master_connector}:13"), IOStandard("1.8_V_LVCMOS")),
-        Subsignal("tx_n",  Pins(f"{master_connector}:15"), IOStandard("1.8_V_LVCMOS")),
-        Subsignal("rx_p",  Pins(f"{slave_connector}:7"),   IOStandard("1.8_V_LVCMOS")),
-        Subsignal("rx_n",  Pins(f"{slave_connector}:9"),   IOStandard("1.8_V_LVCMOS")),
+        Subsignal("clk_p", Pins(f"{slave_connector}:2"),  IOStandard("1.8_V_LVCMOS")),
+        Subsignal("clk_n", Pins(f"{slave_connector}:4"),  IOStandard("1.8_V_LVCMOS")),
+        Subsignal("tx_p",  Pins(f"{slave_connector}:14"), IOStandard("1.8_V_LVCMOS")),
+        Subsignal("tx_n",  Pins(f"{slave_connector}:16"), IOStandard("1.8_V_LVCMOS")),
+        Subsignal("rx_p",  Pins(f"{slave_connector}:8"),  IOStandard("1.8_V_LVCMOS")),
+        Subsignal("rx_n",  Pins(f"{slave_connector}:10"), IOStandard("1.8_V_LVCMOS")),
     ),
 ]
- 
+
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq):
+        self.rst      = Signal()
         self.cd_sys   = ClockDomain()
         self.cd_sys4x = ClockDomain()
 
         # # #
 
-        clk40 = platform.request("clk40")
+        clk25 = platform.request("clk25")
         rst_n = platform.request("user_btn", 0)
 
-
         # PLL
-        self.pll = pll = TRIONPLL(platform)
-        self.comb += pll.reset.eq(~rst_n)
-        pll.register_clkin(clk40, 40e6)
-        pll.create_clkout(self.cd_sys, sys_clk_freq, with_reset=True, name="sys")
-        pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq, phase=90, with_reset=True, name="sys4x")
+        self.pll = pll = TITANIUMPLL(platform)
+        self.comb += pll.reset.eq(~rst_n | self.rst)
+        pll.register_clkin(clk25, 25e6)
+        # You can use CLKOUT0 only for clocks with a maximum frequency of 4x
+        # (integer) of the reference clock. If all your system clocks do not fall within
+        # this range, you should dedicate one unused clock for CLKOUT0.
+        pll.create_clkout(None, 25e6)
+        pll.create_clkout(self.cd_sys,     sys_clk_freq, with_reset=True, name="sys")
+        pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq, with_reset=True, phase=90, name="sys4x")
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
@@ -81,10 +84,7 @@ class SerWBTestSoC(SoCMini):
     mem_map.update(SoCMini.mem_map)
 
     def __init__(self, platform, with_analyzer=True):
-        sys_clk_freq = 40e6
-
-        # USBUART PMOD as Serial--------------------------------------------------------------------
-        platform.add_extension(efinix_trion_t120_bga576_dev_kit.usb_pmod_io("pmod_e"))
+        sys_clk_freq=100e6
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
@@ -92,10 +92,10 @@ class SerWBTestSoC(SoCMini):
         # SoCCore ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
             csr_data_with = 32,
-            ident         = "LiteICLink SerWB bench on Efinix Trion T120 BGA576 Dev Kit",
+            ident         = "LiteICLink SerWB bench on Efinix Titanium Ti60 F225 Dev Kit",
             ident_version = True,
-            with_uart     = True,
-            uart_name     = "uartbone")
+            with_uart     = False,
+            with_jtagbone = True)
 
         # SerWB ------------------------------------------------------------------------------------
         # SerWB simple test with a SerWB Master added as a Slave peripheral to the SoC and connected
@@ -180,16 +180,17 @@ class SerWBTestSoC(SoCMini):
             ]
             self.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
 
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     from litex.build.parser import LiteXArgumentParser
-    parser = LiteXArgumentParser(platform=efinix_trion_t120_bga576_dev_kit.Platform, description="LiteICLink SerWB bench on Efinix Trion T120 BGA576 Dev Kit.")
+    parser = LiteXArgumentParser(platform=efinix_titanium_ti60_f225_dev_kit.Platform, description="LiteICLink SerWB bench on Efinix Titanium Ti60 F225 Dev Kit.")
     parser.add_target_argument("--flash",  action="store_true", help="Flash bitstream.")
     parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer")
     args = parser.parse_args()
 
-    platform = efinix_trion_t120_bga576_dev_kit.Platform()
+    platform = efinix_titanium_ti60_f225_dev_kit.Platform()
     platform.add_extension(serwb_io)
 
     soc     = SerWBTestSoC(platform, with_analyzer=args.with_analyzer)
@@ -198,17 +199,17 @@ def main():
 
     if args.load:
         from litex.build.openfpgaloader import OpenFPGALoader
-        prog = OpenFPGALoader("trion_t120_bga576_jtag")
+        prog = OpenFPGALoader("titanium_ti60_f225_jtag")
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
     if args.flash:
         from litex.build.openfpgaloader import OpenFPGALoader
-        prog = OpenFPGALoader("trion_t120_bga576")
+        prog = OpenFPGALoader("titanium_ti60_f225")
         prog.flash(0, builder.get_bitstream_filename(mode="flash", ext=".hex")) # FIXME
 
 if __name__ == "__main__":
     main()
 
-# ./efinix_trion_t120_bga576_dev_kit.py --build --load
-# litex_server --uart --uart-port=/dev/ttyUSBX
+# ./efinix_titanium_ti60_f225_dev_kit.py --build --load
+# litex_server --jtag --jtag-config=openocd_titanium_ft4232.cfg
 # ./test_serwb.py --ident --init --sram --access
