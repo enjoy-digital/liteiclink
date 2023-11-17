@@ -72,7 +72,7 @@ class _CRG(LiteXModule):
         pll.create_clkout(self.cd_sys, sys_clk_freq, with_reset=True, name="sys")
         pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq, phase=90, with_reset=True, name="sys4x")
 
-# BaseSoC ------------------------------------------------------------------------------------------
+# SerWBTestSoC ------------------------------------------------------------------------------------
 
 class SerWBTestSoC(SoCMini):
     mem_map = {
@@ -89,7 +89,7 @@ class SerWBTestSoC(SoCMini):
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
 
-        # SoCCore ----------------------------------------------------------------------------------
+        # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
             csr_data_with = 32,
             ident         = "LiteICLink SerWB bench on Efinix Trion T120 BGA576 Dev Kit",

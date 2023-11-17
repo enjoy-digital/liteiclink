@@ -55,7 +55,6 @@ serwb_io = [
 
 class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq):
-        self.rst      = Signal()
         self.cd_sys   = ClockDomain()
         self.cd_sys4x = ClockDomain()
 
@@ -64,9 +63,10 @@ class _CRG(LiteXModule):
         clk25 = platform.request("clk25")
         rst_n = platform.request("user_btn", 0)
 
+
         # PLL
         self.pll = pll = TITANIUMPLL(platform)
-        self.comb += pll.reset.eq(~rst_n | self.rst)
+        self.comb += pll.reset.eq(~rst_n)
         pll.register_clkin(clk25, 25e6)
         # You can use CLKOUT0 only for clocks with a maximum frequency of 4x
         # (integer) of the reference clock. If all your system clocks do not fall within
@@ -75,7 +75,7 @@ class _CRG(LiteXModule):
         pll.create_clkout(self.cd_sys,     sys_clk_freq, with_reset=True, name="sys")
         pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq, with_reset=True, phase=90, name="sys4x")
 
-# BaseSoC ------------------------------------------------------------------------------------------
+# SerWBTestSoC ------------------------------------------------------------------------------------
 
 class SerWBTestSoC(SoCMini):
     mem_map = {
@@ -89,7 +89,7 @@ class SerWBTestSoC(SoCMini):
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
 
-        # SoCCore ----------------------------------------------------------------------------------
+        # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
             csr_data_with = 32,
             ident         = "LiteICLink SerWB bench on Efinix Titanium Ti60 F225 Dev Kit",

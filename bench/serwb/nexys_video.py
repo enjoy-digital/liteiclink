@@ -83,6 +83,9 @@ class SerWBTestSoC(SoCMini):
     def __init__(self, platform, low_speed=True, with_analyzer=True):
         sys_clk_freq = int(125e6)
 
+        # CRG --------------------------------------------------------------------------------------
+        self.crg = _CRG(platform, sys_clk_freq)
+
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
             csr_data_width = 32,
@@ -90,10 +93,6 @@ class SerWBTestSoC(SoCMini):
             ident_version  = True,
             with_uart      = True,
             uart_name      = "uartbone")
-
-        # CRG --------------------------------------------------------------------------------------
-        self.crg = _CRG(platform, sys_clk_freq)
-
 
         # SerWB ------------------------------------------------------------------------------------
         # SerWB simple test with a SerWB Master added as a Slave peripheral to the SoC and connected
