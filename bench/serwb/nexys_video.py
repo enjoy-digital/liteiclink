@@ -6,14 +6,11 @@
 # Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-import sys
 import argparse
 
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
-from litex.gen.genlib.misc import WaitTimer
 
 from litex.build.generic_platform import *
 from litex_boards.platforms import digilent_nexys_video
