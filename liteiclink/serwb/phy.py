@@ -381,7 +381,7 @@ class SERWBPHY(LiteXModule):
         elif device[:2] == "Ti":
             taps = 64
             self.serdes = EfinixSerdes(pads, mode)
-        elif device[:2] == "T1":
+        elif device[:2] in ["T1", "T2"]:
             taps = 4 # FIXME: no delay
             self.serdes = EfinixSerdes(pads, mode)
         else:
