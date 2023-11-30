@@ -74,6 +74,9 @@ class EfinixSerdesDiffTx8To1(LiteXModule):
             # diff output pins are TXPYY and TXNYY
             # lvds block needs TXYY
             io_pad = io_pad.replace("TXP", "TX")
+            # remove alternate function to only keep GPIOX_TXYY
+            pad_split = io_pad.split('_')
+            io_pad = '_'.join(pad_split[:2])
 
         self.comb += [
             _data.eq(data),
@@ -133,8 +136,11 @@ class EfinixSerdesDiffRx1To8(LiteXModule):
         if platform.family == "Trion":
             assert "RXP" in io_pad
             # diff output pins are RXPYY and RXNYY
-            # lvds block needs TXYY
+            # lvds block needs RXYY
             io_pad = io_pad.replace("RXP", "RX")
+            # remove alternate function to only keep GPIOX_RXYY
+            pad_split = io_pad.split('_')
+            io_pad = '_'.join(pad_split[:2])
 
 
         self.comb += [
@@ -221,12 +227,17 @@ class _EfinixSerdesClocking(LiteXModule):
                 io_pad  = platform.get_pad_name(pads.clk_p) # need real pad name
                 io_prop = platform.get_pin_properties(pads.clk_p)
 
-                assert "RXP" in io_pad
-                # diff output pins are RXPYY and RXNYY
-                # lvds block needs RXYY
-                if "_CLK" in io_pad:
-                    io_pad = io_pad.split("_CLK")[0]
-                io_pad = io_pad.replace("RXP", "RX")
+                if platform.device[:2] == "T2":
+                    assert "CLKP" in io_pad
+                    io_pad = io_pad.replace("CLKP", "CLK")
+
+                if platform.device[:2] == "T1":
+                    assert "RXP" in io_pad
+                    # diff output pins are RXPYY and RXNYY
+                    # lvds block needs RXYY
+                    if "_CLK" in io_pad:
+                        io_pad = io_pad.split("_CLK")[0]
+                    io_pad = io_pad.replace("RXP", "RX")
 
                 _data = platform.add_iface_io(io_name + "_gen")
                 _ena  = platform.add_iface_io(io_name + "_ena")
