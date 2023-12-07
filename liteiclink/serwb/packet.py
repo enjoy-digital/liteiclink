@@ -10,6 +10,7 @@ from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import stream
+from litex.soc.interconnect.packet import HeaderField, Header
 
 from liteeth.common import eth_udp_user_description
 
@@ -18,61 +19,6 @@ from liteeth.common import eth_udp_user_description
 def phy_description(dw):
     layout = [("data", dw)]
     return stream.EndpointDescription(layout)
-
-# Header -------------------------------------------------------------------------------------------
-
-class HeaderField:
-    def __init__(self, byte, offset, width):
-        self.byte   = byte
-        self.offset = offset
-        self.width  = width
-
-
-class Header:
-    def __init__(self, fields, length, swap_field_bytes=True):
-        self.fields = fields
-        self.length = length
-        self.swap_field_bytes = swap_field_bytes
-
-    def get_layout(self):
-        layout = []
-        for k, v in sorted(self.fields.items()):
-            layout.append((k, v.width))
-        return layout
-
-    def get_field(self, obj, name, width):
-        if "_lsb" in name:
-            field = getattr(obj, name.replace("_lsb", ""))[:width]
-        elif "_msb" in name:
-            field = getattr(obj, name.replace("_msb", ""))[width:2*width]
-        else:
-            field = getattr(obj, name)
-        if len(field) != width:
-            raise ValueError("Width mismatch on " + name + " field")
-        return field
-
-    def encode(self, obj, signal):
-        r = []
-        for k, v in sorted(self.fields.items()):
-            start = v.byte*8 + v.offset
-            end = start + v.width
-            field = self.get_field(obj, k, v.width)
-            if self.swap_field_bytes:
-                field = reverse_bytes(field)
-            r.append(signal[start:end].eq(field))
-        return r
-
-    def decode(self, signal, obj):
-        r = []
-        for k, v in sorted(self.fields.items()):
-            start = v.byte*8 + v.offset
-            end = start + v.width
-            field = self.get_field(obj, k, v.width)
-            if self.swap_field_bytes:
-                r.append(field.eq(reverse_bytes(signal[start:end])))
-            else:
-                r.append(field.eq(signal[start:end]))
-        return r
 
 # Packetizer ---------------------------------------------------------------------------------------
 
