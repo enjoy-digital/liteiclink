@@ -25,55 +25,10 @@ from liteiclink.serwb.packet import user_description
 
 from litex.soc.interconnect.packet import *
 
+from liteeth.common import *
+from liteeth.common import _remove_from_layout
+
 # Etherbone Constants ------------------------------------------------------------------------------
-
-etherbone_magic = 0x4e6f
-etherbone_version = 1
-etherbone_packet_header_length = 8
-etherbone_packet_header_fields = {
-    "magic":     HeaderField(0, 0, 16),
-
-    "version":   HeaderField(2, 4,  4),
-    "nr":        HeaderField(2, 2,  1),
-    "pr":        HeaderField(2, 1,  1), # unused
-    "pf":        HeaderField(2, 0,  1), # unused
-
-    "addr_size": HeaderField(3, 4,  4), # static
-    "port_size": HeaderField(3, 0,  4)  # static
-}
-etherbone_packet_header = Header(etherbone_packet_header_fields,
-                                 etherbone_packet_header_length,
-                                 swap_field_bytes=True)
-
-etherbone_record_header_length = 4
-etherbone_record_header_fields = {
-    "bca":         HeaderField(0, 0, 1), # unused
-    "rca":         HeaderField(0, 1, 1), # unused
-    "rff":         HeaderField(0, 2, 1), # unused
-    "cyc":         HeaderField(0, 4, 1), # unused
-    "wca":         HeaderField(0, 5, 1), # unused
-    "wff":         HeaderField(0, 6, 1), # unused
-
-    "byte_enable": HeaderField(1, 0, 8),
-
-    "wcount":      HeaderField(2, 0, 8),
-
-    "rcount":      HeaderField(3, 0, 8)
-}
-etherbone_record_header = Header(etherbone_record_header_fields,
-                                 etherbone_record_header_length,
-                                 swap_field_bytes=True)
-
-def _remove_from_layout(layout, *args):
-    r = []
-    for f in layout:
-        remove = False
-        for arg in args:
-            if f[0] == arg:
-                remove = True
-        if not remove:
-            r.append(f)
-    return r
 
 def etherbone_packet_description(dw):
     layout = etherbone_packet_header.get_layout()
