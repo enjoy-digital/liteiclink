@@ -106,7 +106,7 @@ class EfinixSerdesDiffTx8To1(LiteXModule):
 # Efinix Serdes Diff RX ----------------------------------------------------------------------------
 
 class EfinixSerdesDiffRx1To8(LiteXModule):
-    def __init__(self, rx_p, rx_n, data, slow_clk, fast_clk, platform):
+    def __init__(self, rx_p, rx_n, data, slow_clk, fast_clk, platform, static_delay_taps=0):
         self.delay_inc = Signal()
         self.delay_rst = Signal()
 
@@ -177,6 +177,10 @@ class EfinixSerdesDiffRx1To8(LiteXModule):
                 "delay_inc" : delay_inc,
             })
 
+        # Trion: fix static delay at build time
+        if platform.family == "Trion":
+            block.update({"delay" : static_delay_taps})
+
         platform.toolchain.ifacewriter.blocks.append(block)
         platform.toolchain.excluded_ios.append(rx_p)
         platform.toolchain.excluded_ios.append(rx_n)
@@ -184,7 +188,7 @@ class EfinixSerdesDiffRx1To8(LiteXModule):
 # Efinix SerDes Clocking ---------------------------------------------------------------------------
 
 class _EfinixSerdesClocking(LiteXModule):
-    def __init__(self, pads, mode="master", platform=None):
+    def __init__(self, pads, mode="master", platform=None, static_delay_taps=0):
         self.refclk = Signal()
 
         # # #
@@ -256,6 +260,12 @@ class _EfinixSerdesClocking(LiteXModule):
                     "size"      : 0,
                     "half_rate" : "0",
                 }
+
+                # Trion as no dynamic delay:
+                # Fix/set it at build time.
+                if platform.family == "Trion":
+                    block.update({"delay" : static_delay_taps})
+
                 platform.toolchain.ifacewriter.blocks.append(block)
                 platform.toolchain.excluded_ios.append(pads.clk_n)
 
@@ -309,7 +319,7 @@ class _EfinixSerdesTX(LiteXModule):
 # Efinix SerDes RX ---------------------------------------------------------------------------------
 
 class _EfinixSerdesRX(LiteXModule):
-    def __init__(self, pads, slow_cd="sys", fast_cd="sys4x"):
+    def __init__(self, pads, slow_cd="sys", fast_cd="sys4x", static_delay_taps=0):
         # Control.
         self.delay_rst = delay_rst = Signal()
         self.delay_inc = delay_inc = Signal()
@@ -335,12 +345,13 @@ class _EfinixSerdesRX(LiteXModule):
         self.data = data = Signal(8)
         _data = Signal(8)
         self.rx = rx = EfinixSerdesDiffRx1To8(
-            rx_p     = pads.rx_p,
-            rx_n     = pads.rx_n,
-            data     = _data,
-            slow_clk = slow_cd,
-            fast_clk = fast_cd,
-            platform = LiteXContext.platform,
+            rx_p              = pads.rx_p,
+            rx_n              = pads.rx_n,
+            data              = _data,
+            slow_clk          = slow_cd,
+            fast_clk          = fast_cd,
+            platform          = LiteXContext.platform,
+            static_delay_taps = static_delay_taps,
         )
         self.comb += [
             rx.delay_inc.eq(delay_inc),
@@ -372,9 +383,9 @@ class _EfinixSerdesRX(LiteXModule):
 
 @ResetInserter()
 class EfinixSerdes(LiteXModule):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads, mode="master", clk_delay_taps=0, rx_delay_taps=0):
         slow_cd = {"master": "sys",   "slave": "rx_slow_clk"}[mode]
         fast_cd = {"master": "sys4x", "slave": "rx_fast_clk"}[mode]
-        self.clocking = _EfinixSerdesClocking(pads, mode)
+        self.clocking = _EfinixSerdesClocking(pads, mode, static_delay_taps=clk_delay_taps)
         self.tx       = _EfinixSerdesTX(pads, slow_cd, fast_cd)
-        self.rx       = _EfinixSerdesRX(pads, slow_cd, fast_cd)
+        self.rx       = _EfinixSerdesRX(pads, slow_cd, fast_cd, static_delay_taps=rx_delay_taps)
