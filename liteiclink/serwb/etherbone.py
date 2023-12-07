@@ -25,8 +25,6 @@ from litex.soc.interconnect.packet import *
 from liteeth.common import *
 from liteeth.common import _remove_from_layout
 
-from liteiclink.serwb.packet import user_description as eth_udp_user_description
-
 # Etherbone Packet ---------------------------------------------------------------------------------
 
 class _EtherbonePacketPacketizer(Packetizer):

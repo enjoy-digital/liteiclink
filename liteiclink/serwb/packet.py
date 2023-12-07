@@ -4,8 +4,6 @@
 # Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-from math import ceil
-
 from migen import *
 
 from litex.gen import *
@@ -13,15 +11,12 @@ from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import stream
 
+from liteeth.common import eth_udp_user_description
+
 # Layouts ------------------------------------------------------------------------------------------
 
 def phy_description(dw):
     layout = [("data", dw)]
-    return stream.EndpointDescription(layout)
-
-
-def user_description(dw):
-    layout = [("data", 32), ("length", 32)]
     return stream.EndpointDescription(layout)
 
 # Header -------------------------------------------------------------------------------------------
@@ -83,7 +78,7 @@ class Header:
 
 class Packetizer(LiteXModule):
     def __init__(self):
-        self.sink   = sink   = stream.Endpoint(user_description(32))
+        self.sink   = sink   = stream.Endpoint(eth_udp_user_description(32))
         self.source = source = stream.Endpoint(phy_description(32))
 
         # # #
@@ -126,7 +121,7 @@ class Packetizer(LiteXModule):
 class Depacketizer(LiteXModule):
     def __init__(self, clk_freq, timeout=10):
         self.sink   = sink   = stream.Endpoint(phy_description(32))
-        self.source = source = stream.Endpoint(user_description(32))
+        self.source = source = stream.Endpoint(eth_udp_user_description(32))
 
         # # #
 
