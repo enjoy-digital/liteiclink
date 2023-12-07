@@ -87,7 +87,7 @@ class SerWBTestSoC(SoCMini):
     }
     mem_map.update(SoCMini.mem_map)
 
-    def __init__(self, platform, with_analyzer=True):
+    def __init__(self, platform, with_analyzer=True, lvds_rx_delay=0, lvds_clk_delay=0):
         sys_clk_freq = 40e6
 
         # CRG --------------------------------------------------------------------------------------
@@ -135,9 +135,11 @@ class SerWBTestSoC(SoCMini):
         # SerWB Slave ----------------------------------------------------------------------------
         # PHY
         serwb_slave_phy = SERWBPHY(
-            device       = self.platform.device,
-            pads         = self.platform.request("serwb_slave"),
-            mode         = "slave",
+            device         = self.platform.device,
+            pads           = self.platform.request("serwb_slave"),
+            mode           = "slave",
+            clk_delay_taps = lvds_clk_delay,
+            rx_delay_taps  = lvds_rx_delay,
         )
         self.clock_domains.cd_serwb = ClockDomain()
         if hasattr(serwb_slave_phy.serdes, "clocking"):
@@ -191,12 +193,19 @@ def main():
     parser = LiteXArgumentParser(platform=efinix_trion_t120_bga576_dev_kit.Platform, description="LiteICLink SerWB bench on Efinix Trion T120 BGA576 Dev Kit.")
     parser.add_target_argument("--flash",  action="store_true", help="Flash bitstream.")
     parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer")
+    parser.add_target_argument("--lvds-rx-delay",  default=0, type=int, help="Static delay value for LVDS_RX Data.")
+    parser.add_target_argument("--lvds-clk-delay", default=0, type=int, help="Static delay value for LVDS_RX PLL_CLKIN.")
     args = parser.parse_args()
 
     platform = efinix_trion_t120_bga576_dev_kit.Platform()
     platform.add_extension(serwb_io)
 
-    soc     = SerWBTestSoC(platform, with_analyzer=args.with_analyzer)
+    soc = SerWBTestSoC(platform,
+        with_analyzer  = args.with_analyzer,
+        lvds_rx_delay  = args.lvds_rx_delay,
+        lvds_clk_delay = args.lvds_clk_delay,
+    )
+
     builder = Builder(soc, csr_csv="csr.csv")
     builder.build(run=args.build, **parser.toolchain_argdict)
 
