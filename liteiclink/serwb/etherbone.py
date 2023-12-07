@@ -16,17 +16,16 @@ and introduces some limitations:
 - 1 record per frame
 """
 
-from migen import *
+from litex.gen import *
 
 from litex.soc.interconnect import stream
 from litex.soc.interconnect import wishbone
-
-from liteiclink.serwb.packet import user_description
-
 from litex.soc.interconnect.packet import *
 
 from liteeth.common import *
 from liteeth.common import _remove_from_layout
+
+from liteiclink.serwb.packet import user_description as eth_udp_user_description
 
 # Etherbone Packet ---------------------------------------------------------------------------------
 
@@ -34,14 +33,14 @@ class _EtherbonePacketPacketizer(Packetizer):
     def __init__(self):
         Packetizer.__init__(self,
             eth_etherbone_packet_description(32),
-            user_description(32),
+            eth_udp_user_description(32),
             etherbone_packet_header)
 
 
 class _EtherbonePacketTX(Module):
     def __init__(self):
         self.sink = sink = stream.Endpoint(eth_etherbone_packet_user_description(32))
-        self.source = source = stream.Endpoint(user_description(32))
+        self.source = source = stream.Endpoint(eth_udp_user_description(32))
 
         # # #
 
@@ -79,14 +78,14 @@ class _EtherbonePacketTX(Module):
 class _EtherbonePacketDepacketizer(Depacketizer):
     def __init__(self):
         Depacketizer.__init__(self,
-            user_description(32),
+            eth_udp_user_description(32),
             eth_etherbone_packet_description(32),
             etherbone_packet_header)
 
 
 class _EtherbonePacketRX(Module):
     def __init__(self):
-        self.sink   = sink   = stream.Endpoint(user_description(32))
+        self.sink   = sink   = stream.Endpoint(eth_udp_user_description(32))
         self.source = source = stream.Endpoint(eth_etherbone_packet_user_description(32))
 
         # # #
@@ -452,8 +451,8 @@ class _EtherboneWishboneSlave(Module):
 
 class Etherbone(Module):
     def __init__(self, mode="master", buffer_depth=4):
-        self.sink   = sink   = stream.Endpoint(user_description(32))
-        self.source = source = stream.Endpoint(user_description(32))
+        self.sink   = sink   = stream.Endpoint(eth_udp_user_description(32))
+        self.source = source = stream.Endpoint(eth_udp_user_description(32))
 
         # # #
 
