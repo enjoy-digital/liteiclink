@@ -275,7 +275,7 @@ class _EfinixSerdesClocking(LiteXModule):
                     lvds_input=True,
                     refclk_name=platform.get_pin_name(pads.clk_p) + "_gen",
                 )
-            pll.create_clkout(self.cd_rx_slow_clk, sys_clk_freq,             name="rx_slow_clk")
+            pll.create_clkout(self.cd_rx_slow_clk, sys_clk_freq,             name="rx_slow_clk", is_feedback=(platform.family=="Trion"))
             pll.create_clkout(self.cd_rx_fast_clk, sys_clk_freq*4, phase=90, name="rx_fast_clk")
 
             self.comb += self.refclk.eq(self.cd_rx_slow_clk.clk)
