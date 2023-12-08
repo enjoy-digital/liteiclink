@@ -280,7 +280,7 @@ class _EfinixSerdesClocking(LiteXModule):
 # Efinix SerDes TX ---------------------------------------------------------------------------------
 
 class _EfinixSerdesTX(LiteXModule):
-    def __init__(self, pads, clk="sys", clk4x="sys4x", ratio="1:1"):
+    def __init__(self, pads, clk="sys", clk4x="sys4x", clk_ratio="1:1"):
         # Control
         self.idle  = idle  = Signal()
         self.comma = comma = Signal()
@@ -290,8 +290,8 @@ class _EfinixSerdesTX(LiteXModule):
 
         # # #
 
-        # Ratio.
-        # ------
+        # Clk Ratio.
+        # ----------
         count = Signal(3)
         self.sync += count.eq(count + 1)
 
@@ -305,7 +305,7 @@ class _EfinixSerdesTX(LiteXModule):
                 "1:2" : count[0],
                 "1:4" : count[1],
                 "1:8" : count[2],
-            }[ratio]),
+            }[clk_ratio]),
             datapath.idle.eq(idle),
             datapath.comma.eq(comma)
         ]
@@ -324,7 +324,7 @@ class _EfinixSerdesTX(LiteXModule):
 # Efinix SerDes RX ---------------------------------------------------------------------------------
 
 class _EfinixSerdesRX(LiteXModule):
-    def __init__(self, pads, clk="sys", clk4x="sys4x", ratio="1:1", static_delay_taps=0):
+    def __init__(self, pads, clk="sys", clk4x="sys4x", clk_ratio="1:1", static_delay_taps=0):
         # Control.
         self.delay_rst = delay_rst = Signal()
         self.delay_inc = delay_inc = Signal()
@@ -366,8 +366,8 @@ class _EfinixSerdesRX(LiteXModule):
             rx.delay_rst.eq(delay_rst),
         ]
 
-        # Ratio.
-        # ------
+        # Clk Ratio.
+        # ----------
         count = Signal(3)
         self.sync += count.eq(count + 1)
 
@@ -380,7 +380,7 @@ class _EfinixSerdesRX(LiteXModule):
                 "1:2" : count[0],
                 "1:4" : count[1],
                 "1:8" : count[2],
-            }[ratio]),
+            }[clk_ratio]),
             datapath.sink.data.eq(data),
             datapath.shift_inc.eq(self.shift_inc & (_shift == 0b111)),
             datapath.source.connect(source),
@@ -401,10 +401,10 @@ class _EfinixSerdesRX(LiteXModule):
 
 @ResetInserter()
 class EfinixSerdes(LiteXModule):
-    def __init__(self, pads, mode="master", clk="sys", clk4x="sys4x", ratio="1:1", clk_delay_taps=0, rx_delay_taps=0):
-        assert ratio in ["1:1", "1:2", "1:4", "1:8"]
+    def __init__(self, pads, mode="master", clk="sys", clk4x="sys4x", clk_ratio="1:1", clk_delay_taps=0, rx_delay_taps=0):
+        assert clk_ratio in ["1:1", "1:2", "1:4", "1:8"]
         clk   = {"master": clk,   "slave": "rx_clk"  }[mode]
         clk4x = {"master": clk4x, "slave": "rx_clk4x"}[mode]
-        self.clocking = _EfinixSerdesClocking(pads, mode, static_delay_taps=clk_delay_taps)
-        self.tx       = _EfinixSerdesTX(pads, clk, clk4x, ratio)
-        self.rx       = _EfinixSerdesRX(pads, clk, clk4x, ratio, static_delay_taps=rx_delay_taps)
+        self.clocking = _EfinixSerdesClocking(pads, mode, clk, clk4x, static_delay_taps=clk_delay_taps)
+        self.tx       = _EfinixSerdesTX(pads, clk, clk4x, clk_ratio)
+        self.rx       = _EfinixSerdesRX(pads, clk, clk4x, clk_ratio, static_delay_taps=rx_delay_taps)
