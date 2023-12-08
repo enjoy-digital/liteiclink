@@ -74,9 +74,9 @@ class _CRG(LiteXModule):
         # (integer) of the reference clock. If all your system clocks do not fall within
         # this range, you should dedicate one unused clock for CLKOUT0.
         pll.create_clkout(None, 25e6)
-        pll.create_clkout(self.cd_sys,         sys_clk_freq, with_reset=True, phase=0,  name="sys")
-        pll.create_clkout(self.cd_serwb_phy,   sys_clk_freq, with_reset=True, phase=0,  name="serwb_phy")
-        pll.create_clkout(self.cd_serwb_phy, 4*sys_clk_freq, with_reset=True, phase=90, name="serwb_phy4x")
+        pll.create_clkout(self.cd_sys,                sys_clk_freq, with_reset=True, phase=0,  name="sys")
+        pll.create_clkout(self.cd_serwb_phy,   int(sys_clk_freq*1), with_reset=True, phase=0,  name="serwb_phy")
+        pll.create_clkout(self.cd_serwb_phy,   int(sys_clk_freq*4), with_reset=True, phase=90, name="serwb_phy4x")
 
 # SerWBTestSoC ------------------------------------------------------------------------------------
 
@@ -86,9 +86,7 @@ class SerWBTestSoC(SoCMini):
     }
     mem_map.update(SoCMini.mem_map)
 
-    def __init__(self, platform, with_analyzer=True):
-        sys_clk_freq=100e6
-
+    def __init__(self, platform, sys_clk_freq=100e6, with_analyzer=True):
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
 
@@ -120,7 +118,7 @@ class SerWBTestSoC(SoCMini):
             mode         = "master",
             clk          = "serwb_phy",
             clk4x        = "serwb_phy4x",
-            clk_ratio    = "1:1",
+            clk_ratio    = "1:2",
         )
         self.submodules.serwb_master_phy = serwb_master_phy
 
@@ -128,7 +126,8 @@ class SerWBTestSoC(SoCMini):
         serwb_master_core = SERWBCore(serwb_master_phy, self.clk_freq, mode="slave",
             etherbone_buffer_depth = 1,
             tx_buffer_depth        = 8,
-            rx_buffer_depth        = 8)
+            rx_buffer_depth        = 8
+        )
         self.submodules += serwb_master_core
 
         # Connect as peripheral to main SoC.
@@ -140,13 +139,10 @@ class SerWBTestSoC(SoCMini):
             device       = self.platform.device,
             pads         = self.platform.request("serwb_slave"),
             mode         = "slave",
-            clk_ratio    = "1:1",
+            clk_ratio    = "1:2",
         )
         self.clock_domains.cd_serwb = ClockDomain()
-        if hasattr(serwb_slave_phy.serdes, "clocking"):
-            self.comb += self.cd_serwb.clk.eq(serwb_slave_phy.serdes.clocking.refclk)
-        else:
-            self.comb += self.cd_serwb.clk.eq(ClockSignal("sys"))
+        self.comb += self.cd_serwb.clk.eq(serwb_slave_phy.serdes.clocking.refclk)
         self.specials += AsyncResetSynchronizer(self.cd_serwb, ResetSignal("sys"))
         serwb_slave_phy = ClockDomainsRenamer("serwb")(serwb_slave_phy)
         self.submodules.serwb_slave_phy = serwb_slave_phy
@@ -155,7 +151,8 @@ class SerWBTestSoC(SoCMini):
         serwb_slave_core = SERWBCore(serwb_slave_phy, self.clk_freq, mode="master",
             etherbone_buffer_depth = 1,
             tx_buffer_depth        = 8,
-            rx_buffer_depth        = 8)
+            rx_buffer_depth        = 8
+        )
         serwb_slave_core = ClockDomainsRenamer("serwb")(serwb_slave_core)
         self.submodules += serwb_slave_core
 
