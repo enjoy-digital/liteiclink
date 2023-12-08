@@ -56,14 +56,15 @@ serwb_io = [
 
 class _CRG(LiteXModule):
     def __init__(self, platform, sys_clk_freq):
-        self.cd_sys   = ClockDomain()
-        self.cd_sys4x = ClockDomain()
+        self.cd_sys         = ClockDomain()
+        self.cd_serwb_phy   = ClockDomain()
+        self.cd_serwb_phy4x = ClockDomain()
 
         # # #
 
+        # Clk/Rst.
         clk25 = platform.request("clk25")
         rst_n = platform.request("user_btn", 0)
-
 
         # PLL
         self.pll = pll = TITANIUMPLL(platform)
@@ -73,8 +74,9 @@ class _CRG(LiteXModule):
         # (integer) of the reference clock. If all your system clocks do not fall within
         # this range, you should dedicate one unused clock for CLKOUT0.
         pll.create_clkout(None, 25e6)
-        pll.create_clkout(self.cd_sys,     sys_clk_freq, with_reset=True, name="sys")
-        pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq, with_reset=True, phase=90, name="sys4x")
+        pll.create_clkout(self.cd_sys,         sys_clk_freq, with_reset=True, phase=0,  name="sys")
+        pll.create_clkout(self.cd_serwb_phy,   sys_clk_freq, with_reset=True, phase=0,  name="serwb_phy")
+        pll.create_clkout(self.cd_serwb_phy, 4*sys_clk_freq, with_reset=True, phase=90, name="serwb_phy4x")
 
 # SerWBTestSoC ------------------------------------------------------------------------------------
 
@@ -116,6 +118,9 @@ class SerWBTestSoC(SoCMini):
             device       = self.platform.device,
             pads         = self.platform.request("serwb_master"),
             mode         = "master",
+            clk          = "serwb_phy",
+            clk4x        = "serwb_phy4x",
+            clk_ratio    = "1:1",
         )
         self.submodules.serwb_master_phy = serwb_master_phy
 
@@ -135,6 +140,7 @@ class SerWBTestSoC(SoCMini):
             device       = self.platform.device,
             pads         = self.platform.request("serwb_slave"),
             mode         = "slave",
+            clk_ratio    = "1:1",
         )
         self.clock_domains.cd_serwb = ClockDomain()
         if hasattr(serwb_slave_phy.serdes, "clocking"):
