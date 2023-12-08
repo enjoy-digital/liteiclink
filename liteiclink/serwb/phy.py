@@ -363,7 +363,7 @@ class _SerdesControl(LiteXModule):
 # SERWB PHY ----------------------------------------------------------------------------------------
 
 class SERWBPHY(LiteXModule):
-    def __init__(self, device, pads, mode="master", init_timeout=2**15, clk_delay_taps=0, rx_delay_taps=0):
+    def __init__(self, device, pads, mode="master", init_timeout=2**15, clk="sys", clk4x="sys4x", clk_ratio="1:1", clk_delay_taps=0, rx_delay_taps=0):
         self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
@@ -380,10 +380,20 @@ class SERWBPHY(LiteXModule):
             self.serdes = S7Serdes(pads, mode)
         elif device[:2] == "Ti":
             taps = 64
-            self.serdes = EfinixSerdes(pads, mode)
+            self.serdes = EfinixSerdes(pads, mode,
+                clk       = clk,
+                clk4x     = clk4x,
+                clk_ratio = clk_ratio,
+            )
         elif device[:2] in ["T1", "T2"]:
             taps = 4 # No dynamic delay
-            self.serdes = EfinixSerdes(pads, mode, clk_delay_taps=clk_delay_taps, rx_delay_taps=rx_delay_taps)
+            self.serdes = EfinixSerdes(pads, mode,
+                clk            = clk,
+                clk4x          = clk4x,
+                clk_ratio      = clk_ratio,
+                clk_delay_taps = clk_delay_taps,
+                rx_delay_taps  = rx_delay_taps
+            )
         else:
             raise NotImplementedError
 
