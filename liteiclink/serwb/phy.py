@@ -31,7 +31,7 @@ from liteiclink.serwb.efinixserdes import EfinixSerdes
 
 @ResetInserter()
 class _SerdesMasterInit(LiteXModule):
-    def __init__(self, serdes, taps, timeout, clk_ratio):
+    def __init__(self, serdes, taps, timeout, clk_ratio="1:1"):
         self.ready = Signal()
         self.error = Signal()
 
@@ -178,7 +178,7 @@ class _SerdesMasterInit(LiteXModule):
 
 @ResetInserter()
 class _SerdesSlaveInit(LiteXModule):
-    def __init__(self, serdes, taps, timeout, clk_ratio):
+    def __init__(self, serdes, taps, timeout, clk_ratio="1:1"):
         self.ready = Signal()
         self.error = Signal()
 
