@@ -62,22 +62,26 @@ serwb_io = [
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(LiteXModule):
-    def __init__(self, platform, sys_clk_freq):
-        self.cd_sys   = ClockDomain()
-        self.cd_sys4x = ClockDomain()
+    def __init__(self, platform, sys_clk_freq, clk_ratio="1:1"):
+        self.cd_sys         = ClockDomain()
+        self.cd_serwb_phy   = ClockDomain()
+        self.cd_serwb_phy4x = ClockDomain()
 
         # # #
 
+        sys_clk_freq_div = {"1:1":1, "1:2":2, "1:4":4}[clk_ratio]
+
+        # Clk/Rst.
         clk40 = platform.request("clk40")
         rst_n = platform.request("user_btn", 0)
-
 
         # PLL
         self.pll = pll = TRIONPLL(platform)
         self.comb += pll.reset.eq(~rst_n)
         pll.register_clkin(clk40, 40e6)
-        pll.create_clkout(self.cd_sys, sys_clk_freq, with_reset=True, name="sys")
-        pll.create_clkout(self.cd_sys4x, 4*sys_clk_freq, phase=90, with_reset=True, name="sys4x")
+        pll.create_clkout(self.cd_sys,         sys_clk_freq,                    with_reset=True, phase=0,  name="sys")
+        pll.create_clkout(self.cd_serwb_phy,   sys_clk_freq/sys_clk_freq_div,   with_reset=True, phase=0,  name="serwb_phy")
+        pll.create_clkout(self.cd_serwb_phy4x, sys_clk_freq/sys_clk_freq_div*4, with_reset=True, phase=90, name="serwb_phy4x")
 
 # SerWBTestSoC ------------------------------------------------------------------------------------
 
@@ -87,16 +91,15 @@ class SerWBTestSoC(SoCMini):
     }
     mem_map.update(SoCMini.mem_map)
 
-    def __init__(self, platform, with_analyzer=True, lvds_rx_delay=0, lvds_clk_delay=0):
-        sys_clk_freq = 40e6
-
+    def __init__(self, platform, sys_clk_freq=100e6, clk_ratio="1:4", with_analyzer=False, lvds_rx_delay=0, lvds_clk_delay=0):
         # CRG --------------------------------------------------------------------------------------
-        self.crg = _CRG(platform, sys_clk_freq)
+        self.crg = _CRG(platform, sys_clk_freq, clk_ratio)
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
             csr_data_with = 32,
-            ident         = "LiteICLink SerWB bench on Efinix Trion T120 BGA576 Dev Kit",
+            cpu_type      = None,
+            ident         = f"LiteICLink SerWB bench @ {int(sys_clk_freq/1e6):d}MHz on Efinix Trion T120 BGA576 Dev Kit",
             ident_version = True,
             with_uart     = True,
             uart_name     = "uartbone")
@@ -119,6 +122,9 @@ class SerWBTestSoC(SoCMini):
             device       = self.platform.device,
             pads         = self.platform.request("serwb_master"),
             mode         = "master",
+            clk          = "serwb_phy",
+            clk4x        = "serwb_phy4x",
+            clk_ratio    = clk_ratio,
         )
         self.submodules.serwb_master_phy = serwb_master_phy
 
@@ -126,40 +132,35 @@ class SerWBTestSoC(SoCMini):
         serwb_master_core = SERWBCore(serwb_master_phy, self.clk_freq, mode="slave",
             etherbone_buffer_depth = 1,
             tx_buffer_depth        = 8,
-            rx_buffer_depth        = 8)
+            rx_buffer_depth        = 8
+        )
         self.submodules += serwb_master_core
 
         # Connect as peripheral to main SoC.
-        self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
+        self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=1024))
 
         # SerWB Slave ----------------------------------------------------------------------------
         # PHY
         serwb_slave_phy = SERWBPHY(
-            device         = self.platform.device,
-            pads           = self.platform.request("serwb_slave"),
-            mode           = "slave",
-            clk_delay_taps = lvds_clk_delay,
-            rx_delay_taps  = lvds_rx_delay,
+            device       = self.platform.device,
+            pads         = self.platform.request("serwb_slave"),
+            mode         = "slave",
+            clk_ratio    = clk_ratio,
         )
-        self.clock_domains.cd_serwb = ClockDomain()
-        if hasattr(serwb_slave_phy.serdes, "clocking"):
-            self.comb += self.cd_serwb.clk.eq(serwb_slave_phy.serdes.clocking.refclk)
-        else:
-            self.comb += self.cd_serwb.clk.eq(ClockSignal("sys"))
-        self.specials += AsyncResetSynchronizer(self.cd_serwb, ResetSignal("sys"))
-        serwb_slave_phy = ClockDomainsRenamer("serwb")(serwb_slave_phy)
+        serwb_slave_phy = ClockDomainsRenamer("rx_sys")(serwb_slave_phy)
         self.submodules.serwb_slave_phy = serwb_slave_phy
 
         # Core
         serwb_slave_core = SERWBCore(serwb_slave_phy, self.clk_freq, mode="master",
             etherbone_buffer_depth = 1,
             tx_buffer_depth        = 8,
-            rx_buffer_depth        = 8)
-        serwb_slave_core = ClockDomainsRenamer("serwb")(serwb_slave_core)
+            rx_buffer_depth        = 8
+        )
+        serwb_slave_core = ClockDomainsRenamer("rx_sys")(serwb_slave_core)
         self.submodules += serwb_slave_core
 
         # Wishbone SRAM
-        serwb_sram = ClockDomainsRenamer("serwb")(wishbone.SRAM(8192))
+        serwb_sram = ClockDomainsRenamer("rx_sys")(wishbone.SRAM(1024))
         self.submodules += serwb_sram
         self.comb += serwb_slave_core.bus.connect(serwb_sram.bus)
 
@@ -167,24 +168,23 @@ class SerWBTestSoC(SoCMini):
         if with_analyzer:
             analyzer_signals = [
                 self.serwb_master_phy.init.fsm,
-                self.serwb_master_phy.serdes.rx.data,
+                self.serwb_master_phy.serdes.rx.source.data,
                 self.serwb_master_phy.serdes.rx.comma,
                 self.serwb_master_phy.serdes.rx.idle,
-                self.serwb_master_phy.serdes.tx.data,
+                self.serwb_master_phy.serdes.tx.sink.data,
                 self.serwb_master_phy.serdes.tx.comma,
                 self.serwb_master_phy.serdes.tx.idle,
-                self.serwb_master_phy.serdes.rx.datapath.decoder.source,
 
                 self.serwb_slave_phy.init.fsm,
-                self.serwb_slave_phy.serdes.rx.data,
+                self.serwb_slave_phy.serdes.rx.source.data,
                 self.serwb_slave_phy.serdes.rx.comma,
                 self.serwb_slave_phy.serdes.rx.idle,
-                self.serwb_slave_phy.serdes.tx.data,
+                self.serwb_slave_phy.serdes.tx.sink.data,
                 self.serwb_slave_phy.serdes.tx.comma,
                 self.serwb_slave_phy.serdes.tx.idle,
-                self.serwb_slave_phy.serdes.rx.datapath.decoder.source,
             ]
             self.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, csr_csv="analyzer.csv")
+
 
 # Build --------------------------------------------------------------------------------------------
 
