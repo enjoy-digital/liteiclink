@@ -31,7 +31,7 @@ from liteiclink.serwb.efinixserdes import EfinixSerdes
 
 @ResetInserter()
 class _SerdesMasterInit(LiteXModule):
-    def __init__(self, serdes, taps, timeout):
+    def __init__(self, serdes, taps, timeout, clk_ratio):
         self.ready = Signal()
         self.error = Signal()
 
@@ -43,6 +43,7 @@ class _SerdesMasterInit(LiteXModule):
         self.delay_max       = delay_max       = Signal(max=taps)
         self.delay_max_found = delay_max_found = Signal()
         self.shift           = shift           = Signal(max=40)
+        self.phase_sel       = phase_sel       = Signal(2)
 
         # Timer.
         # ------
@@ -50,15 +51,19 @@ class _SerdesMasterInit(LiteXModule):
 
         # FSM.
         # ----
-        self.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="RESET")
+        fsm.act("RESET",
+            NextValue(phase_sel, 0),
+            NextState("IDLE")
+        )
         fsm.act("IDLE",
             NextValue(delay,           0),
             NextValue(delay_min,       0),
             NextValue(delay_min_found, 0),
             NextValue(delay_max,       0),
             NextValue(delay_max_found, 0),
+            NextValue(shift,           0),
             serdes.rx.delay_rst.eq(1),
-            NextValue(shift, 0),
             NextState("RESET-SLAVE"),
             serdes.tx.idle.eq(1)
         )
@@ -114,7 +119,7 @@ class _SerdesMasterInit(LiteXModule):
             NextState("WAIT-STABLE"),
             If(delay == (taps - 1),
                 If(shift == (40 - 1),
-                    NextState("ERROR")
+                    NextState("INC-PHASE-SEL")
                 ).Else(
                     NextValue(delay_min_found, 0),
                     NextValue(delay_min,       0),
@@ -130,6 +135,16 @@ class _SerdesMasterInit(LiteXModule):
                 serdes.rx.delay_inc.eq(1)
             ),
             serdes.tx.comma.eq(1)
+        )
+        if hasattr(serdes.rx, "phase_sel"):
+            self.comb += serdes.rx.phase_sel.eq(phase_sel)
+        fsm.act("INC-PHASE-SEL",
+            NextValue(phase_sel, phase_sel + 1),
+            If(phase_sel == ({"1:1":1, "1:2":2, "1:4":4}[clk_ratio] - 1),
+                NextState("ERROR")
+            ).Else(
+                NextState("IDLE")
+            )
         )
         fsm.act("CHECK-SAMPLING-WINDOW",
             If((delay_max - delay_min) < taps//16,
@@ -163,7 +178,7 @@ class _SerdesMasterInit(LiteXModule):
 
 @ResetInserter()
 class _SerdesSlaveInit(LiteXModule):
-    def __init__(self, serdes, taps, timeout):
+    def __init__(self, serdes, taps, timeout, clk_ratio):
         self.ready = Signal()
         self.error = Signal()
 
@@ -175,6 +190,7 @@ class _SerdesSlaveInit(LiteXModule):
         self.delay_max       = delay_max       = Signal(max=taps)
         self.delay_max_found = delay_max_found = Signal()
         self.shift           = shift           = Signal(max=40)
+        self.phase_sel       = phase_sel       = Signal(2)
 
         # Timer.
         # ------
@@ -182,15 +198,19 @@ class _SerdesSlaveInit(LiteXModule):
 
         # FSM.
         # ----
-        self.fsm = fsm = FSM(reset_state="IDLE")
+        self.fsm = fsm = FSM(reset_state="RESET")
+        fsm.act("RESET",
+            NextValue(phase_sel, 0),
+            NextState("IDLE")
+        )
         fsm.act("IDLE",
             NextValue(delay,           0),
             NextValue(delay_min,       0),
             NextValue(delay_min_found, 0),
             NextValue(delay_max,       0),
             NextValue(delay_max_found, 0),
+            NextValue(shift,           0),
             serdes.rx.delay_rst.eq(1),
-            NextValue(shift, 0),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
@@ -233,7 +253,7 @@ class _SerdesSlaveInit(LiteXModule):
             NextState("WAIT-STABLE"),
             If(delay == (taps - 1),
                 If(shift == (40 - 1),
-                    NextState("ERROR")
+                    NextState("INC-PHASE-SEL")
                 ).Else(
                     NextValue(delay_min_found, 0),
                     NextValue(delay_min,       0),
@@ -249,6 +269,16 @@ class _SerdesSlaveInit(LiteXModule):
                 serdes.rx.delay_inc.eq(1)
             ),
             serdes.tx.idle.eq(1)
+        )
+        if hasattr(serdes.rx, "phase_sel"):
+            self.comb += serdes.rx.phase_sel.eq(phase_sel)
+        fsm.act("INC-PHASE-SEL",
+            NextValue(phase_sel, phase_sel + 1),
+            If(phase_sel == ({"1:1":1, "1:2":2, "1:4":4}[clk_ratio] - 1),
+                NextState("ERROR")
+            ).Else(
+                NextState("IDLE")
+            )
         )
         fsm.act("CHECK-SAMPLING-WINDOW",
             If((delay_max - delay_min) < taps//16,
@@ -302,6 +332,7 @@ class _SerdesControl(LiteXModule):
         self.delay_max_found = CSRStatus()
         self.delay_max       = CSRStatus(9)
         self.shift           = CSRStatus(6)
+        self.phase           = CSRStatus(2)
 
         self.prbs_error  = Signal()
         self.prbs_start  = CSR()
@@ -335,7 +366,8 @@ class _SerdesControl(LiteXModule):
             self.delay_min.status.eq(init.delay_min),
             self.delay_max_found.status.eq(init.delay_max_found),
             self.delay_max.status.eq(init.delay_max),
-            self.shift.status.eq(init.shift)
+            self.shift.status.eq(init.shift),
+            self.phase.status.eq(init.phase_sel)
         ]
 
         # PRBS.
@@ -363,7 +395,7 @@ class _SerdesControl(LiteXModule):
 # SERWB PHY ----------------------------------------------------------------------------------------
 
 class SERWBPHY(LiteXModule):
-    def __init__(self, device, pads, mode="master", init_timeout=2**15, clk="sys", clk4x="sys4x", clk_ratio="1:1", clk_delay_taps=0, rx_delay_taps=0):
+    def __init__(self, device, pads, mode="master", init_timeout=2**16, clk="sys", clk4x="sys4x", clk_ratio="1:1", clk_delay_taps=0, rx_delay_taps=0):
         self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
@@ -373,9 +405,11 @@ class SERWBPHY(LiteXModule):
         # SerDes.
         # -------
         if device[:4] == "xcku":
+            assert clk_ratio == "1:1"
             taps = 512
             self.serdes = KUSerdes(pads, mode)
         elif device[:4] == "xc7a":
+            assert clk_ratio == "1:1"
             taps = 32
             self.serdes = S7Serdes(pads, mode)
         elif device[:2] == "Ti":
@@ -403,7 +437,7 @@ class SERWBPHY(LiteXModule):
             "master" : _SerdesMasterInit,
             "slave"  : _SerdesSlaveInit,
         }[mode]
-        self.init = init_cls(self.serdes, taps, init_timeout)
+        self.init = init_cls(self.serdes, taps, init_timeout, clk_ratio)
 
         # SerDes Control.
         # ---------------
