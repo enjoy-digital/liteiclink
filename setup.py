@@ -33,13 +33,13 @@ setup(
     packages                      = find_packages(exclude=("test*", "sim*", "doc*", "examples*")),
     include_package_data          = True,
     keywords                      = "HDL ASIC FPGA hardware design",
-    classifiers=[
-        "Topic                :: Scientific/Engineering :: Electronic Design Automation (EDA)",
-        "Environment          :: Console",
-        "Development Status   :: 3 - Alpha",
-        "Intended Audience    :: Developers",
-        "License              :: OSI Approved :: BSD License",
-        "Operating System     :: OS Independent",
+    classifiers                   = [
+        "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+        "Environment :: Console",
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: BSD License",
+        "Operating System :: OS Independent",
         "Programming Language :: Python",
     ],
 )
