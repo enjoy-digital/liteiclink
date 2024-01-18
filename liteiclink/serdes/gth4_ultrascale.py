@@ -899,16 +899,13 @@ class GTH4(LiteXModule):
             p_USB_U2_SAS_MIN_COM           = 36,
             p_USE_PCS_CLK_PHASE_SEL        = 0b0,
             p_Y_ALL_MODE                   = 0b0,
-        )
 
-        self.gth_params.update(
             p_CLK_COR_MAX_LAT              = 12 if rx_buffer_enable else 20,
             p_CLK_COR_MIN_LAT              = 8 if rx_buffer_enable else 18,
             p_CPLL_FBDIV                   = 1 if (use_qpll0 | use_qpll1) else pll.config["n2"],
             p_CPLL_FBDIV_45                = 4 if (use_qpll0 | use_qpll1) else pll.config["n1"],
             p_CPLL_REFCLK_DIV              = 1 if (use_qpll0 | use_qpll1) else pll.config["m"],
-        )
-        self.gth_params.update(
+
             p_RXBUF_EN                     = "TRUE" if rx_buffer_enable else "FALSE",
             p_RXBUF_THRESH_OVFLW           = 57 if rx_buffer_enable else 0,
             p_RXBUF_THRESH_OVRD            = "TRUE" if rx_buffer_enable else "FALSE",
@@ -917,16 +914,13 @@ class GTH4(LiteXModule):
             p_RX_DATA_WIDTH                = data_width,
             p_RX_INT_DATAWIDTH             = data_width == 40,
             p_RX_XCLK_SEL                  = "RXDES" if rx_buffer_enable else "RXUSR",
-        )
-        self.gth_params.update(
+
             p_TXBUF_EN                     = "TRUE" if tx_buffer_enable else "FALSE",
             p_TXOUT_DIV                    = pll.config["d"],
             p_TX_DATA_WIDTH                = data_width,
             p_TX_INT_DATAWIDTH             = data_width == 40,
             p_TX_XCLK_SEL                  = "TXOUT" if tx_buffer_enable else "TXUSR",
-        )
 
-        self.gth_params.update(
             # Reset modes
             i_RESETOVRD       = 0,
 

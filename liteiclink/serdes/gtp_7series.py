@@ -579,9 +579,8 @@ class GTP(LiteXModule):
             # TX Buffer Attributes
             p_TXSYNC_MULTILANE           = 0b0,
             p_TXSYNC_OVRD                = 0b1 if tx_buffer_enable else 0b0,
-            p_TXSYNC_SKIP_DA             = 0b0
-        )
-        self.gtp_params.update(
+            p_TXSYNC_SKIP_DA             = 0b0,
+
             # CPLL Ports
             i_GTRSVD               = 0b0000000000000000,
             i_PCSRSVDIN            = 0b0000000000000000,

@@ -751,16 +751,13 @@ class GTH3(LiteXModule):
             p_TX_SARC_LPBK_ENB             = 0b0,
             p_USE_PCS_CLK_PHASE_SEL        = 0b0,
             p_WB_MODE                      = 0b00,
-        )
 
-        self.gth_params.update(
             p_CLK_COR_MAX_LAT              = 12 if rx_buffer_enable else 20,
             p_CLK_COR_MIN_LAT              = 8 if rx_buffer_enable else 18,
             p_CPLL_FBDIV                   = 1 if (use_qpll0 | use_qpll1) else pll.config["n2"],
             p_CPLL_FBDIV_45                = 4 if (use_qpll0 | use_qpll1) else pll.config["n1"],
             p_CPLL_REFCLK_DIV              = 1 if (use_qpll0 | use_qpll1) else pll.config["m"],
-        )
-        self.gth_params.update(
+
             p_RXBUF_EN                     = "TRUE" if rx_buffer_enable else "FALSE",
             p_RXBUF_THRESH_OVFLW           = 57 if rx_buffer_enable else 0,
             p_RXBUF_THRESH_OVRD            = "TRUE" if rx_buffer_enable else "FALSE",
@@ -769,16 +766,13 @@ class GTH3(LiteXModule):
             p_RX_DATA_WIDTH                = data_width,
             p_RX_INT_DATAWIDTH             = data_width == 40,
             p_RX_XCLK_SEL                  = "RXDES" if rx_buffer_enable else "RXUSR",
-        )
-        self.gth_params.update(
+
             p_TXBUF_EN                     = "TRUE" if tx_buffer_enable else "FALSE",
             p_TXOUT_DIV                    = pll.config["d"],
             p_TX_DATA_WIDTH                = data_width,
             p_TX_INT_DATAWIDTH             = data_width == 40,
             p_TX_XCLK_SEL                  = "TXOUT" if tx_buffer_enable else "TXUSR",
-        )
 
-        self.gth_params.update(
             # Reset modes
             i_RESETOVRD       = 0,
             i_GTRESETSEL      = 0,
@@ -870,13 +864,13 @@ class GTH3(LiteXModule):
             i_RXUSRCLK2       = ClockSignal("rx"),
 
             # RX Byte and Word Alignment Ports
-            o_RXBYTEISALIGNED      = Open(),
-            o_RXBYTEREALIGN        = Open(),
-            o_RXCOMMADET           = Open(),
-            i_RXCOMMADETEN         = 1,
-            i_RXMCOMMAALIGNEN      = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
-            i_RXPCOMMAALIGNEN      = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
-            i_RXSLIDE              = 0,
+            o_RXBYTEISALIGNED = Open(),
+            o_RXBYTEREALIGN   = Open(),
+            o_RXCOMMADET      = Open(),
+            i_RXCOMMADETEN    = 1,
+            i_RXMCOMMAALIGNEN = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
+            i_RXPCOMMAALIGNEN = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
+            i_RXSLIDE         = 0,
 
             # RX data
             o_RXCTRL0         = Cat(*[rxdata[10*i+8] for i in range(nwords)]),
@@ -895,7 +889,7 @@ class GTH3(LiteXModule):
             i_GTHRXP          = rx_pads.p,
             i_GTHRXN          = rx_pads.n,
             o_GTHTXP          = tx_pads.p,
-            o_GTHTXN          = tx_pads.n
+            o_GTHTXN          = tx_pads.n,
         )
 
         # TX clocking ------------------------------------------------------------------------------
