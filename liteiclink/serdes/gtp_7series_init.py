@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from math import ceil
@@ -52,11 +52,11 @@ class GTPTXInit(LiteXModule):
         txphinitdone    = Signal()
         txphaligndone   = Signal()
         self.specials += [
-            MultiReg(self.plllock, plllock),
-            MultiReg(self.txresetdone, txresetdone),
+            MultiReg(self.plllock,         plllock),
+            MultiReg(self.txresetdone,     txresetdone),
             MultiReg(self.txdlysresetdone, txdlysresetdone),
-            MultiReg(self.txphinitdone, txphinitdone),
-            MultiReg(self.txphaligndone, txphaligndone)
+            MultiReg(self.txphinitdone,    txphinitdone),
+            MultiReg(self.txphaligndone,   txphaligndone)
         ]
 
         # Deglitch FSM outputs driving transceiver asynch inputs
@@ -175,21 +175,22 @@ class GTPTXInit(LiteXModule):
 
 class GTPRXInit(LiteXModule):
     def __init__(self, sys_clk_freq, buffer_enable):
-        self.done            = Signal()
-        self.restart         = Signal()
+        self.done            = Signal() # o
+        self.restart         = Signal() # i
 
         # GTP signals
-        self.plllock         = Signal()
-        self.gtrxreset       = Signal()
-        self.gtrxpd          = Signal()
-        self.rxresetdone     = Signal()
-        self.rxdlysreset     = Signal()
-        self.rxdlysresetdone = Signal()
-        self.rxphalign       = Signal()
-        self.rxuserrdy       = Signal()
-        self.rxsyncdone      = Signal()
-        self.rxpmaresetdone  = Signal()
+        self.plllock         = Signal() # i
+        self.gtrxreset       = Signal() # o
+        self.gtrxpd          = Signal() # o
+        self.rxresetdone     = Signal() # i
+        self.rxdlysreset     = Signal() # o
+        self.rxdlysresetdone = Signal() # i
+        self.rxphalign       = Signal() # o
+        self.rxuserrdy       = Signal() # o
+        self.rxsyncdone      = Signal() # i
+        self.rxpmaresetdone  = Signal() # i
 
+        # DRP
         self.drp             = DRPInterface()
 
         # # #
@@ -217,10 +218,10 @@ class GTPRXInit(LiteXModule):
         rxdlysresetdone = Signal()
         rxsyncdone      = Signal()
         self.specials += [
-            MultiReg(self.plllock, plllock),
-            MultiReg(self.rxresetdone, rxresetdone),
+            MultiReg(self.plllock,         plllock),
+            MultiReg(self.rxresetdone,     rxresetdone),
             MultiReg(self.rxdlysresetdone, rxdlysresetdone),
-            MultiReg(self.rxsyncdone, rxsyncdone)
+            MultiReg(self.rxsyncdone,      rxsyncdone)
         ]
 
         # Deglitch FSM outputs driving transceiver asynch inputs
