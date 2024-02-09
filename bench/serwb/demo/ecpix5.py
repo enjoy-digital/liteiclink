@@ -27,6 +27,8 @@ from litex.soc.interconnect import wishbone
 from liteiclink.serwb.genphy import SERWBPHY
 from liteiclink.serwb.core import SERWBCore
 
+from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
+
 from litescope import LiteScopeAnalyzer
 
 # IOs ----------------------------------------------------------------------------------------------
@@ -58,22 +60,34 @@ class SerWBDemoSoC(SoCMini):
         # UARTBone ---------------------------------------------------------------------------------
         self.add_uartbone()
 
+        # Etherbone --------------------------------------------------------------------------------
+        self.ethphy = LiteEthPHYRGMII(
+            clock_pads = self.platform.request("eth_clocks"),
+            pads       = self.platform.request("eth"),
+            rx_delay   = 0e-9
+        )
+        self.add_etherbone(phy=self.ethphy)
+
         # SerWB (Master) ---------------------------------------------------------------------------
-        # PHY
+        # PHY.
+        # ----
         self.serwb_master_phy = SERWBPHY(
             device = platform.device,
             pads   = platform.request("serwb_master"),
             mode   = "master",
         )
 
-        # Core
+        # Core.
+        # -----
         self.serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave",
             etherbone_buffer_depth = 1,
             tx_buffer_depth        = 8,
-            rx_buffer_depth        = 8)
+            rx_buffer_depth        = 8,
+        )
 
-        # Connect as peripheral to main SoC.
-        self.bus.add_slave("serwb", self.serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
+        # Add SerWB as Slave to SoC.
+        # --------------------------
+        self.bus.add_slave("serwb", self.serwb_master_core.bus, SoCRegion(origin=0x30000000, size=0x1000000))
 
         # Leds -------------------------------------------------------------------------------------
         leds_pads = []

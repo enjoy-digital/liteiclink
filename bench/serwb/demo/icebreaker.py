@@ -41,7 +41,7 @@ serwb_io = [
 # SerWBDemoSoC -------------------------------------------------------------------------------------
 
 class SerWBDemoSoC(SoCMini):
-    def __init__(self, platform, loopback=False, with_analyzer=False):
+    def __init__(self, platform, with_analyzer=False):
         sys_clk_freq = int(50e6)
 
         # CRG --------------------------------------------------------------------------------------
@@ -58,23 +58,30 @@ class SerWBDemoSoC(SoCMini):
         self.add_uartbone()
 
         # SerWB (Slave) ----------------------------------------------------------------------------
-        # PHY
+        # PHY.
+        # ----
         self.serwb_slave_phy = SERWBPHY(
             device = platform.device,
             pads   = platform.request("serwb_slave"),
-            mode   ="slave"
+            mode   = "slave"
         )
         self.comb += self.cd_sys.clk.eq(self.serwb_slave_phy.serdes.clocking.refclk)
 
-        # Core
+        # Core.
+        # -----
         self.serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master",
             etherbone_buffer_depth = 1,
-            tx_buffer_depth        = 0,
-            rx_buffer_depth        = 0)
+            tx_buffer_depth        = 8,
+            rx_buffer_depth        = 8,
+        )
 
-        # Wishbone SRAM
-        self.serwb_sram = Up5kSPRAM(size=64*kB)
-        self.comb += self.serwb_slave_core.bus.connect(self.serwb_sram.bus)
+        # Add SerWB as Master to SoC.
+        # ---------------------------
+        from litex.soc.interconnect import wishbone
+        serwb_bus = wishbone.Interface(data_width=32, address_width=32)
+        self.comb += self.serwb_slave_core.bus.connect(serwb_bus)
+        self.comb += serwb_bus.adr.eq(self.serwb_slave_core.bus.adr & 0x00ff_ffff) # FIXME.
+        self.bus.add_master("serwb", serwb_bus)
 
         # Leds -------------------------------------------------------------------------------------
         self.comb += [
