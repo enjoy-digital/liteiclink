@@ -34,8 +34,8 @@ from litescope import LiteScopeAnalyzer
 serwb_io = [
     ("serwb_master", 0,
         Subsignal("clk", Pins("pmod0:0"), IOStandard("LVCMOS33")),
-        Subsignal("tx",  Pins("pmod1:1"), IOStandard("LVCMOS33")),
-        Subsignal("rx",  Pins("pmod2:2"), IOStandard("LVCMOS33")),
+        Subsignal("tx",  Pins("pmod0:1"), IOStandard("LVCMOS33")),
+        Subsignal("rx",  Pins("pmod0:2"), IOStandard("LVCMOS33")),
     ),
 ]
 
@@ -43,7 +43,7 @@ serwb_io = [
 
 class SerWBDemoSoC(SoCMini):
     def __init__(self, platform, with_analyzer=False):
-        sys_clk_freq = int(25e6)
+        sys_clk_freq = int(50e6)
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
@@ -63,7 +63,8 @@ class SerWBDemoSoC(SoCMini):
         self.serwb_master_phy = SERWBPHY(
             device = platform.device,
             pads   = platform.request("serwb_master"),
-            mode   = "master")
+            mode   = "master",
+        )
 
         # Core
         self.serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave",
@@ -81,8 +82,10 @@ class SerWBDemoSoC(SoCMini):
             self.comb += [getattr(rgb_led_pads, n).eq(1) for n in "gb"] # Disable Green/Blue Leds.
             leds_pads += [getattr(rgb_led_pads, n) for n in "r"]
         self.comb += [
-            leds_pads[0].eq(self.serwb_master_phy.init.ready),
-            leds_pads[1].eq(self.serwb_master_phy.init.error),
+            leds_pads[0].eq(~self.serwb_master_phy.init.ready),
+            leds_pads[1].eq(~self.serwb_master_phy.init.error),
+            leds_pads[2].eq(1),
+            leds_pads[3].eq(1)
         ]
 
         # Analyzer ---------------------------------------------------------------------------------

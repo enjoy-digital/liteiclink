@@ -42,10 +42,10 @@ serwb_io = [
 
 class SerWBDemoSoC(SoCMini):
     def __init__(self, platform, loopback=False, with_analyzer=False):
-        sys_clk_freq = int(25e6)
+        sys_clk_freq = int(50e6)
 
         # CRG --------------------------------------------------------------------------------------
-        self.crg = _CRG(platform, sys_clk_freq)
+        self.cd_sys = ClockDomain()
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
@@ -64,6 +64,7 @@ class SerWBDemoSoC(SoCMini):
             pads   = platform.request("serwb_slave"),
             mode   ="slave"
         )
+        self.comb += self.cd_sys.clk.eq(self.serwb_slave_phy.serdes.clocking.refclk)
 
         # Core
         self.serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master",
