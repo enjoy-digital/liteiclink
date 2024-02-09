@@ -43,7 +43,7 @@ serwb_io = [
 
 class SerWBDemoSoC(SoCMini):
     def __init__(self, platform, with_analyzer=False):
-        sys_clk_freq = int(50e6)
+        sys_clk_freq = int(25e6)
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
@@ -115,7 +115,7 @@ def main():
 
     if args.load:
         prog = soc.platform.create_programmer()
-        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".svf"))
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 
 if __name__ == "__main__":

@@ -32,9 +32,9 @@ kB = 1024
 
 serwb_io = [
     ("serwb_slave", 0,
-        Subsignal("clk", Pins("PMOD1B:0"), IOStandard("LVCMOS33")),
-        Subsignal("tx",  Pins("PMOD1B:1"), IOStandard("LVCMOS33")),
-        Subsignal("rx",  Pins("PMOD1B:2"), IOStandard("LVCMOS33")),
+        Subsignal("clk", Pins("PMOD1B:4"), IOStandard("LVCMOS33")),
+        Subsignal("tx",  Pins("PMOD1B:6"), IOStandard("LVCMOS33")),
+        Subsignal("rx",  Pins("PMOD1B:5"), IOStandard("LVCMOS33")),
     ),
 ]
 
@@ -42,7 +42,7 @@ serwb_io = [
 
 class SerWBDemoSoC(SoCMini):
     def __init__(self, platform, loopback=False, with_analyzer=False):
-        sys_clk_freq = int(24e6)
+        sys_clk_freq = int(25e6)
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
