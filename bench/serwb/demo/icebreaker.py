@@ -81,7 +81,7 @@ class SerWBDemoSoC(SoCMini):
         serwb_bus = wishbone.Interface(data_width=32, address_width=32)
         self.comb += self.serwb_slave_core.bus.connect(serwb_bus)
         self.comb += serwb_bus.adr.eq(self.serwb_slave_core.bus.adr & 0x00ff_ffff) # FIXME.
-        self.bus.add_master("serwb", serwb_bus)
+        self.bus.add_master("serwb", serwb_bus) # FIXME: Add origin and size capability -> Would automatically filter addresses.
 
         # Leds -------------------------------------------------------------------------------------
         self.comb += [
@@ -101,7 +101,7 @@ def main():
     platform.add_extension(icebreaker.break_off_pmod)
     platform.add_extension(serwb_io)
     soc     = SerWBDemoSoC(platform)
-    builder = Builder(soc, csr_csv="csr.csv")
+    builder = Builder(soc, csr_csv="csr.csv", csr_json="icebreaker_soc.json")
     builder.build(run=args.build)
 
     if args.load:
