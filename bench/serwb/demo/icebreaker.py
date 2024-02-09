@@ -52,8 +52,10 @@ class SerWBDemoSoC(SoCMini):
             csr_data_width = 32,
             ident          = "LiteICLink SerWB demo on iCEBreaker",
             ident_version  = True,
-            with_uart      = True,
-            uart_name      = "uartbone")
+        )
+
+        # UARTBone ---------------------------------------------------------------------------------
+        self.add_uartbone()
 
         # SerWB (Slave) ----------------------------------------------------------------------------
         # PHY

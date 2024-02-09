@@ -39,9 +39,9 @@ serwb_io = [
     ),
 ]
 
-# SerWbDemoSoC ------------------------------------------------------------------------------------
+# SerWBDemoSoC ------------------------------------------------------------------------------------
 
-class SerWbDemoSoC(SoCMini):
+class SerWBDemoSoC(SoCMini):
     def __init__(self, platform, with_analyzer=False):
         sys_clk_freq = int(50e6)
 
@@ -53,9 +53,10 @@ class SerWbDemoSoC(SoCMini):
             csr_data_width = 32,
             ident          = "LiteICLink SerWB demo on ECPIX-5",
             ident_version  = True,
-            with_uart      = True,
-            uart_name      = "uartbone"
         )
+
+        # UARTBone ---------------------------------------------------------------------------------
+        self.add_uartbone()
 
         # SerWB (Master) ---------------------------------------------------------------------------
         # PHY
@@ -108,7 +109,7 @@ def main():
 
     platform = lambdaconcept_ecpix5.Platform(toolchain="trellis")
     platform.add_extension(serwb_io)
-    soc     = SerWbDemoSoC(platform, with_analyzer=args.with_analyzer)
+    soc     = SerWBDemoSoC(platform, with_analyzer=args.with_analyzer)
     builder = Builder(soc, csr_csv="csr.csv")
     builder.build(run=args.build)
 
