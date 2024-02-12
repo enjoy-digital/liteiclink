@@ -128,6 +128,7 @@ def main():
     platform.add_extension(serwb_io)
     soc     = SerWBDemoSoC(platform, with_analyzer=args.with_analyzer)
     builder = Builder(soc, csr_csv="csr.csv")
+    builder.add_json("icebreaker_soc.json", 0x30000000, "icebreaker_soc")
     builder.build(run=args.build)
 
     if args.load:
