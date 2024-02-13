@@ -45,7 +45,7 @@ serwb_io = [
 
 class SerWBDemoSoC(SoCMini):
     def __init__(self, platform, with_analyzer=False):
-        sys_clk_freq = int(50e6)
+        sys_clk_freq = int(25e6)
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = _CRG(platform, sys_clk_freq)
@@ -87,7 +87,7 @@ class SerWBDemoSoC(SoCMini):
 
         # Add SerWB as Slave to SoC.
         # --------------------------
-        self.bus.add_slave("serwb", self.serwb_master_core.bus, SoCRegion(origin=0x30000000, size=0x1000000))
+        self.bus.add_slave("serwb", self.serwb_master_core.bus, SoCRegion(origin=0x40000000, size=0x20000000))
 
         # Leds -------------------------------------------------------------------------------------
         leds_pads = []
@@ -128,7 +128,7 @@ def main():
     platform.add_extension(serwb_io)
     soc     = SerWBDemoSoC(platform, with_analyzer=args.with_analyzer)
     builder = Builder(soc, csr_csv="csr.csv")
-    builder.add_json("icebreaker_soc.json", 0x30000000, "icebreaker_soc")
+    builder.add_json("icebreaker_soc.json", 0x40000000, "icebreaker_soc")
     builder.build(run=args.build)
 
     if args.load:

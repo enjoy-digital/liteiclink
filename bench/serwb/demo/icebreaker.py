@@ -42,7 +42,7 @@ serwb_io = [
 
 class SerWBDemoSoC(SoCMini):
     def __init__(self, platform, with_analyzer=False):
-        sys_clk_freq = int(50e6)
+        sys_clk_freq = int(25e6)
 
         # CRG --------------------------------------------------------------------------------------
         self.cd_sys = ClockDomain()
@@ -52,6 +52,8 @@ class SerWBDemoSoC(SoCMini):
             csr_data_width = 32,
             ident          = "LiteICLink SerWB demo on iCEBreaker",
             ident_version  = True,
+            with_integrated_main_ram = True,
+            integrated_main_ram_size = 1024,
         )
 
         # UARTBone ---------------------------------------------------------------------------------
@@ -77,7 +79,18 @@ class SerWBDemoSoC(SoCMini):
 
         # Add SerWB as Master to SoC.
         # ---------------------------
-        self.bus.add_master("serwb", self.serwb_slave_core.bus, SoCRegion(origin=0x00000000, size=0x10000000))
+        self.bus.add_master("serwb", self.serwb_slave_core.bus, SoCRegion(origin=0x00000000, size=0x20000000))
+
+        # Address Remapping.
+        # ------------------
+        serwb_bus = wishbone.Interface(address_width=32, data_width=32)
+        self.submodules += wishbone.RegionsRemapper(
+            master      = self.bus.masters["serwb"],
+            slave       = serwb_bus,
+            src_regions = [SoCRegion(origin=0x10000000, size=0x10000000)],
+            dst_regions = [SoCRegion(origin=0x40000000, size=0x10000000)],
+        )
+        self.bus.masters["serwb"] = serwb_bus
 
         # Leds -------------------------------------------------------------------------------------
         self.comb += [

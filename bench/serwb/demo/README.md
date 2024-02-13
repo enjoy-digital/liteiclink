@@ -36,6 +36,7 @@ Access over Etherbone to the peripherlas of the ECXPIX-5 and iCEBreaker can be t
 following commands:
 
     litex_server --udp
+    # Test Access to CSR registers through SerWB
     litex_cli --regs
     0x00000000 : 0x00000000 ctrl_reset
     0x00000004 : 0x12345678 ctrl_scratch
@@ -51,11 +52,19 @@ following commands:
     0x00001810 : 0x00000000 serwb_master_phy_control_prbs_start
     0x00001814 : 0x00000000 serwb_master_phy_control_prbs_cycles
     0x00001818 : 0x00000000 serwb_master_phy_control_prbs_errors
-    0x30000000 : 0x00000000 icebreaker_soc_ctrl_reset
-    0x30000004 : 0x12345678 icebreaker_soc_ctrl_scratch
-    0x30000008 : 0x00000000 icebreaker_soc_ctrl_bus_errors
-    0x30001000 : 0x00000001 icebreaker_soc_serwb_slave_phy_control_ready
-    0x30001004 : 0x00000000 icebreaker_soc_serwb_slave_phy_control_error
-    0x30001008 : 0x00000018 icebreaker_soc_serwb_slave_phy_control_shift
-    0x3000100c : 0x00000000 icebreaker_soc_serwb_slave_phy_control_prbs_start
-    0x30001010 : 0x00000000 icebreaker_soc_serwb_slave_phy_control_prbs_cycles
+    0x40000000 : 0x00000000 icebreaker_soc_ctrl_reset
+    0x40000004 : 0x12345678 icebreaker_soc_ctrl_scratch
+    0x40000008 : 0x00000000 icebreaker_soc_ctrl_bus_errors
+    0x40001000 : 0x00000001 icebreaker_soc_serwb_slave_phy_control_ready
+    0x40001004 : 0x00000000 icebreaker_soc_serwb_slave_phy_control_error
+    0x40001008 : 0x00000018 icebreaker_soc_serwb_slave_phy_control_shift
+    0x4000100c : 0x00000000 icebreaker_soc_serwb_slave_phy_control_prbs_start
+    0x40001010 : 0x00000000 icebreaker_soc_serwb_slave_phy_control_prbs_cycles
+
+    # Test Access to SRAM through SerWB
+    litex_cli --write 0x50000000 0x12345678
+    litex_cli --write 0x50000004 0x5aa55aa5
+    litex_cli --read 0x50000000
+    0x50000000 : 0x12345678
+    litex_cli --read 0x50000004
+    0x50000004 : 0x5aa55aa5
