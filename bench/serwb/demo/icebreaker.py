@@ -77,11 +77,7 @@ class SerWBDemoSoC(SoCMini):
 
         # Add SerWB as Master to SoC.
         # ---------------------------
-        from litex.soc.interconnect import wishbone
-        serwb_bus = wishbone.Interface(data_width=32, address_width=32)
-        self.comb += self.serwb_slave_core.bus.connect(serwb_bus)
-        self.comb += serwb_bus.adr.eq(self.serwb_slave_core.bus.adr & 0x00ff_ffff) # FIXME.
-        self.bus.add_master("serwb", serwb_bus) # FIXME: Add origin and size capability -> Would automatically filter addresses.
+        self.bus.add_master("serwb", self.serwb_slave_core.bus, SoCRegion(origin=0x00000000, size=0x10000000))
 
         # Leds -------------------------------------------------------------------------------------
         self.comb += [
