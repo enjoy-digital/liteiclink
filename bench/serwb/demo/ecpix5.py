@@ -43,7 +43,7 @@ serwb_io = [
 
 # SerWBDemoSoC ------------------------------------------------------------------------------------
 
-class SerWBDemoSoC(SoCMini):
+class SerWBDemoSoC(SoCCore):
     def __init__(self, platform, with_analyzer=False):
         sys_clk_freq = int(25e6)
 
@@ -52,13 +52,16 @@ class SerWBDemoSoC(SoCMini):
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
-            csr_data_width = 32,
-            ident          = "LiteICLink SerWB demo on ECPIX-5",
-            ident_version  = True,
+            csr_data_width       = 32,
+            cpu_type             = "vexriscv",
+            integrated_rom_size  = 0x10000,
+            integrated_sram_size = 0x10000,
+            with_timer           = True,
+            ident                = "LiteICLink SerWB demo on ECPIX-5",
+            ident_version        = True,
+            with_uart            = True,
+            uart_name            = "crossover",
         )
-
-        # UARTBone ---------------------------------------------------------------------------------
-        self.add_uartbone()
 
         # Etherbone --------------------------------------------------------------------------------
         self.ethphy = LiteEthPHYRGMII(
