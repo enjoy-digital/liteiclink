@@ -84,7 +84,7 @@ class SerWBDemoSoC(SoCMini):
         # Address Remapping.
         # ------------------
         serwb_bus = wishbone.Interface(address_width=32, data_width=32)
-        self.submodules += wishbone.RegionsRemapper(
+        self.submodules += wishbone.Remapper(
             master      = self.bus.masters["serwb"],
             slave       = serwb_bus,
             src_regions = [SoCRegion(origin=0x10000000, size=0x10000000)],
