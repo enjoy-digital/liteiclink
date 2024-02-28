@@ -214,6 +214,6 @@ if __name__ == "__main__":
 
 # Use ----------------------------------------------------------------------------------------------
 
-# ./efinix_titanium_ti60_f225_dev_kit.py --with-analyzer --build --load
+# ./ti60_f225_dev_kit.py --with-analyzer --build --load
 # litex_server --jtag --jtag-config=openocd_titanium_ft4232.cfg
 # ./test_serwb.py --ident --init --sram --access

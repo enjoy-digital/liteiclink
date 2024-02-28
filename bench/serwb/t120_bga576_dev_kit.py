@@ -224,6 +224,6 @@ if __name__ == "__main__":
 
 # Use ----------------------------------------------------------------------------------------------
 
-# ./efinix_trion_t120_bga576_dev_kit.py --build --load
+# ./t120_bga576_dev_kit.py --build --load
 # litex_server --uart --uart-port=/dev/ttyUSBX
 # ./test_serwb.py --ident --init --sram --access
