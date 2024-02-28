@@ -3,10 +3,11 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2019-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2019-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
+import time
 import argparse
 
 from migen import *
@@ -25,10 +26,12 @@ from litex.soc.cores.code_8b10b import K
 
 from liteiclink.serdes.serdes_ecp5 import SerDesECP5PLL, SerDesECP5
 
+from litescope import LiteScopeAnalyzer
+
 # IOs ----------------------------------------------------------------------------------------------
 
 _transceiver_io = [
-    # PCIe
+    # PCIe.
     ("pcie_tx", 0,
         Subsignal("p", Pins("W4")),
         Subsignal("n", Pins("W5")),
@@ -49,19 +52,22 @@ class _CRG(LiteXModule):
 
         # # #
 
-        # Clk / Rst
+        # Clk / Rst.
+        # ----------
         clk100 = platform.request("clk100")
         rst_n  = platform.request("rst_n")
         platform.add_period_constraint(clk100, 1e9/100e6)
 
-        # Power on reset
+        # Power on reset.
+        # ---------------
         por_count = Signal(16, reset=2**16-1)
         por_done  = Signal()
         self.comb += self.cd_por.clk.eq(ClockSignal())
         self.comb += por_done.eq(por_count == 0)
         self.sync.por += If(~por_done, por_count.eq(por_count - 1))
 
-        # PLL
+        # PLL.
+        # ----
         self.pll = pll = ECP5PLL()
         pll.register_clkin(clk100, 100e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq, with_reset=False)
@@ -95,7 +101,8 @@ class SerDesTestSoC(SoCMini):
             1.5e9:    150e6,
             2.5e9:    156.25e6,
             3.0e9:    150e6,
-            5.0e9:    250e6}[linerate]
+            5.0e9:    250e6,
+        }[linerate]
         self.crg = _CRG(platform, sys_clk_freq, refclk_from_pll, refclk_freq)
 
         # SerDes RefClk ----------------------------------------------------------------------------
@@ -116,8 +123,7 @@ class SerDesTestSoC(SoCMini):
             self.extref0.attr.add(("LOC", "EXTREF0"))
 
         # SerDes PLL -------------------------------------------------------------------------------
-        serdes_pll = SerDesECP5PLL(refclk, refclk_freq=refclk_freq, linerate=linerate)
-        self.submodules += serdes_pll
+        self.serdes_pll = serdes_pll = SerDesECP5PLL(refclk, refclk_freq=refclk_freq, linerate=linerate)
         print(serdes_pll)
 
         # SerDes -----------------------------------------------------------------------------------
@@ -126,7 +132,8 @@ class SerDesTestSoC(SoCMini):
         channel = 1 if connector == "sma" else 0
         self.serdes0 = serdes0 = SerDesECP5(serdes_pll, tx_pads, rx_pads,
             channel    = channel,
-            data_width = 20)
+            data_width = 20,
+        )
         serdes0.add_stream_endpoints()
         serdes0.add_controls()
         serdes0.add_clock_cycles()
@@ -138,7 +145,8 @@ class SerDesTestSoC(SoCMini):
         counter = Signal(32)
         self.sync.tx += counter.eq(counter + 1)
 
-        # K28.5 and slow counter --> TX
+        # K28.5 and slow counter --> TX.
+        # ------------------------------
         self.comb += [
             serdes0.sink.valid.eq(1),
             serdes0.sink.ctrl.eq(0b1),
@@ -146,7 +154,8 @@ class SerDesTestSoC(SoCMini):
             serdes0.sink.data[8:].eq(counter[26:]),
         ]
 
-        # RX (slow counter) --> Leds
+        # RX (slow counter) --> Leds.
+        # ---------------------------
         counter = Signal(8)
         self.sync.rx += [
             serdes0.rx_align.eq(1),
@@ -177,12 +186,16 @@ class SerDesTestSoC(SoCMini):
         self.comb += platform.request("user_led", 2).eq(tx_counter[26])
 
         # Analyzer ---------------------------------------------------------------------------------
-        from litescope import LiteScopeAnalyzer
-        self.analyzer = LiteScopeAnalyzer([
+        analyzer_signals = [
             serdes0.init.fsm,
             serdes0.init.tx_lol,
             serdes0.init.rx_lol,
-            ], depth=512)
+        ]
+        self.analyzer = LiteScopeAnalyzer(analyzer_signals,
+            depth        = 512,
+            clock_domain = "sys",
+            csr_csv      = "analyzer.csv",
+        )
 
         # Debug ------------------------------------------------------------------------------------
         self.platform.add_extension([("debug", 0, Pins("X3:4"), IOStandard("LVCMOS33"))])
@@ -205,7 +218,6 @@ def main():
         connector = args.connector,
         linerate  = float(args.linerate)
     )
-    import time
     time.sleep(1) # Yosys/NextPnr are too fast, add sleep to see LiteX logs :)
     builder = Builder(soc, csr_csv="csr.csv")
     builder.build(run=args.build)

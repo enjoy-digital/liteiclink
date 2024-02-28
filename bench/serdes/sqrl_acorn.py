@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
@@ -27,14 +27,14 @@ from liteiclink.serdes.gtp_7series import GTPQuadPLL, GTP
 # IOs ----------------------------------------------------------------------------------------------
 
 _transceiver_io = [
-    # PCIe
+    # PCIe.
     ("pcie_tx", 0,
         Subsignal("p", Pins("B6")),
-        Subsignal("n", Pins("A6"))
+        Subsignal("n", Pins("A6")),
     ),
     ("pcie_rx", 0,
         Subsignal("p", Pins("B10")),
-        Subsignal("n", Pins("A10"))
+        Subsignal("n", Pins("A10")),
     ),
 ]
 
@@ -45,14 +45,16 @@ class CRG(LiteXModule):
         self.rst    = Signal()
         self.cd_sys = ClockDomain()
 
-        # Clk/Rst
+        # Clk/Rst.
+        # --------
         clk200 = platform.request("clk200")
 
-        # PLL
+        # PLL.
+        # ----
         self.pll = pll = S7PLL()
         self.comb += pll.reset.eq(self.rst)
         pll.register_clkin(clk200, 200e6)
-        pll.create_clkout(self.cd_sys,       sys_clk_freq)
+        pll.create_clkout(self.cd_sys, sys_clk_freq)
 
 # GTPTestSoC ---------------------------------------------------------------------------------------
 
@@ -77,9 +79,8 @@ class GTPTestSoC(SoCMini):
 
 
         # GTP PLL ----------------------------------------------------------------------------------
-        pll = GTPQuadPLL(self.cd_refclk.clk, 125e6, linerate)
+        self.pll = pll = GTPQuadPLL(self.cd_refclk.clk, 125e6, linerate)
         print(pll)
-        self.submodules += pll
 
         # GTP --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
@@ -87,7 +88,8 @@ class GTPTestSoC(SoCMini):
         self.serdes0 = serdes0 = GTP(pll, tx_pads, rx_pads, sys_clk_freq,
             tx_buffer_enable = True,
             rx_buffer_enable = True,
-            clock_aligner    = False)
+            clock_aligner    = False,
+        )
         serdes0.add_stream_endpoints()
         serdes0.add_controls()
         serdes0.add_clock_cycles()
@@ -100,7 +102,8 @@ class GTPTestSoC(SoCMini):
         counter = Signal(32)
         self.sync.tx += counter.eq(counter + 1)
 
-        # K28.5 and slow counter --> TX
+        # K28.5 and slow counter --> TX.
+        # ------------------------------
         self.comb += [
             serdes0.sink.valid.eq(1),
             serdes0.sink.ctrl.eq(0b1),
@@ -108,7 +111,8 @@ class GTPTestSoC(SoCMini):
             serdes0.sink.data[8:].eq(counter[26:]),
         ]
 
-        # RX (slow counter) --> Leds
+        # RX (slow counter) --> Leds.
+        # ---------------------------
         self.comb += platform.request("user_led", 3).eq(serdes0.source.data[0])
 
         # Leds -------------------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
@@ -27,24 +27,24 @@ from liteiclink.serdes.gtx_7series import GTXChannelPLL, GTXQuadPLL, GTX
 # IOs ----------------------------------------------------------------------------------------------
 
 _transceiver_io = [
-    # PCIe
+    # PCIe.
     ("pcie_tx", 0,
         Subsignal("p", Pins("L4")),
-        Subsignal("n", Pins("L3"))
+        Subsignal("n", Pins("L3")),
     ),
     ("pcie_rx", 0,
         Subsignal("p", Pins("M6")),
-        Subsignal("n", Pins("M5"))
+        Subsignal("n", Pins("M5")),
     ),
     # SFP: Already provided by KC705 platform.
-    # SMA
+    # SMA.
     ("sma_tx", 0,
         Subsignal("p", Pins("K2")),
-        Subsignal("n", Pins("K1"))
+        Subsignal("n", Pins("K1")),
     ),
     ("sma_rx", 0,
         Subsignal("p", Pins("K6")),
-        Subsignal("n", Pins("K5"))
+        Subsignal("n", Pins("K5")),
     ),
 ]
 
@@ -72,13 +72,13 @@ class GTXTestSoC(SoCMini):
             i_CEB = 0,
             i_I   = refclk_pads.p,
             i_IB  = refclk_pads.n,
-            o_O   = refclk)
+            o_O   = refclk,
+        )
 
         # GTX PLL ----------------------------------------------------------------------------------
         pll_cls = GTXQuadPLL if use_qpll else GTXChannelPLL
-        pll     = pll_cls(refclk, 125e6, linerate)
+        self.pll = pll = pll_cls(refclk, 125e6, linerate)
         print(pll)
-        self.submodules += pll
 
         # GTX --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
@@ -86,7 +86,8 @@ class GTXTestSoC(SoCMini):
         self.serdes0 = serdes0 = GTX(pll, tx_pads, rx_pads, sys_clk_freq,
             tx_buffer_enable = True,
             rx_buffer_enable = True,
-            clock_aligner    = False)
+            clock_aligner    = False,
+        )
         serdes0.add_stream_endpoints()
         serdes0.add_controls()
         serdes0.add_clock_cycles()
@@ -102,7 +103,8 @@ class GTXTestSoC(SoCMini):
         counter = Signal(32)
         self.sync.tx += counter.eq(counter + 1)
 
-        # K28.5 and slow counter --> TX
+        # K28.5 and slow counter --> TX.
+        # ------------------------------
         self.comb += [
             serdes0.sink.valid.eq(1),
             serdes0.sink.ctrl.eq(0b1),
@@ -110,7 +112,8 @@ class GTXTestSoC(SoCMini):
             serdes0.sink.data[8:].eq(counter[26:]),
         ]
 
-        # RX (slow counter) --> Leds
+        # RX (slow counter) --> Leds.
+        # ---------------------------
         for i in range(4):
             self.comb += platform.request("user_led", 4 + i).eq(serdes0.source.data[i])
 
@@ -143,7 +146,7 @@ def main():
     soc = GTXTestSoC(platform,
         connector = args.connector,
         linerate  = float(args.linerate),
-        use_qpll  = args.pll == "qpll"
+        use_qpll  = args.pll == "qpll",
     )
     builder = Builder(soc, csr_csv="kc705.csv")
     builder.build(run=args.build)

@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 # LiteICLink PRBS/BER test utility.
@@ -95,7 +95,13 @@ class SerDes:
 
 # PRBS Test ----------------------------------------------------------------------------------------
 
-def prbs_test(csr_csv="csr.csv", port=1234, serdes=0, mode="prbs7", square_wave=False, loopback=False, duration=60):
+def prbs_test(csr_csv="csr.csv", port=1234,
+    serdes      = 0,
+    mode        = "prbs7",
+    square_wave = False,
+    loopback    = False,
+    duration    = 60
+):
     wb = RemoteClient(csr_csv=csr_csv, port=port)
     wb.open()
 
@@ -164,7 +170,7 @@ def main():
         mode        = args.mode,
         square_wave = args.square_wave,
         loopback    = args.loopback,
-        duration    = int(args.duration, 0)
+        duration    = int(args.duration, 0),
     )
 
 if __name__ == "__main__":

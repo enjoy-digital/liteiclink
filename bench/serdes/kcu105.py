@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
@@ -27,41 +27,41 @@ from liteiclink.serdes.gth_ultrascale import GTHChannelPLL, GTH3
 # IOs ----------------------------------------------------------------------------------------------
 
 _transceiver_io = [
-    # PCIe
+    # PCIe.
     ("pcie_tx", 0,
         Subsignal("p", Pins("AC3")),
-        Subsignal("n", Pins("AC4"))
+        Subsignal("n", Pins("AC4")),
     ),
     ("pcie_rx", 0,
         Subsignal("p", Pins("AB2")),
-        Subsignal("n", Pins("AB1"))
+        Subsignal("n", Pins("AB1")),
     ),
-    # SFP0
+    # SFP0.
     ("sfp0_tx", 0,
         Subsignal("p", Pins("U4")),
-        Subsignal("n", Pins("U3"))
+        Subsignal("n", Pins("U3")),
     ),
     ("sfp0_rx", 0,
         Subsignal("p", Pins("T2")),
-        Subsignal("n", Pins("T1"))
+        Subsignal("n", Pins("T1")),
     ),
-    # SFP1
+    # SFP1.
     ("sfp1_tx", 0,
         Subsignal("p", Pins("W4")),
-        Subsignal("n", Pins("W3"))
+        Subsignal("n", Pins("W3")),
     ),
     ("sfp1_rx", 0,
         Subsignal("p", Pins("V2")),
-        Subsignal("n", Pins("V1"))
+        Subsignal("n", Pins("V1")),
     ),
-    # SMA
+    # SMA.
     ("sma_tx", 0,
         Subsignal("p", Pins("R4")),
-        Subsignal("n", Pins("R3"))
+        Subsignal("n", Pins("R3")),
     ),
     ("sma_rx", 0,
         Subsignal("p", Pins("P2")),
-        Subsignal("n", Pins("P1"))
+        Subsignal("n", Pins("P1")),
     ),
 ]
 
@@ -90,11 +90,13 @@ class GTHTestSoC(SoCMini):
             i_D2 = 1,
             i_SR = 0,
             i_C  = ClockSignal(),
-            o_Q  = user_sma_clock)
+            o_Q  = user_sma_clock,
+        )
         self.specials += Instance("OBUFDS",
             i_I  = user_sma_clock,
             o_O  = user_sma_clock_pads.p,
-            o_OB = user_sma_clock_pads.n)
+            o_OB = user_sma_clock_pads.n,
+        )
 
         # GTH RefClk -------------------------------------------------------------------------------
         refclk      = Signal()
@@ -103,12 +105,12 @@ class GTHTestSoC(SoCMini):
             i_CEB = 0,
             i_I   = refclk_pads.p,
             i_IB  = refclk_pads.n,
-            o_O   = refclk)
+            o_O   = refclk,
+        )
 
         # GTH PLL ----------------------------------------------------------------------------------
-        cpll = GTHChannelPLL(refclk, 125e6, linerate)
+        self.cpll = cpll = GTHChannelPLL(refclk, 125e6, linerate)
         print(cpll)
-        self.submodules += cpll
 
         # GTH --------------------------------------------------------------------------------------
         tx_pads = platform.request(connector + "_tx")
@@ -116,7 +118,8 @@ class GTHTestSoC(SoCMini):
         self.serdes0 = serdes0 = GTH3(cpll, tx_pads, rx_pads, sys_clk_freq,
             tx_buffer_enable = True,
             rx_buffer_enable = True,
-            clock_aligner    = False)
+            clock_aligner    = False,
+        )
         serdes0.add_stream_endpoints()
         serdes0.add_controls()
         serdes0.add_clock_cycles()
@@ -134,7 +137,8 @@ class GTHTestSoC(SoCMini):
         counter = Signal(32)
         self.sync.tx += counter.eq(counter + 1)
 
-        # K28.5 and slow counter --> TX
+        # K28.5 and slow counter --> TX.
+        # ------------------------------
         self.comb += [
             serdes0.sink.valid.eq(1),
             serdes0.sink.ctrl.eq(0b1),
@@ -142,7 +146,8 @@ class GTHTestSoC(SoCMini):
             serdes0.sink.data[8:].eq(counter[26:]),
         ]
 
-        # RX (slow counter) --> Leds
+        # RX (slow counter) --> Leds.
+        # ---------------------------
         for i in range(4):
             self.comb += platform.request("user_led", 4 + i).eq(serdes0.source.data[i])
 
@@ -173,7 +178,7 @@ def main():
     platform.add_extension(_transceiver_io)
     soc = GTHTestSoC(platform,
         connector = args.connector,
-        linerate  = float(args.linerate)
+        linerate  = float(args.linerate),
     )
     builder = Builder(soc, csr_csv="kcu105.csv")
     builder.build(run=args.build)

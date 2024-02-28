@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import sys
@@ -25,20 +25,22 @@ from litex.soc.cores.code_8b10b import K
 
 from liteiclink.serdes.gty_ultrascale import GTYChannelPLL, GTYQuadPLL, GTY
 
+from litescope import LiteScopeAnalyzer
+
 # IOs ----------------------------------------------------------------------------------------------
 
 _transceiver_io = [
-    # PCIe
+    # PCIe.
     ("pcie_tx", 0,
         Subsignal("p", Pins("AF7")),
-        Subsignal("n", Pins("AF6"))
+        Subsignal("n", Pins("AF6")),
     ),
     ("pcie_rx", 0,
         Subsignal("p", Pins("AF2")),
-        Subsignal("n", Pins("AF1"))
+        Subsignal("n", Pins("AF1")),
     ),
 
-    # QSFP0
+    # QSFP0.
     ("qsfp0_refclk", 0,
         Subsignal("p", Pins("M11")),
         Subsignal("n", Pins("M10")),
@@ -46,14 +48,14 @@ _transceiver_io = [
     ("qsfp0_fs", 0, Pins("AT20 AU22"), IOStandard("LVCMOS12")),
     ("qsfp0_tx", 0,
         Subsignal("p", Pins("N9")),
-        Subsignal("n", Pins("N8"))
+        Subsignal("n", Pins("N8")),
     ),
     ("qsfp0_rx", 0,
         Subsignal("p", Pins("N4")),
-        Subsignal("n", Pins("N3"))
+        Subsignal("n", Pins("N3")),
     ),
 
-    # QSFP1
+    # QSFP1.
     ("qsfp1_refclk", 0,
         Subsignal("p", Pins("T11")),
         Subsignal("n", Pins("T10")),
@@ -61,11 +63,11 @@ _transceiver_io = [
     ("qsfp1_fs", 0, Pins("AR22 AU20"), IOStandard("LVCMOS12")),
     ("qsfp1_tx", 0,
         Subsignal("p", Pins("U9")),
-        Subsignal("n", Pins("U8"))
+        Subsignal("n", Pins("U8")),
     ),
     ("qsfp1_rx", 0,
         Subsignal("p", Pins("U4")),
-        Subsignal("n", Pins("U3"))
+        Subsignal("n", Pins("U3")),
     ),
 ]
 
@@ -106,7 +108,8 @@ class GTYTestSoC(SoCMini):
             i_CEB = 0,
             i_I   = refclk_pads.p,
             i_IB  = refclk_pads.n,
-            o_O   = refclk)
+            o_O   = refclk,
+        )
         if connector in ["qsfp0", "qsfp1"]:
             self.comb += platform.request(connector + "_fs").eq(0b01)
         if connector in ["qsfp0+1"]:
@@ -119,24 +122,20 @@ class GTYTestSoC(SoCMini):
             connectors = [connector]
 
         for i, connector in enumerate(connectors):
-            # GTY PLL ----------------------------------------------------------------------------------
-            if use_qpll:
-                pll = GTYQuadPLL(refclk, 156.25e6, linerate)
-                print(pll)
-                self.pll = pll
-            else:
-                pll = GTYChannelPLL(refclk, 156.25e6, linerate)
-                print(pll)
-                self.submodules += pll
+            # GTY PLL ------------------------------------------------------------------------------
+            pll_cls = GTYQuadPLL if use_qpll else GTYChannelPLL
+            self.pll = pll = pll_cls(refclk, 156.25e6, linerate)
+            print(pll)
 
-            # GTY --------------------------------------------------------------------------------------
+            # GTY ----------------------------------------------------------------------------------
             tx_pads = platform.request(connector + "_tx")
             rx_pads = platform.request(connector + "_rx")
             serdes = GTY(pll, tx_pads, rx_pads, sys_clk_freq,
                 tx_buffer_enable = True,
                 rx_buffer_enable = True,
-                clock_aligner    = False)
-            setattr(self.submodules, f"serdes{i}", serdes)
+                clock_aligner    = False,
+            )
+            self.add_module(f"serdes{i}", serdes)
             serdes.add_stream_endpoints()
             serdes.add_controls()
             serdes.add_clock_cycles()
@@ -149,7 +148,8 @@ class GTYTestSoC(SoCMini):
         counter = Signal(32)
         self.sync += counter.eq(counter + 1)
 
-        # K28.5 and slow counter --> TX
+        # K28.5 and slow counter --> TX.
+        # ------------------------------
         self.comb += [
             self.serdes0.sink.valid.eq(1),
             self.serdes0.sink.ctrl.eq(0b1),
@@ -158,7 +158,6 @@ class GTYTestSoC(SoCMini):
         ]
 
         # Analyzer ---------------------------------------------------------------------------------
-        from litescope import LiteScopeAnalyzer
         analyzer_signals = [
             self.serdes0.tx_init.done,
             self.serdes0.rx_init.done,
@@ -170,7 +169,8 @@ class GTYTestSoC(SoCMini):
         self.analyzer = LiteScopeAnalyzer(analyzer_signals,
             depth        = 512,
             clock_domain = "sys",
-            csr_csv      = "analyzer.csv")
+            csr_csv      = "analyzer.csv",
+        )
 
 # Build --------------------------------------------------------------------------------------------
 
@@ -188,7 +188,7 @@ def main():
     soc = GTYTestSoC(platform,
         connector = args.connector,
         linerate  = float(args.linerate),
-        use_qpll  = args.pll == "qpll"
+        use_qpll  = args.pll == "qpll",
     )
     builder = Builder(soc, csr_csv="xcu1525.csv")
     builder.build(run=args.build)
