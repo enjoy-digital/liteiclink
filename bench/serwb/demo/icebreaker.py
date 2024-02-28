@@ -11,6 +11,7 @@ import argparse
 from migen import *
 
 from litex.gen import *
+from litex.gen.genlib.misc import WaitTimer
 
 from litex.build.generic_platform import *
 
@@ -24,7 +25,7 @@ from litex.soc.interconnect import wishbone
 from litex.soc.cores.ram import Up5kSPRAM
 
 from liteiclink.serwb.genphy import SERWBPHY
-from liteiclink.serwb.core import SERWBCore
+from liteiclink.serwb.core import SERWBCore, SERIOCore
 
 kB = 1024
 
@@ -91,6 +92,18 @@ class SerWBDemoSoC(SoCMini):
             dst_regions = [SoCRegion(origin=0x40000000, size=0x10000000)],
         )
         self.bus.masters["serwb"] = serwb_bus
+
+        # SerIO ------------------------------------------------------------------------------------
+
+        # SerIO.
+        # ------
+        self.serio = SERIOCore(serwb_core=self.serwb_slave_core)
+
+        # Increment Inputs every 100ms as PoC.
+        # ------------------------------------
+        self.serio_timer = WaitTimer(100e-3*sys_clk_freq)
+        self.comb += self.serio_timer.wait.eq(~self.serio_timer.done)
+        self.sync += If(self.serio_timer.done, self.serio.i.eq(self.serio.i + 1))
 
         # Leds -------------------------------------------------------------------------------------
         self.comb += [

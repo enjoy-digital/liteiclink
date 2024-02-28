@@ -25,7 +25,7 @@ from litex.soc.integration.builder import *
 from litex.soc.interconnect import wishbone
 
 from liteiclink.serwb.genphy import SERWBPHY
-from liteiclink.serwb.core import SERWBCore
+from liteiclink.serwb.core import SERWBCore, SERIOCore
 
 from liteeth.phy.ecp5rgmii import LiteEthPHYRGMII
 
@@ -92,6 +92,12 @@ class SerWBDemoSoC(SoCCore):
         # --------------------------
         self.bus.add_slave("serwb", self.serwb_master_core.bus, SoCRegion(origin=0x40000000, size=0x20000000))
 
+        # SerIO ------------------------------------------------------------------------------------
+
+        # SerIO.
+        # ------
+        self.serio = SERIOCore(serwb_core=self.serwb_master_core)
+
         # Leds -------------------------------------------------------------------------------------
         leds_pads = []
         for i in range(4):
@@ -101,8 +107,8 @@ class SerWBDemoSoC(SoCCore):
         self.comb += [
             leds_pads[0].eq(~self.serwb_master_phy.init.ready),
             leds_pads[1].eq(~self.serwb_master_phy.init.error),
-            leds_pads[2].eq(1),
-            leds_pads[3].eq(1)
+            leds_pads[2].eq(self.serio.o[0]), # Counter from Slave through SerIO.
+            leds_pads[3].eq(self.serio.o[1]), # Counter from Slave through SerIO.
         ]
 
         # Analyzer ---------------------------------------------------------------------------------
