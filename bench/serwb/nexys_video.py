@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
@@ -32,7 +32,7 @@ from litescope import LiteScopeAnalyzer
 # IOs ----------------------------------------------------------------------------------------------
 
 serwb_io = [
-    # HDMI loopback
+    # HDMI loopback.
     ("serwb_master", 0,
         Subsignal("clk_p", Pins("T1"), IOStandard("TMDS_33")), # hdmi_out clk
         Subsignal("clk_n", Pins("U1"), IOStandard("TMDS_33")), # hdmi_out clk
@@ -63,6 +63,8 @@ class _CRG(LiteXModule):
 
         # # #
 
+        # PLL.
+        # ----
         self.pll = pll = S7PLL(speedgrade=-1)
         self.comb += pll.reset.eq(~platform.request("cpu_reset"))
         pll.register_clkin(platform.request("clk100"), 100e6)
@@ -70,6 +72,8 @@ class _CRG(LiteXModule):
         pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
         pll.create_clkout(self.cd_idelay,    200e6)
 
+        # IDelayCtrl.
+        # -----------
         self.idelayctrl = S7IDELAYCTRL(self.cd_idelay)
 
 # SerWBTestSoC ------------------------------------------------------------------------------------
@@ -92,7 +96,8 @@ class SerWBTestSoC(SoCMini):
             ident          = "LiteICLink SerWB bench on Nexys Video",
             ident_version  = True,
             with_uart      = True,
-            uart_name      = "uartbone")
+            uart_name      = "uartbone",
+        )
 
         # SerWB ------------------------------------------------------------------------------------
         # SerWB simple test with a SerWB Master added as a Slave peripheral to the SoC and connected
@@ -106,32 +111,48 @@ class SerWBTestSoC(SoCMini):
         #                   +--------+    +------+    +------+    +------+
         # ------------------------------------------------------------------------------------------
 
-        # Enable
+        # Enable.
+        # -------
         self.comb += platform.request("serwb_enable").eq(1)
 
+        # PHY.
+        # ----
         phy_cls = SERWBLowSpeedPHY if low_speed else SERWBPHY
 
-        # Master
+        # Master.
+        # -------
         self.serwb_master_phy = phy_cls(
             device = platform.device,
             pads   = platform.request("serwb_master"),
-            mode   = "master")
+            mode   = "master",
+        )
 
-        # Slave
+        # Slave.
+        # ------
         self.serwb_slave_phy = phy_cls(
             device = platform.device,
             pads   = platform.request("serwb_slave"),
-            mode   ="slave")
+            mode   ="slave",
+        )
 
-        # Wishbone Slave
-        serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave")
-        self.submodules += serwb_master_core
+        # Wishbone Slave.
+        # ---------------
+        self.serwb_master_core = serwb_master_core = SERWBCore(
+            phy      = self.serwb_master_phy,
+            clk_freq = self.clk_freq,
+            mode     = "slave",
+        )
 
-        # Wishbone Master
-        serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master")
-        self.submodules += serwb_slave_core
+        # Wishbone Master.
+        # ----------------
+        self.serwb_slave_core = serwb_slave_core = SERWBCore(
+            phy      = self.serwb_slave_phy,
+            clk_freq = self.clk_freq,
+            mode     = "master",
+        )
 
-        # Wishbone SRAM
+        # Wishbone SRAM.
+        # --------------
         self.serwb_sram = wishbone.SRAM(8192)
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
         self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
@@ -170,11 +191,11 @@ class SerWBTestSoC(SoCMini):
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteICLink SerWB bench on Nexys Video")
-    parser.add_argument("--build",         action="store_true", help="Build bitstream")
-    parser.add_argument("--load",          action="store_true", help="Load bitstream (to SRAM)")
-    parser.add_argument("--low-speed",     action="store_true", help="Use Low-Speed PHY")
-    parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer")
+    parser = argparse.ArgumentParser(description="LiteICLink SerWB bench on Nexys Video.")
+    parser.add_argument("--build",         action="store_true", help="Build bitstream.")
+    parser.add_argument("--load",          action="store_true", help="Load bitstream (to SRAM).")
+    parser.add_argument("--low-speed",     action="store_true", help="Use Low-Speed PHY.")
+    parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer.")
     args = parser.parse_args()
 
     platform = digilent_nexys_video.Platform()

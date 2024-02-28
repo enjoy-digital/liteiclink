@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2020-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
@@ -32,8 +32,11 @@ from liteiclink.serwb.core import SERWBCore
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
+    # Clk / Rst.
     ("sys_clk", 0, Pins(1)),
     ("sys_rst", 0, Pins(1)),
+
+    # Serial.
     ("serial", 0,
         Subsignal("source_valid", Pins(1)),
         Subsignal("source_ready", Pins(1)),
@@ -43,6 +46,7 @@ _io = [
         Subsignal("sink_ready", Pins(1)),
         Subsignal("sink_data",  Pins(8)),
     ),
+    # Ethernet.
     ("eth", 0,
         Subsignal("source_valid", Pins(1)),
         Subsignal("source_ready", Pins(1)),
@@ -77,34 +81,38 @@ class SerWBMinSoC(SoCMini):
 
         # SerWB ------------------------------------------------------------------------------------
 
-        # Pads
+        # Pads.
+        # -----
         serwb_master_pads = Record([("tx", 1), ("rx", 1)])
         serwb_slave_pads  = Record([("tx", 1), ("rx", 1)])
         self.comb += serwb_slave_pads.rx.eq(serwb_master_pads.tx)
         self.comb += serwb_master_pads.rx.eq(serwb_slave_pads.tx)
 
-        # Master
-        serwb_master_phy = SERWBPHY(
+        # Master.
+        # -------
+        self.serwb_master_phy = serwb_master_phy = SERWBPHY(
             device       = platform.device,
             pads         = serwb_master_pads,
             mode         = "master",
-            init_timeout = 128)
-        self.submodules += serwb_master_phy
+            init_timeout = 128
+        )
 
-        # Slave
-        serwb_slave_phy = SERWBPHY(
+        # Slave.
+        # ------
+        self.serwb_slave_phy = serwb_slave_phy = SERWBPHY(
             device       = platform.device,
             pads         = serwb_slave_pads,
             mode         ="slave",
-            init_timeout = 128)
-        self.submodules += serwb_slave_phy
+            init_timeout = 128,
+        )
 
-        # Simulation Timer
+        # Sim Timer.
+        # ----------
         timer = Signal(32)
         self.sync += timer.eq(timer + 1)
 
-
-        # Simulation Gen/Check
+        # Sim Gen/Check.
+        # --------------
         class EndpointCounterGenerator(Module):
             def __init__(self, name, ready, endpoint):
                 counter = Signal(32)
@@ -131,16 +139,19 @@ class SerWBMinSoC(SoCMini):
 
         ready = serwb_master_phy.init.ready & serwb_slave_phy.init.ready
 
-        # Master gen/check
+        # Master gen/check.
+        # -----------------
         self.submodules += EndpointCounterGenerator("Master", ready=ready, endpoint=serwb_master_phy.sink)
         self.submodules += EndpointCounterChecker("Master",  ready=ready, endpoint=serwb_master_phy.source)
 
-        # Slave gen/check
+        # Slave gen/check.
+        # ----------------
         self.submodules += EndpointCounterGenerator("Slave",  ready=ready, endpoint=serwb_slave_phy.sink)
         self.submodules += EndpointCounterChecker("Slave",  ready=ready, endpoint=serwb_slave_phy.source)
 
 
-        # Simulation Status
+        # Simu Status.
+        # ------------
         serwb_master_phy.init.fsm.finalize()
         serwb_slave_phy.init.fsm.finalize()
         for phy, fsm in [
@@ -172,23 +183,15 @@ class SerWBSoC(SoCCore):
             ident         = "LiteICLink SerWB bench simulation",
             ident_version = True,
             with_uart     = True,
-            uart_name     = "sim")
+            uart_name     = "sim",
+        )
 
         # CRG --------------------------------------------------------------------------------------
         self.crg = CRG(platform.request("sys_clk"))
 
         # Etherbone---------------------------------------------------------------------------------
-        # phy
         self.ethphy = LiteEthPHYModel(self.platform.request("eth"))
-        # core
-        ethcore = LiteEthUDPIPCore(self.ethphy,
-            mac_address = 0x10e2d5000000,
-            ip_address  = "192.168.1.50",
-            clk_freq    = sys_clk_freq)
-        self.ethcore = ethcore
-        # etherbone
-        self.etherbone = LiteEthEtherbone(self.ethcore.udp, 1234, mode="master")
-        self.bus.add_master(master=self.etherbone.wishbone.bus)
+        self.add_etherbone(phy=self.ethphy)
 
         # SerWB ------------------------------------------------------------------------------------
         # SerWB simple test with a SerWB Master added as a Slave peripheral to the SoC and connected
@@ -202,35 +205,43 @@ class SerWBSoC(SoCCore):
         #                   +--------+    +------+    +------+    +------+
         # ------------------------------------------------------------------------------------------
 
-        # Pads
+        # Pads.
+        # -----
         serwb_master_pads = Record([("tx", 1), ("rx", 1)])
         serwb_slave_pads  = Record([("tx", 1), ("rx", 1)])
         self.comb += serwb_slave_pads.rx.eq(serwb_master_pads.tx)
         self.comb += serwb_master_pads.rx.eq(serwb_slave_pads.tx)
 
-        # Master
+        # Master.
+        # -------
         self.serwb_master_phy = SERWBPHY(
             device       = platform.device,
             pads         = serwb_master_pads,
             mode         = "master",
-            init_timeout = 128)
+            init_timeout = 128,
+        )
 
-        # Slave
+        # Slave.
+        # ------
         self.serwb_slave_phy = SERWBPHY(
             device       = platform.device,
             pads         = serwb_slave_pads,
             mode         ="slave",
-            init_timeout = 128)
+            init_timeout = 128,
+        )
 
-        # Wishbone Slave
+        # Wishbone Slave.
+        # ---------------
         serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave")
         self.submodules += serwb_master_core
 
-        # Wishbone Master
+        # Wishbone Master.
+        # ----------------
         serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master")
         self.submodules += serwb_slave_core
 
-        # Wishbone SRAM
+        # Wishbone SRAM.
+        # --------------
         self.serwb_sram = wishbone.SRAM(8192)
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
         self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
@@ -238,11 +249,11 @@ class SerWBSoC(SoCCore):
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="SerWB LiteX/Verilator Simulation")
-    parser.add_argument("--min",         action="store_true", help="Run Minimal simulation (SerSBMinSoC)")
-    parser.add_argument("--trace",       action="store_true", help="Enable VCD tracing")
-    parser.add_argument("--trace-start", default="0",         help="Cycle to start VCD tracing")
-    parser.add_argument("--trace-end",   default="-1",        help="Cycle to end VCD tracing")
+    parser = argparse.ArgumentParser(description="SerWB LiteX/Verilator Simulation.")
+    parser.add_argument("--min",         action="store_true", help="Run Minimal simulation (SerSBMinSoC).")
+    parser.add_argument("--trace",       action="store_true", help="Enable VCD tracing.")
+    parser.add_argument("--trace-start", default="0",         help="Cycle to start VCD tracing.")
+    parser.add_argument("--trace-end",   default="-1",        help="Cycle to end VCD tracing.")
     args = parser.parse_args()
 
     sim_config = SimConfig()

@@ -3,9 +3,9 @@
 #
 # This file is part of LiteX-Boards.
 #
-# Copyright (c) 2023 MoTeC
-# Copyright (c) 2023 Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
-# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2023-2024 MoTeC
+# Copyright (c) 2023-2024 Gwenhael Goavec-Merou <gwenhael@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -65,10 +65,12 @@ class _CRG(LiteXModule):
         sys_clk_freq_div = {"1:1":1, "1:2":2, "1:4":4}[clk_ratio]
 
         # Clk/Rst.
+        # --------
         clk25 = platform.request("clk25")
         rst_n = platform.request("user_btn", 0)
 
-        # PLL
+        # PLL.
+        # ----
         self.pll = pll = TITANIUMPLL(platform)
         self.comb += pll.reset.eq(~rst_n)
         pll.register_clkin(clk25, 25e6)
@@ -99,7 +101,8 @@ class SerWBTestSoC(SoCMini):
             ident         = f"LiteICLink SerWB bench @ {int(sys_clk_freq/1e6):d}MHz on Efinix Titanium Ti60 F225 Dev Kit",
             ident_version = True,
             with_uart     = False,
-            with_jtagbone = True)
+            with_jtagbone = True,
+        )
 
         # SerWB ------------------------------------------------------------------------------------
         # SerWB simple test with a SerWB Master added as a Slave peripheral to the SoC and connected
@@ -114,8 +117,9 @@ class SerWBTestSoC(SoCMini):
         # ------------------------------------------------------------------------------------------
 
         # SerWB Master ---------------------------------------------------------------------------
-        # PHY
-        serwb_master_phy = SERWBPHY(
+        # PHY.
+        # ----
+        self.serwb_master_phy = serwb_master_phy = SERWBPHY(
             device       = self.platform.device,
             pads         = self.platform.request("serwb_master"),
             mode         = "master",
@@ -123,42 +127,46 @@ class SerWBTestSoC(SoCMini):
             clk4x        = "serwb_phy4x",
             clk_ratio    = clk_ratio,
         )
-        self.submodules.serwb_master_phy = serwb_master_phy
 
-        # Core
-        serwb_master_core = SERWBCore(serwb_master_phy, self.clk_freq, mode="slave",
+        # Core.
+        # -----
+        self.serwb_master_core = serwb_master_core = SERWBCore(
+            phy                    = serwb_master_phy,
+            clk_freq               = self.clk_freq,
+            mode                   = "slave",
             etherbone_buffer_depth = 1,
             tx_buffer_depth        = 8,
-            rx_buffer_depth        = 8
+            rx_buffer_depth        = 8,
         )
-        self.submodules += serwb_master_core
 
         # Connect as peripheral to main SoC.
+        # ----------------------------------
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=1024))
 
         # SerWB Slave ----------------------------------------------------------------------------
-        # PHY
-        serwb_slave_phy = SERWBPHY(
+        # PHY.
+        # ----
+        self.serwb_slave_phy = serwb_slave_phy = ClockDomainsRenamer("rx_sys")(SERWBPHY(
             device       = self.platform.device,
             pads         = self.platform.request("serwb_slave"),
             mode         = "slave",
             clk_ratio    = clk_ratio,
-        )
-        serwb_slave_phy = ClockDomainsRenamer("rx_sys")(serwb_slave_phy)
-        self.submodules.serwb_slave_phy = serwb_slave_phy
+        ))
 
-        # Core
-        serwb_slave_core = SERWBCore(serwb_slave_phy, self.clk_freq, mode="master",
+        # Core.
+        # -----
+        self.serwb_slave_core = serwb_slave_core = ClockDomainsRenamer("rx_sys")(SERWBCore(
+            phy                    = serwb_slave_phy,
+            clk_freq               = self.clk_freq,
+            mode                   = "master",
             etherbone_buffer_depth = 1,
             tx_buffer_depth        = 8,
-            rx_buffer_depth        = 8
-        )
-        serwb_slave_core = ClockDomainsRenamer("rx_sys")(serwb_slave_core)
-        self.submodules += serwb_slave_core
+            rx_buffer_depth        = 8,
+        ))
 
-        # Wishbone SRAM
-        serwb_sram = ClockDomainsRenamer("rx_sys")(wishbone.SRAM(1024))
-        self.submodules += serwb_sram
+        # Wishbone SRAM.
+        # --------------
+        self.serwb_sram = serwb_sram = ClockDomainsRenamer("rx_sys")(wishbone.SRAM(1024))
         self.comb += serwb_slave_core.bus.connect(serwb_sram.bus)
 
         # Analyzer ---------------------------------------------------------------------------------

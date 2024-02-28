@@ -79,60 +79,67 @@ class SerWBTestSoC(SoCMini):
         #                   +--------+    +------+    +------+    +------+
         # ------------------------------------------------------------------------------------------
 
-        # Pads
+        # Pads.
+        # -----
         if loopback:
             serwb_master_pads = Record([("tx", 1), ("rx", 1)])
             serwb_slave_pads  = Record([("tx", 1), ("rx", 1)])
-            self.comb += serwb_slave_pads.rx.eq(serwb_master_pads.tx)
-            self.comb += serwb_master_pads.rx.eq(serwb_slave_pads.tx)
+            self.comb += [
+                serwb_slave_pads.rx.eq(serwb_master_pads.tx),
+                serwb_master_pads.rx.eq(serwb_slave_pads.tx),
+            ]
         else:
             serwb_master_pads = platform.request("serwb_master")
             serwb_slave_pads  = platform.request("serwb_slave")
 
         # SerWB Master -----------------------------------------------------------------------------
-        # PHY
-        serwb_master_phy = SERWBPHY(
+        # PHY.
+        # ----
+        self.serwb_master_phy = serwb_master_phy = SERWBPHY(
             device = platform.device,
             pads   = serwb_master_pads,
             mode   = "master")
-        self.serwb_master_phy = serwb_master_phy
 
-        # Core
-        serwb_master_core = SERWBCore(serwb_master_phy, self.clk_freq, mode="slave",
+        # Core.
+        # -----
+        self.serwb_master_core = serwb_master_core = SERWBCore(serwb_master_phy, self.clk_freq, mode="slave",
             etherbone_buffer_depth = 1,
             tx_buffer_depth        = 8,
-            rx_buffer_depth        = 8)
-        self.submodules += serwb_master_core
+            rx_buffer_depth        = 8,
+        )
 
         # Connect as peripheral to main SoC.
+        # ----------------------------------
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
 
         # SerWB Slave ------------------------------------------------------------------------------
-        # PHY
-        serwb_slave_phy = SERWBPHY(
+        # PHY.
+        # ----
+        self.serwb_slave_phy = serwb_slave_phy = ClockDomainsRenamer("serwb")(SERWBPHY(
             device = platform.device,
             pads   = serwb_slave_pads,
-            mode   ="slave")
+            mode   ="slave",
+        ))
         self.cd_serwb = ClockDomain()
         if hasattr(serwb_slave_phy.serdes, "clocking"):
             self.comb += self.cd_serwb.clk.eq(serwb_slave_phy.serdes.clocking.refclk)
         else:
             self.comb += self.cd_serwb.clk.eq(ClockSignal("sys"))
         self.specials += AsyncResetSynchronizer(self.cd_serwb, ResetSignal("sys"))
-        serwb_slave_phy = ClockDomainsRenamer("serwb")(serwb_slave_phy)
-        self.serwb_slave_phy = serwb_slave_phy
 
-        # Core
-        serwb_slave_core = SERWBCore(serwb_slave_phy, self.clk_freq, mode="master",
+        # Core.
+        # -----
+        self.serwb_slave_core = serwb_slave_core = ClockDomainsRenamer("serwb")(SERWBCore(
+            phy                    = serwb_slave_phy,
+            clk_freq               = self.clk_freq,
+            mode                   = "master",
             etherbone_buffer_depth = 1,
             tx_buffer_depth        = 8,
-            rx_buffer_depth        = 8)
-        serwb_slave_core = ClockDomainsRenamer("serwb")(serwb_slave_core)
-        self.submodules += serwb_slave_core
+            rx_buffer_depth        = 8,
+        ))
 
-        # Wishbone SRAM
-        serwb_sram = ClockDomainsRenamer("serwb")(wishbone.SRAM(8192))
-        self.submodules += serwb_sram
+        # Wishbone SRAM.
+        self.serwb_sram = serwb_sram = ClockDomainsRenamer("serwb")(wishbone.SRAM(8192))
         self.comb += serwb_slave_core.bus.connect(serwb_sram.bus)
 
         # Leds -------------------------------------------------------------------------------------
@@ -169,11 +176,11 @@ class SerWBTestSoC(SoCMini):
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteICLink SerWB bench on ULX3S")
-    parser.add_argument("--build",         action="store_true", help="Build bitstream")
-    parser.add_argument("--load",          action="store_true", help="Load bitstream (to SRAM)")
-    parser.add_argument("--loopback",      action="store_true", help="Loopback SerWB in FPGA (no IOs)")
-    parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer")
+    parser = argparse.ArgumentParser(description="LiteICLink SerWB bench on ULX3S.")
+    parser.add_argument("--build",         action="store_true", help="Build bitstream.")
+    parser.add_argument("--load",          action="store_true", help="Load bitstream (to SRAM).")
+    parser.add_argument("--loopback",      action="store_true", help="Loopback SerWB in FPGA (no IOs).")
+    parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer.")
     args = parser.parse_args()
 
     platform = radiona_ulx3s.Platform(toolchain="trellis")

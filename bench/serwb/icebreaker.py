@@ -3,7 +3,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2020-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2020-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import argparse
@@ -65,7 +65,8 @@ class SerWBTestSoC(SoCMini):
             ident          = "LiteICLink SerWB bench on iCEBreaker",
             ident_version  = True,
             with_uart      = True,
-            uart_name      = "uartbone")
+            uart_name      = "uartbone",
+        )
 
         # SerWB ------------------------------------------------------------------------------------
         # SerWB simple test with a SerWB Master added as a Slave peripheral to the SoC and connected
@@ -79,43 +80,59 @@ class SerWBTestSoC(SoCMini):
         #                   +--------+    +------+    +------+    +------+
         # ------------------------------------------------------------------------------------------
 
-        # Pads
+        # Pads.
+        # -----
         if loopback:
             serwb_master_pads = Record([("tx", 1), ("rx", 1)])
             serwb_slave_pads  = Record([("tx", 1), ("rx", 1)])
-            self.comb += serwb_slave_pads.rx.eq(serwb_master_pads.tx)
-            self.comb += serwb_master_pads.rx.eq(serwb_slave_pads.tx)
+            self.comb += [
+                serwb_slave_pads.rx.eq(serwb_master_pads.tx),
+                serwb_master_pads.rx.eq(serwb_slave_pads.tx),
+            ]
         else:
             serwb_master_pads = platform.request("serwb_master")
             serwb_slave_pads  = platform.request("serwb_slave")
 
-        # Master
+        # Master.
+        # -------
         self.serwb_master_phy = SERWBPHY(
             device = platform.device,
             pads   = serwb_master_pads,
-            mode   = "master")
+            mode   = "master",
+        )
 
-        # Slave
+        # Slave.
+        # ------
         self.serwb_slave_phy = SERWBPHY(
             device = platform.device,
             pads   = serwb_slave_pads,
-            mode   ="slave")
+            mode   ="slave",
+        )
 
-        # Wishbone Slave
-        serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave",
+        # Wishbone Slave.
+        # ---------------
+        self.serwb_master_core = serwb_master_core = SERWBCore(
+            phy                    = self.serwb_master_phy,
+            clk_freq               = self.clk_freq,
+            mode                   = "slave",
             etherbone_buffer_depth = 1,
             tx_buffer_depth        = 0,
-            rx_buffer_depth        = 0)
-        self.submodules += serwb_master_core
+            rx_buffer_depth        = 0,
+        )
 
-        # Wishbone Master
-        serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master",
+        # Wishbone Master.
+        # ----------------
+        self.serwb_slave_core = serwb_slave_core = SERWBCore(
+            phy                    = self.serwb_slave_phy,
+            clk_freq               = self.clk_freq,
+            mode                   = "master",
             etherbone_buffer_depth = 1,
             tx_buffer_depth        = 0,
-            rx_buffer_depth        = 0)
-        self.submodules += serwb_slave_core
+            rx_buffer_depth        = 0,
+        )
 
-        # Wishbone SRAM
+        # Wishbone SRAM.
+        # --------------
         self.serwb_sram = Up5kSPRAM(size=64*kB)
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
         self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
@@ -131,10 +148,10 @@ class SerWBTestSoC(SoCMini):
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteICLink SerWB bench on iCEBreaker")
-    parser.add_argument("--build",         action="store_true", help="Build bitstream")
-    parser.add_argument("--load",          action="store_true", help="Load bitstream (to SRAM)")
-    parser.add_argument("--loopback",      action="store_true", help="Loopback SerWB in FPGA (no IOs)")
+    parser = argparse.ArgumentParser(description="LiteICLink SerWB bench on iCEBreaker.")
+    parser.add_argument("--build",    action="store_true", help="Build bitstream.")
+    parser.add_argument("--load",     action="store_true", help="Load bitstream (to SRAM).")
+    parser.add_argument("--loopback", action="store_true", help="Loopback SerWB in FPGA (no IOs).")
     args = parser.parse_args()
 
     platform = icebreaker.Platform()

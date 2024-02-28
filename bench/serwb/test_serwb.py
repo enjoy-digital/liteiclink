@@ -40,11 +40,13 @@ def init_test(port):
     bus = RemoteClient(port=port)
     bus.open()
 
-    # Reset SerWB Master
+    # Reset SerWB Master.
+    # -------------------
     print("Reseting SerWB Master...")
     bus.regs.serwb_master_phy_control_reset.write(1)
 
-    # Initialize SerWB Master
+    # Initialize SerWB Master.
+    # ------------------------
     timeout = 4
     print("Initializing SerWB Master...")
     while (bus.regs.serwb_master_phy_control_ready.read() == 0 and
@@ -61,7 +63,8 @@ def init_test(port):
     else:
         print("Success.")
 
-    # Show Master Config
+    # Show Master Config.
+    # -------------------
     print("Master config")
     print("-------------")
     if hasattr(bus.regs, "serwb_master_phy_control_delay"):
@@ -71,12 +74,14 @@ def init_test(port):
         print(f"delay_max: {bus.regs.serwb_master_phy_control_delay_max.read()}")
         print(f"delay: {bus.regs.serwb_master_phy_control_delay.read()}")
     print(f"bitslip: {bus.regs.serwb_master_phy_control_shift.read()}")
-    print(f"phase: {bus.regs.serwb_master_phy_control_phase.read()}")
+    if hasattr(bus.regs, "serwb_master_phy_control_phase"):
+        print(f"phase: {bus.regs.serwb_master_phy_control_phase.read()}")
     print(f"ready: {bus.regs.serwb_master_phy_control_ready.read()}")
     print(f"error: {bus.regs.serwb_master_phy_control_error.read()}")
     print("")
 
-    # Show Slave Config
+    # Show Slave Config.
+    # ------------------
     print("Slave config")
     print("------------")
     if hasattr(bus.regs, "serwb_slave_phy_control_delay"):
@@ -86,7 +91,8 @@ def init_test(port):
         print(f"delay_max: {bus.regs.serwb_slave_phy_control_delay_max.read()}")
         print(f"delay: {bus.regs.serwb_slave_phy_control_delay.read()}")
     print(f"bitslip: {bus.regs.serwb_slave_phy_control_shift.read()}")
-    print(f"phase: {bus.regs.serwb_slave_phy_control_phase.read()}")
+    if hasattr(bus.regs, "serwb_slave_phy_control_phase"):
+        print(f"phase: {bus.regs.serwb_slave_phy_control_phase.read()}")
     print(f"ready: {bus.regs.serwb_slave_phy_control_ready.read()}")
     print(f"error: {bus.regs.serwb_slave_phy_control_error.read()}")
 
