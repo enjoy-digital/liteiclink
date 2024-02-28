@@ -258,11 +258,11 @@ class SerWBSoC(SoCCore):
             # ---------
             count = Signal(14)
             self.sync += count.eq(count + 1)
-            self.sync += If(count == 0, serio_master_core.inputs.eq(serio_master_core.inputs + 1))
+            self.sync += If(count == 0, serio_master_core.i.eq(serio_master_core.i + 1))
 
-            outputs_d = Signal(32)
-            self.sync += outputs_d.eq(serio_slave_core.outputs)
-            self.sync += If(serio_slave_core.outputs != outputs_d, Display("outputs %d", serio_slave_core.outputs))
+            o_d = Signal(32)
+            self.sync += o_d.eq(serio_slave_core.o)
+            self.sync += If(serio_slave_core.o != o_d, Display("o %d", serio_slave_core.o))
 
 # Build --------------------------------------------------------------------------------------------
 

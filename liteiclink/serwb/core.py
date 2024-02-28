@@ -90,61 +90,61 @@ class SERWBCore(LiteXModule):
 
 class SERIOPacketizer(LiteXModule):
     def __init__(self):
-        self.inputs = Signal(32)
+        self.i      = Signal(32)
         self.source = source = stream.Endpoint(packet_description(32))
 
         # # #
 
         # Signals.
         # --------
-        inputs        = Signal(32)
-        inputs_d      = Signal(32)
+        i   = Signal(32)
+        i_d = Signal(32)
 
         # Re-Synchronize Inputs.
         # ----------------------
-        self.specials += MultiReg(self.inputs, inputs)
+        self.specials += MultiReg(self.i, i)
 
         # Register Inputs.
         # ----------------
-        self.sync += If(source.ready, inputs_d.eq(inputs))
+        self.sync += If(source.ready, i_d.eq(i))
 
         # Generate Packet.
         # ----------------
         self.comb += [
-            source.valid.eq(inputs != inputs_d),
+            source.valid.eq(i != i_d),
             source.last.eq(1),
-            source.data.eq(inputs),
+            source.data.eq(i),
             source.length.eq(4),
         ]
 
 class SERIODepacketizer(LiteXModule):
     def __init__(self):
-        self.sink    = sink = stream.Endpoint(packet_description(32))
-        self.outputs = Signal(32)
+        self.sink = sink = stream.Endpoint(packet_description(32))
+        self.o    = Signal(32)
 
         # # #
 
         # Generate Outputs.
         # -----------------
         self.comb += sink.ready.eq(1)
-        self.sync += If(sink.valid & sink.last, self.outputs.eq(sink.data))
+        self.sync += If(sink.valid & sink.last, self.o.eq(sink.data))
 
 class SERIOCore(LiteXModule):
     def __init__(self, serwb_core):
-        self.inputs  = Signal(32)
-        self.outputs = Signal(32)
+        self.i = Signal(32)
+        self.o = Signal(32)
 
         # # #
 
         # Packetizer.
         # -----------
         self.packetizer = SERIOPacketizer()
-        self.comb += self.packetizer.inputs.eq(self.inputs)
+        self.comb += self.packetizer.i.eq(self.i)
 
         # Depacketizer.
         # -------------
         self.depacketizer = SERIODepacketizer()
-        self.comb += self.outputs.eq(self.depacketizer.outputs)
+        self.comb += self.o.eq(self.depacketizer.o)
 
         # Add to SERWB Downstreams/Upstreams Endpoints.
         # ---------------------------------------------
