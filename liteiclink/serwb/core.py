@@ -51,6 +51,6 @@ class SERWBCore(LiteXModule):
             rx_fifo.source.connect(depacketizer.sink),
 
             # Etherbone <--> Core
-            depacketizer.source.connect(etherbone.sink),
-            etherbone.source.connect(packetizer.sink)
+            depacketizer.source.connect(etherbone.sink, keep={"valid", "ready", "last", "data", "length"}),
+            etherbone.source.connect(packetizer.sink,   keep={"valid", "ready", "last", "data", "length"}),
         ]
