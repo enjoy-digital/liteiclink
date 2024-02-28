@@ -27,7 +27,7 @@ from liteeth.core import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
 
 from liteiclink.serwb.genphy import SERWBPHY
-from liteiclink.serwb.core import SERWBCore
+from liteiclink.serwb.core import SERWBCore, SERIOCore
 
 # IOs ----------------------------------------------------------------------------------------------
 
@@ -172,7 +172,7 @@ class SerWBMinSoC(SoCMini):
 # SerWBSoC -----------------------------------------------------------------------------------------
 
 class SerWBSoC(SoCCore):
-    def __init__(self):
+    def __init__(self, with_serio=True):
         platform     = Platform()
         sys_clk_freq = int(1e6)
 
@@ -232,19 +232,37 @@ class SerWBSoC(SoCCore):
 
         # Wishbone Slave.
         # ---------------
-        serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave")
-        self.submodules += serwb_master_core
+        self.serwb_master_core = serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave")
 
         # Wishbone Master.
         # ----------------
-        serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master")
-        self.submodules += serwb_slave_core
+        self.serwb_slave_core = serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master")
 
         # Wishbone SRAM.
         # --------------
         self.serwb_sram = wishbone.SRAM(8192)
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
         self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
+
+        # SerIO ------------------------------------------------------------------------------------
+        if with_serio:
+            # IOs Master.
+            # ----------
+            self.serio_master_core = serio_master_core = SERIOCore(serwb_core=serwb_master_core)
+
+            # IOs Slave.
+            # ----------
+            self.serio_slave_core = serio_slave_core = SERIOCore(serwb_core=serwb_slave_core)
+
+            # IOs Test.
+            # ---------
+            count = Signal(14)
+            self.sync += count.eq(count + 1)
+            self.sync += If(count == 0, serio_master_core.inputs.eq(serio_master_core.inputs + 1))
+
+            outputs_d = Signal(32)
+            self.sync += outputs_d.eq(serio_slave_core.outputs)
+            self.sync += If(serio_slave_core.outputs != outputs_d, Display("outputs %d", serio_slave_core.outputs))
 
 # Build --------------------------------------------------------------------------------------------
 
