@@ -72,7 +72,6 @@ class SERWBCore(LiteXModule):
         self.arbiter = Arbiter(
             masters = downstream_endpoints,
             slave   = self.packetizer.sink,
-            keep    = {"valid", "ready", "last", "data", "port", "length"},
         )
 
         # Upstream Dispatching.
