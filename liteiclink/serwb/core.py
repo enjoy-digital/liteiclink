@@ -19,15 +19,21 @@ from liteiclink.serwb.etherbone import Etherbone
 # SERWB Core ---------------------------------------------------------------------------------------
 
 class SERWBCore(LiteXModule):
-    def __init__(self, phy, clk_freq, mode,
+    def __init__(self, phy, clk_freq, mode, port=0,
         etherbone_buffer_depth = 4,
         tx_buffer_depth        = 8,
         rx_buffer_depth        = 8,
     ):
+        # Downstream/Upstream Endpoints.
+        # ------------------------------
+        self.downstream_endpoints = {}
+        self.upstream_endpoints   = {}
 
         # Etherbone.
         # ----------
         self.etherbone = etherbone = Etherbone(mode, etherbone_buffer_depth)
+        self.add_downstream_endpoint(port=port, endpoint=etherbone.source)
+        self.add_upstream_endpoint(  port=port, endpoint=etherbone.sink)
 
         # Bus.
         # ----
@@ -55,10 +61,16 @@ class SERWBCore(LiteXModule):
             rx_fifo.source.connect(depacketizer.sink),
         ]
 
-        # Downstream/Upstream Endpoints.
-        # ------------------------------
-        self.downstream_endpoints = {0: etherbone.source}
-        self.upstream_endpoints   = {0: etherbone.sink  }
+    def add_downstream_endpoint(self, port, endpoint):
+        if port in self.downstream_endpoints.keys():
+            raise ValueError(f"Downstream endpoint for port {port} already exists.")
+        self.downstream_endpoints[port] = endpoint
+
+
+    def add_upstream_endpoint(self, port, endpoint):
+        if port in self.upstream_endpoints.keys():
+            raise ValueError(f"Upstream endpoint for port {port} already exists.")
+        self.upstream_endpoints[port] = endpoint
 
     def do_finalize(self):
         # Downstream Arbitration.
@@ -129,7 +141,7 @@ class SERIODepacketizer(LiteXModule):
         self.sync += If(sink.valid & sink.last, self.o.eq(sink.data))
 
 class SERIOCore(LiteXModule):
-    def __init__(self, serwb_core):
+    def __init__(self, serwb_core, port=1):
         self.i = Signal(32)
         self.o = Signal(32)
 
@@ -147,5 +159,5 @@ class SERIOCore(LiteXModule):
 
         # Add to SERWB Downstreams/Upstreams Endpoints.
         # ---------------------------------------------
-        serwb_core.downstream_endpoints.update({1: self.packetizer.source})
-        serwb_core.upstream_endpoints.update(  {1: self.depacketizer.sink})
+        serwb_core.add_downstream_endpoint(port=port, endpoint=self.packetizer.source)
+        serwb_core.add_upstream_endpoint  (port=port, endpoint=self.depacketizer.sink)
