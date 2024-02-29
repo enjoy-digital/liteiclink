@@ -97,13 +97,15 @@ class SerWBDemoSoC(SoCMini):
 
         # SerIO.
         # ------
-        self.serio = SERIOCore(serwb_core=self.serwb_slave_core)
+        self.serio0 = SERIOCore(serwb_core=self.serwb_slave_core, port=1)
+        self.serio1 = SERIOCore(serwb_core=self.serwb_slave_core, port=2)
 
         # Increment Inputs every 100ms as PoC.
         # ------------------------------------
         self.serio_timer = WaitTimer(100e-3*sys_clk_freq)
         self.comb += self.serio_timer.wait.eq(~self.serio_timer.done)
-        self.sync += If(self.serio_timer.done, self.serio.i.eq(self.serio.i + 1))
+        self.sync += If(self.serio_timer.done, self.serio0.i.eq(self.serio0.i + 1))
+        self.sync += If(self.serio_timer.done, self.serio1.i.eq(self.serio1.i + 2))
 
         # Leds -------------------------------------------------------------------------------------
         self.comb += [

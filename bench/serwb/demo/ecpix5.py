@@ -96,7 +96,8 @@ class SerWBDemoSoC(SoCCore):
 
         # SerIO.
         # ------
-        self.serio = SERIOCore(serwb_core=self.serwb_master_core)
+        self.serio0 = SERIOCore(serwb_core=self.serwb_master_core, port=1)
+        self.serio1 = SERIOCore(serwb_core=self.serwb_master_core, port=2)
 
         # Leds -------------------------------------------------------------------------------------
         leds_pads = []
@@ -107,8 +108,8 @@ class SerWBDemoSoC(SoCCore):
         self.comb += [
             leds_pads[0].eq(~self.serwb_master_phy.init.ready),
             leds_pads[1].eq(~self.serwb_master_phy.init.error),
-            leds_pads[2].eq(self.serio.o[0]), # Counter from Slave through SerIO.
-            leds_pads[3].eq(self.serio.o[1]), # Counter from Slave through SerIO.
+            leds_pads[2].eq(self.serio0.o[1]), # Counter from Slave through SerIO.
+            leds_pads[3].eq(self.serio1.o[1]), # Counter from Slave through SerIO.
         ]
 
         # Analyzer ---------------------------------------------------------------------------------
