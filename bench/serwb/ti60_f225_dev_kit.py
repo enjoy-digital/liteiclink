@@ -11,6 +11,7 @@ from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
+from litex.gen.genlib.misc import WaitTimer
 
 from litex.build.generic_platform import *
 from litex_boards.platforms import efinix_titanium_ti60_f225_dev_kit
@@ -25,7 +26,7 @@ from litex.soc.interconnect import wishbone
 
 from liteiclink.serwb.phy import SERWBPHY
 from liteiclink.serwb.genphy import SERWBPHY as SERWBLowSpeedPHY
-from liteiclink.serwb.core import SERWBCore
+from liteiclink.serwb.core import SERWBCore, SERIOCore
 
 from litescope import LiteScopeAnalyzer
 
@@ -139,6 +140,11 @@ class SerWBTestSoC(SoCMini):
             rx_buffer_depth        = 8,
         )
 
+
+        # SerIO.
+        # ------
+        self.serio_master = SERIOCore(serwb_core=self.serwb_master_core, port=1)
+
         # Connect as peripheral to main SoC.
         # ----------------------------------
         self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=1024))
@@ -168,6 +174,15 @@ class SerWBTestSoC(SoCMini):
         # --------------
         self.serwb_sram = serwb_sram = ClockDomainsRenamer("rx_sys")(wishbone.SRAM(1024))
         self.comb += serwb_slave_core.bus.connect(serwb_sram.bus)
+
+        # SerIO.
+        # ------
+        self.serio_slave = SERIOCore(serwb_core=self.serwb_slave_core, port=1)
+
+        # Increment Inputs every 10ms as PoC.
+        self.serio_timer = ClockDomainsRenamer("rx_sys")(WaitTimer(10e-3*sys_clk_freq))
+        self.comb += self.serio_timer.wait.eq(~self.serio_timer.done)
+        self.sync.rx_sys += If(self.serio_timer.done, self.serio_slave.i.eq(self.serio_slave.i + 1))
 
         # Analyzer ---------------------------------------------------------------------------------
         if with_analyzer:
