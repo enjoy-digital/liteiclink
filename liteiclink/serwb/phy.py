@@ -408,11 +408,7 @@ class SERWBPHY(LiteXModule):
             assert clk_ratio == "1:1"
             taps = 512
             self.serdes = KUSerdes(pads, mode)
-        elif device[:4] == "xc7a":
-            assert clk_ratio == "1:1"
-            taps = 32
-            self.serdes = S7Serdes(pads, mode)
-        elif device[:4] == "xc7z":
+        elif device[:4] in ["xc7a", "xc7z"]:
             assert clk_ratio == "1:1"
             taps = 32
             self.serdes = S7Serdes(pads, mode)
