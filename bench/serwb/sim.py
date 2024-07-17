@@ -172,7 +172,7 @@ class SerWBMinSoC(SoCMini):
 # SerWBSoC -----------------------------------------------------------------------------------------
 
 class SerWBSoC(SoCCore):
-    def __init__(self, with_serio=True):
+    def __init__(self, with_serio=True, with_debug=True):
         platform     = Platform()
         sys_clk_freq = int(1e6)
 
@@ -264,14 +264,60 @@ class SerWBSoC(SoCCore):
             self.sync += o_d.eq(serio_slave_core.o)
             self.sync += If(serio_slave_core.o != o_d, Display("o %d", serio_slave_core.o))
 
+        # Debug ------------------------------------------------------------------------------------
+
+        if with_debug:
+            # Latency measurements.
+            latency_m2s_display = Signal()
+            latency_ack_display = Signal()
+            latency_s2m_display = Signal()
+            latency_count       = Signal(32)
+            self.latency_fsm = latency_fsm = FSM(reset_state="IDLE")
+            latency_fsm.act("IDLE",
+                NextValue(latency_count, 0),
+                If(serwb_master_core.bus.stb & serwb_master_core.bus.cyc,
+                    NextState("M2S-MEASURE")
+                )
+            )
+            latency_fsm.act("M2S-MEASURE",
+                NextValue(latency_count, latency_count + 1),
+                If(serwb_slave_core.bus.stb & serwb_slave_core.bus.cyc,
+                    latency_m2s_display.eq(1),
+                    NextValue(latency_count, 0),
+                    NextState("ACK-MEASURE")
+                )
+            )
+            self.sync += If(latency_m2s_display, Display("M2S Latency: %d Cycles.", latency_count))
+            latency_fsm.act("ACK-MEASURE",
+                NextValue(latency_count, latency_count + 1),
+                If(serwb_slave_core.bus.ack,
+                    latency_ack_display.eq(1),
+                    NextValue(latency_count, 0),
+                    NextState("S2M-MEASURE")
+                )
+            )
+            self.sync += If(latency_ack_display, Display("ACk Latency: %d Cycles.", latency_count))
+            latency_fsm.act("S2M-MEASURE",
+                NextValue(latency_count, latency_count + 1),
+                If(serwb_master_core.bus.ack,
+                    latency_s2m_display.eq(1),
+                    NextValue(latency_count, 0),
+                    NextState("IDLE")
+                )
+            )
+            self.sync += If(latency_s2m_display, Display("S2M Latency: %d Cycles.", latency_count))
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="SerWB LiteX/Verilator Simulation.")
-    parser.add_argument("--min",         action="store_true", help="Run Minimal simulation (SerSBMinSoC).")
-    parser.add_argument("--trace",       action="store_true", help="Enable VCD tracing.")
-    parser.add_argument("--trace-start", default="0",         help="Cycle to start VCD tracing.")
-    parser.add_argument("--trace-end",   default="-1",        help="Cycle to end VCD tracing.")
+    parser.add_argument("--min",          action="store_true", help="Run Minimal simulation (SerSBMinSoC).")
+    parser.add_argument("--with-serio",   action="store_true", help="Enable SerIO.")
+    parser.add_argument("--with-debug",   action="store_true", help="Enable Debug traces.")
+    parser.add_argument("--trace",        action="store_true", help="Enable tracing.")
+    parser.add_argument("--trace-start",  default="0",         help="Cycle to start VCD tracing.")
+    parser.add_argument("--trace-end",    default="-1",        help="Cycle to end VCD tracing.")
+    parser.add_argument("--trace-fst",    action="store_true", help="Use .fst format for tracing.")
     args = parser.parse_args()
 
     sim_config = SimConfig()
@@ -280,12 +326,13 @@ def main():
         sim_config.add_module("serial2console", "serial")
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
 
-    soc     = SerWBMinSoC() if args.min else SerWBSoC()
+    soc     = SerWBMinSoC() if args.min else SerWBSoC(with_serio=args.with_serio, with_debug=args.with_debug)
     builder = Builder(soc, csr_csv="csr.csv")
     builder.build(sim_config=sim_config,
         trace       = args.trace,
         trace_start = int(args.trace_start),
         trace_end   = int(args.trace_end),
+        trace_fst   = int(args.trace_fst),
     )
 
 if __name__ == "__main__":
