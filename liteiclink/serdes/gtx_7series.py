@@ -1,25 +1,25 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.cdc       import MultiReg, PulseSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
 
-from litex.soc.cores.clock import *
 from litex.soc.interconnect.csr import *
-from litex.soc.interconnect import stream
-from litex.soc.cores.prbs import PRBSTX, PRBSRX
+from litex.soc.interconnect     import stream
+
+from litex.soc.cores.clock      import *
+from litex.soc.cores.prbs       import PRBSTX, PRBSRX
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
+from liteiclink.serdes.common           import *
 from liteiclink.serdes.gtx_7series_init import GTXTXInit, GTXRXInit
-from liteiclink.serdes.clock_aligner import BruteforceClockAligner
-
-from liteiclink.serdes.common import *
+from liteiclink.serdes.clock_aligner    import BruteforceClockAligner
 
 # GTX Channel PLL ----------------------------------------------------------------------------------
 
@@ -109,7 +109,7 @@ class GTXQuadPLL(LiteXModule):
             64:  1,
             66:  0,
             80:  1,
-            100: 1
+            100: 1,
         }
         fbdivs = {
             16:  0b0000100000,
@@ -119,7 +119,7 @@ class GTXQuadPLL(LiteXModule):
             64:  0b0011100000,
             66:  0b0101000000,
             80:  0b0100100000,
-            100: 0b0101110000
+            100: 0b0101110000,
         }
 
         self.specials += \
@@ -224,7 +224,7 @@ class GTX(LiteXModule):
         pll_master          = True):
         assert data_width in [20, 40]
 
-        # TX controls
+        # TX controls.
         self.tx_enable              = Signal(reset=1)
         self.tx_ready               = Signal()
         self.tx_inhibit             = Signal()
@@ -233,7 +233,7 @@ class GTX(LiteXModule):
         self.tx_pattern             = Signal(data_width)
         self.tx_prbs_config         = Signal(2)
 
-        # RX controls
+        # RX controls.
         self.rx_enable      = Signal(reset=1)
         self.rx_ready       = Signal()
         self.rx_align       = Signal(reset=1)
@@ -241,10 +241,10 @@ class GTX(LiteXModule):
         self.rx_prbs_pause  = Signal()
         self.rx_prbs_errors = Signal(32)
 
-        # DRP
+        # DRP.
         self.drp = DRPInterface()
 
-        # Loopback
+        # Loopback.
         self.loopback = Signal(3)
 
         # # #
@@ -255,14 +255,14 @@ class GTX(LiteXModule):
         self.decoders = [ClockDomainsRenamer("rx")(Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
 
-        # Transceiver direct clock outputs (useful to specify clock constraints)
+        # Transceiver direct clock outputs (useful to specify clock constraints).
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
         self.tx_clk_freq = pll.config["linerate"]/data_width
         self.rx_clk_freq = pll.config["linerate"]/data_width
 
-        # Control/Status CDC
+        # Control/Status CDC.
         tx_produce_square_wave = Signal()
         tx_produce_pattern     = Signal()
         tx_pattern             = Signal(data_width)
@@ -272,17 +272,19 @@ class GTX(LiteXModule):
         rx_prbs_pause  = Signal()
         rx_prbs_errors = Signal(32)
 
+        # TX Sync.
         self.specials += [
             MultiReg(self.tx_produce_square_wave, tx_produce_square_wave, "tx"),
-            MultiReg(self.tx_produce_pattern, tx_produce_pattern, "tx"),
-            MultiReg(self.tx_pattern, tx_pattern, "tx"),
-            MultiReg(self.tx_prbs_config, tx_prbs_config, "tx"),
+            MultiReg(self.tx_produce_pattern,     tx_produce_pattern,     "tx"),
+            MultiReg(self.tx_pattern,             tx_pattern,             "tx"),
+            MultiReg(self.tx_prbs_config,         tx_prbs_config,         "tx"),
         ]
 
+        # RX Sync.
         self.specials += [
-            MultiReg(self.rx_prbs_config, rx_prbs_config, "rx"),
-            MultiReg(self.rx_prbs_pause, rx_prbs_pause, "rx"),
-            MultiReg(rx_prbs_errors, self.rx_prbs_errors, "sys"),
+            MultiReg(self.rx_prbs_config, rx_prbs_config,      "rx"),
+            MultiReg(self.rx_prbs_pause,  rx_prbs_pause,       "rx"),
+            MultiReg(rx_prbs_errors,      self.rx_prbs_errors, "sys"),
         ]
 
         # # #
@@ -302,20 +304,20 @@ class GTX(LiteXModule):
         self.tx_init = tx_init = GTXTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
         self.comb += [
             self.tx_ready.eq(tx_init.done),
-            tx_init.restart.eq(~self.tx_enable)
+            tx_init.restart.eq(~self.tx_enable),
         ]
 
         # RX init ----------------------------------------------------------------------------------
         self.rx_init = rx_init = GTXRXInit(sys_clk_freq, buffer_enable=rx_buffer_enable)
         self.comb += [
             self.rx_ready.eq(rx_init.done),
-            rx_init.restart.eq(~self.rx_enable)
+            rx_init.restart.eq(~self.rx_enable),
         ]
 
-        # PLL ----------------------------------------------------------------------------------
+        # PLL --------------------------------------------------------------------------------------
         self.comb += [
             tx_init.plllock.eq(pll.lock),
-            rx_init.plllock.eq(pll.lock)
+            rx_init.plllock.eq(pll.lock),
         ]
         if pll_master:
             self.comb += pll.reset.eq(tx_init.pllreset)
@@ -328,14 +330,14 @@ class GTX(LiteXModule):
         txdata = Signal(data_width)
         rxdata = Signal(data_width)
         self.gtx_params = dict(
-            # Simulation-Only Attributes
+            # Simulation-Only Attributes.
             p_SIM_RECEIVER_DETECT_PASS     = "TRUE",
             p_SIM_TX_EIDLE_DRIVE_LEVEL     = "X",
             p_SIM_RESET_SPEEDUP            = "FALSE",
             p_SIM_CPLLREFCLK_SEL           = "FALSE",
             p_SIM_VERSION                  = "4.0",
 
-            # RX Byte and Word Alignment Attributes
+            # RX Byte and Word Alignment Attributes.
             p_ALIGN_COMMA_DOUBLE           = "FALSE",
             p_ALIGN_COMMA_ENABLE           = 0b1111111111,
             p_ALIGN_COMMA_WORD             = 2 if data_width == 20 else 4,
@@ -348,13 +350,13 @@ class GTX(LiteXModule):
             p_RXSLIDE_MODE                 = "OFF" if rx_buffer_enable else "PCS",
             p_RX_SIG_VALID_DLY             = 10,
 
-            # RX 8B/10B Decoder Attributes
+            # RX 8B/10B Decoder Attributes.
             p_RX_DISPERR_SEQ_MATCH         = "TRUE",
             p_DEC_MCOMMA_DETECT            = "TRUE",
             p_DEC_PCOMMA_DETECT            = "TRUE",
             p_DEC_VALID_COMMA_ONLY         = "TRUE",
 
-            # RX Clock Correction Attributes
+            # RX Clock Correction Attributes.
             p_CBCC_DATA_SOURCE_SEL         = "DECODED",
             p_CLK_COR_SEQ_2_USE            = "FALSE",
             p_CLK_COR_KEEP_IDLE            = "FALSE",
@@ -375,7 +377,7 @@ class GTX(LiteXModule):
             p_CLK_COR_SEQ_2_3              = 0b0000000000,
             p_CLK_COR_SEQ_2_4              = 0b0000000000,
 
-            # RX Channel Bonding Attributes
+            # RX Channel Bonding Attributes.
             p_CHAN_BOND_KEEP_ALIGN         = "FALSE",
             p_CHAN_BOND_MAX_SKEW           = 1,
             p_CHAN_BOND_SEQ_LEN            = 1,
@@ -394,7 +396,7 @@ class GTX(LiteXModule):
             p_FTS_LANE_DESKEW_CFG          = 0b1111,
             p_FTS_LANE_DESKEW_EN           = "FALSE",
 
-            # RX Margin Analysis Attributes
+            # RX Margin Analysis Attributes.
             p_ES_CONTROL                   = 0b000000,
             p_ES_ERRDET_EN                 = "FALSE",
             p_ES_EYE_SCAN_EN               = "TRUE",
@@ -406,10 +408,10 @@ class GTX(LiteXModule):
             p_ES_SDATA_MASK                = 0x00000000000000000000,
             p_ES_VERT_OFFSET               = 0b000000000,
 
-            # FPGA RX Interface Attributes
+            # FPGA RX Interface Attributes.
             p_RX_DATA_WIDTH                = data_width,
 
-            # PMA Attributes
+            # PMA Attributes.
             p_OUTREFCLK_SEL_INV            = 0b11,
             p_PMA_RSV                      = 0x001e7080,
             p_PMA_RSV2                     = 0x2050,
@@ -428,13 +430,13 @@ class GTX(LiteXModule):
             p_TX_CLK25_DIV                 = 5,
             p_UCODEER_CLR                  = 0b0,
 
-            # PCI Express Attributes
+            # PCI Express Attributes.
             p_PCS_PCIE_EN                  = "FALSE",
 
-            # PCS Attributes
+            # PCS Attributes.
             p_PCS_RSVD_ATTR                = 0x000000000000,
 
-            # RX Buffer Attributes
+            # RX Buffer Attributes.
             p_RXBUF_ADDR_MODE              = "FAST",
             p_RXBUF_EIDLE_HI_CNT           = 0b1000,
             p_RXBUF_EIDLE_LO_CNT           = 0b0000,
@@ -458,36 +460,36 @@ class GTX(LiteXModule):
             p_RX_DDI_SEL                   = 0b000000,
             p_RX_DEFER_RESET_BUF_EN        = "TRUE",
 
-            # CDR Attributes
+            # CDR Attributes.
             p_RXCDR_CFG                    = rxcdr_cfgs[pll.config["d"]],
             p_RXCDR_FR_RESET_ON_EIDLE      = 0b0,
             p_RXCDR_HOLD_DURING_EIDLE      = 0b0,
             p_RXCDR_PH_RESET_ON_EIDLE      = 0b0,
             p_RXCDR_LOCK_CFG               = 0b010101,
 
-            # RX Initialization and Reset Attributes
+            # RX Initialization and Reset Attributes.
             p_RXCDRFREQRESET_TIME          = 0b00001,
             p_RXCDRPHRESET_TIME            = 0b00001,
             p_RXISCANRESET_TIME            = 0b00001,
             p_RXPCSRESET_TIME              = 0b00001,
             p_RXPMARESET_TIME              = 0b00011,
 
-            # RX OOB Signaling Attributes
+            # RX OOB Signaling Attributes.
             p_RXOOB_CFG                    = 0b0000110,
 
-            # RX Gearbox Attributes
+            # RX Gearbox Attributes.
             p_RXGEARBOX_EN                 = "FALSE",
             p_GEARBOX_MODE                 = 0b000,
 
-            # PRBS Detection Attribute
+            # PRBS Detection Attribute.
             p_RXPRBS_ERR_LOOPBACK          = 0b0,
 
-            # Power-Down Attributes
+            # Power-Down Attributes.
             p_PD_TRANS_TIME_FROM_P2        = 0x03c,
             p_PD_TRANS_TIME_NONE_P2        = 0x3c,
             p_PD_TRANS_TIME_TO_P2          = 0x64,
 
-            # RX OOB Signaling Attributes
+            # RX OOB Signaling Attributes.
             p_SAS_MAX_COM                  = 64,
             p_SAS_MIN_COM                  = 36,
             p_SATA_BURST_SEQ_LEN           = 0b0101,
@@ -500,10 +502,10 @@ class GTX(LiteXModule):
             p_SATA_MIN_INIT                = 12,
             p_SATA_MIN_WAKE                = 4,
 
-            # RX Fabric Clock Output Control Attributes
+            # RX Fabric Clock Output Control Attributes.
             p_TRANS_TIME_RATE              = 0x0E,
 
-            # TX Buffer Attributes
+            # TX Buffer Attributes.
             p_TXBUF_EN                     = "TRUE" if tx_buffer_enable else "FALSE",
             p_TXBUF_RESET_ON_RATE_CHANGE   = "TRUE",
             p_TXDLY_CFG                    = 0x001F,
@@ -514,10 +516,10 @@ class GTX(LiteXModule):
             p_TXPH_MONITOR_SEL             = 0b00000,
             p_TX_XCLK_SEL                  = "TXOUT" if tx_buffer_enable else "TXUSR",
 
-            # FPGA TX Interface Attributes
+            # FPGA TX Interface Attributes.
             p_TX_DATA_WIDTH                = data_width,
 
-            # TX Configurable Driver Attributes
+            # TX Configurable Driver Attributes.
             p_TX_DEEMPH0                   = 0b00000,
             p_TX_DEEMPH1                   = 0b00000,
             p_TX_EIDLE_ASSERT_DELAY        = 0b110,
@@ -536,18 +538,18 @@ class GTX(LiteXModule):
             p_TX_MARGIN_LOW_3              = 0b1000000,
             p_TX_MARGIN_LOW_4              = 0b1000000,
 
-            # TX Gearbox Attributes
+            # TX Gearbox Attributes.
             p_TXGEARBOX_EN                 = "FALSE",
 
-            # TX Initialization and Reset Attributes
+            # TX Initialization and Reset Attributes.
             p_TXPCSRESET_TIME              = 0b00001,
             p_TXPMARESET_TIME              = 0b00001,
 
-            # TX Receiver Detection Attributes
+            # TX Receiver Detection Attributes.
             p_TX_RXDETECT_CFG              = 0x1832,
             p_TX_RXDETECT_REF              = 0b100,
 
-            # CPLL Attributes
+            # CPLL Attributes.
             p_CPLL_CFG                     = 0xBC07DC,
             p_CPLL_FBDIV                   = 1 if use_qpll else pll.config["n2"],
             p_CPLL_FBDIV_45                = 4 if use_qpll else pll.config["n1"],
@@ -558,10 +560,10 @@ class GTX(LiteXModule):
             p_TXOUT_DIV                    = pll.config["d"],
             p_SATA_CPLL_CFG                = "VCO_3000MHZ",
 
-            # RX Initialization and Reset Attributes
+            # RX Initialization and Reset Attributes.
             p_RXDFELPMRESET_TIME           = 0b0001111,
 
-            # RX Equalizer Attributes
+            # RX Equalizer Attributes.
             p_RXLPM_HF_CFG                 = 0b00000011110000,
             p_RXLPM_LF_CFG                 = 0b00000011110000,
             p_RX_DFE_GAIN_CFG              = 0x020FEA,
@@ -575,24 +577,24 @@ class GTX(LiteXModule):
             p_RX_DFE_UT_CFG                = 0b10001111000000000,
             p_RX_DFE_VP_CFG                = 0b00011111100000011,
 
-            # Power-Down Attributes
+            # Power-Down Attributes.
             p_RX_CLKMUX_PD                 = 0b1,
             p_TX_CLKMUX_PD                 = 0b1,
 
-            # FPGA RX Interface Attribute
+            # FPGA RX Interface Attribute.
             p_RX_INT_DATAWIDTH             = data_width == 40,
 
-            # FPGA TX Interface Attribute
+            # FPGA TX Interface Attribute.
             p_TX_INT_DATAWIDTH             = data_width == 40,
 
-            # TX Configurable Driver Attributes
+            # TX Configurable Driver Attributes.
             p_TX_QPI_STATUS_EN             = 0b0,
 
             # RX Equalizer Attributes
             p_RX_DFE_KL_CFG2               = 0x301148AC,
             p_RX_DFE_XYD_CFG               = 0b0000000000000,
 
-            # TX Configurable Driver Attributes
+            # TX Configurable Driver Attributes.
             p_TX_PREDRIVER_MODE            = 0b0,
 
             # CPLL Ports
@@ -612,10 +614,10 @@ class GTX(LiteXModule):
             i_TSTIN            = 0b11111111111111111111,
             o_TSTOUT           = Open(),
 
-            # Channel
+            # Channel.
             i_CLKRSVD          = 0b0000,
 
-            # Channel - Clocking Ports
+            # Channel - Clocking Ports.
             i_GTGREFCLK        = 0,
             i_GTNORTHREFCLK0   = 0,
             i_GTNORTHREFCLK1   = 0,
@@ -624,7 +626,7 @@ class GTX(LiteXModule):
             i_GTSOUTHREFCLK0   = 0,
             i_GTSOUTHREFCLK1   = 0,
 
-            # Channel - DRP Ports
+            # Channel - DRP Ports.
             i_DRPADDR          = drp_mux.addr,
             i_DRPCLK           = drp_mux.clk,
             i_DRPDI            = drp_mux.di,
@@ -633,44 +635,44 @@ class GTX(LiteXModule):
             o_DRPRDY           = drp_mux.rdy,
             i_DRPWE            = drp_mux.we,
 
-            # Clocking Ports
+            # Clocking Ports.
             o_GTREFCLKMONITOR  = Open(),
             i_QPLLCLK          = 0 if use_cpll else pll.clk,
             i_QPLLREFCLK       = 0 if use_cpll else pll.refclk,
             i_RXSYSCLKSEL      = 0b11 if use_qpll else 0b00,
             i_TXSYSCLKSEL      = 0b11 if use_qpll else 0b00,
 
-            # Digital Monitor Ports
+            # Digital Monitor Ports.
             o_DMONITOROUT      = Open(),
 
-            # FPGA TX Interface Datapath Configuration
+            # FPGA TX Interface Datapath Configuration.
             i_TX8B10BEN        = 0,
 
-            # Loopback Ports
+            # Loopback Ports.
             i_LOOPBACK         = self.loopback,
 
-            # PCI Express Ports
+            # PCI Express Ports.
             o_PHYSTATUS        = Open(),
             i_RXRATE           = 0b000,
             o_RXVALID          = Open(),
 
-            # Power-Down Ports
+            # Power-Down Ports.
             i_RXPD             = Cat(rx_init.gtXxpd, rx_init.gtXxpd),
             i_TXPD             = Cat(tx_init.gtXxpd, tx_init.gtXxpd),
 
-            # RX 8B/10B Decoder Ports
+            # RX 8B/10B Decoder Ports.
             i_SETERRSTATUS     = 0,
 
-            # RX Initialization and Reset Ports
+            # RX Initialization and Reset Ports.
             i_EYESCANRESET     = 0,
             i_RXUSERRDY        = rx_init.Xxuserrdy,
 
-            # RX Margin Analysis Ports
+            # RX Margin Analysis Ports.
             o_EYESCANDATAERROR = Open(),
             i_EYESCANMODE      = 0,
             i_EYESCANTRIGGER   = 0,
 
-            # Receive Ports - CDR Ports
+            # Receive Ports - CDR Ports.
             i_RXCDRFREQRESET   = 0,
             i_RXCDRHOLD        = 0,
             o_RXCDRLOCK        = Open(),
@@ -678,40 +680,40 @@ class GTX(LiteXModule):
             i_RXCDRRESET       = 0,
             i_RXCDRRESETRSV    = 0,
 
-            # Receive Ports - Clock Correction Ports
+            # Receive Ports - Clock Correction Ports.
             o_RXCLKCORCNT      = Open(),
 
-            # Receive Ports - FPGA RX Interface Datapath Configuration
+            # Receive Ports - FPGA RX Interface Datapath Configuration.
             i_RX8B10BEN        = 0,
 
-            # Receive Ports - FPGA RX Interface Ports
+            # Receive Ports - FPGA RX Interface Ports.
             i_RXUSRCLK         = ClockSignal("rx"),
             i_RXUSRCLK2        = ClockSignal("rx"),
 
-            # Receive Ports - FPGA RX interface Ports
+            # Receive Ports - FPGA RX interface Ports.
             o_RXDATA           = Cat(*[rxdata[10*i:10*i+8] for i in range(nwords)]),
 
-            # Receive Ports - Pattern Checker Ports
+            # Receive Ports - Pattern Checker Ports.
             o_RXPRBSERR        = Open(),
             i_RXPRBSSEL        = 0b000,
 
-            # Receive Ports - Pattern Checker ports
+            # Receive Ports - Pattern Checker ports.
             i_RXPRBSCNTRESET   = 0,
 
-            # Receive Ports - RX  Equalizer Ports
+            # Receive Ports - RX  Equalizer Ports.
             i_RXDFEXYDEN       = 1,
             i_RXDFEXYDHOLD     = 0,
             i_RXDFEXYDOVRDEN   = 0,
 
-            # Receive Ports - RX 8B/10B Decoder Ports
+            # Receive Ports - RX 8B/10B Decoder Ports.
             o_RXDISPERR        = Cat(*[rxdata[10*i+9] for i in range(nwords)]),
             o_RXNOTINTABLE     = Open(),
 
-            # Receive Ports - RX AFE
+            # Receive Ports - RX AFE.
             i_GTXRXP           = rx_pads.p,
             i_GTXRXN           = rx_pads.n,
 
-            # Receive Ports - RX Buffer Bypass Ports
+            # Receive Ports - RX Buffer Bypass Ports.
             i_RXBUFRESET       = 0,
             o_RXBUFSTATUS      = Open(),
             i_RXDDIEN          = 0 if rx_buffer_enable else 1,
@@ -730,7 +732,7 @@ class GTX(LiteXModule):
             o_RXPHSLIPMONITOR  = Open(),
             o_RXSTATUS         = Open(),
 
-            # Receive Ports - RX Byte and Word Alignment Ports
+            # Receive Ports - RX Byte and Word Alignment Ports.
             o_RXBYTEISALIGNED  = Open(),
             o_RXBYTEREALIGN    = Open(),
             o_RXCOMMADET       = Open(),
@@ -738,7 +740,7 @@ class GTX(LiteXModule):
             i_RXMCOMMAALIGNEN  = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
             i_RXPCOMMAALIGNEN  = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
 
-            # Receive Ports - RX Channel Bonding Ports
+            # Receive Ports - RX Channel Bonding Ports.
             o_RXCHANBONDSEQ    = Open(),
             i_RXCHBONDEN       = 0,
             i_RXCHBONDLEVEL    = 0b000,
@@ -746,16 +748,16 @@ class GTX(LiteXModule):
             o_RXCHBONDO        = Open(),
             i_RXCHBONDSLAVE    = 0,
 
-            # Receive Ports - RX Channel Bonding Ports
+            # Receive Ports - RX Channel Bonding Ports.
             o_RXCHANISALIGNED  = Open(),
             o_RXCHANREALIGN    = Open(),
 
-            # Receive Ports - RX Equailizer Ports
+            # Receive Ports - RX Equailizer Ports.
             i_RXLPMHFHOLD      = 0,
             i_RXLPMHFOVRDEN    = 0,
             i_RXLPMLFHOLD      = 0,
 
-            # Receive Ports - RX Equalizer Ports
+            # Receive Ports - RX Equalizer Ports.
             i_RXDFEAGCHOLD     = 0,
             i_RXDFEAGCOVRDEN   = 0,
             i_RXDFECM1EN       = 0,
@@ -781,58 +783,58 @@ class GTX(LiteXModule):
             i_RXOSHOLD         = 0,
             i_RXOSOVRDEN       = 0,
 
-            # Receive Ports - RX Fabric ClocK Output Control Ports
+            # Receive Ports - RX Fabric ClocK Output Control Ports.
             o_RXRATEDONE       = Open(),
 
-            # Receive Ports - RX Fabric Output Control Ports
+            # Receive Ports - RX Fabric Output Control Ports.
             o_RXOUTCLK         = self.rxoutclk,
             o_RXOUTCLKFABRIC   = Open(),
             o_RXOUTCLKPCS      = Open(),
             i_RXOUTCLKSEL      = 0b010,
 
-            # Receive Ports - RX Gearbox Ports
+            # Receive Ports - RX Gearbox Ports.
             o_RXDATAVALID      = Open(),
             o_RXHEADER         = Open(),
             o_RXHEADERVALID    = Open(),
             o_RXSTARTOFSEQ     = Open(),
 
-            # Receive Ports - RX Gearbox Ports
+            # Receive Ports - RX Gearbox Ports.
             i_RXGEARBOXSLIP    = 0,
 
-            # Receive Ports - RX Initialization and Reset Ports
+            # Receive Ports - RX Initialization and Reset Ports.
             i_GTRXRESET        = rx_init.gtXxreset,
             i_RXOOBRESET       = 0,
             i_RXPCSRESET       = 0,
             i_RXPMARESET       = 0,
 
-            # Receive Ports - RX Margin Analysis ports
+            # Receive Ports - RX Margin Analysis ports.
             i_RXLPMEN          = 0,
 
-            # Receive Ports - RX OOB Signaling ports
+            # Receive Ports - RX OOB Signaling ports.
             o_RXCOMSASDET      = Open(),
             o_RXCOMWAKEDET     = Open(),
 
-            # Receive Ports - RX OOB Signaling ports
+            # Receive Ports - RX OOB Signaling ports.
             o_RXCOMINITDET     = Open(),
 
-            # Receive Ports - RX OOB signalling Ports
+            # Receive Ports - RX OOB signalling Ports.
             o_RXELECIDLE       = Open(),
             i_RXELECIDLEMODE   = 0b11,
 
-            # Receive Ports - RX Polarity Control Ports
+            # Receive Ports - RX Polarity Control Ports.
             i_RXPOLARITY       = rx_polarity,
 
-            # Receive Ports - RX gearbox ports
+            # Receive Ports - RX gearbox ports.
             i_RXSLIDE          = 0,
 
-            # Receive Ports - RX8B/10B Decoder Ports
+            # Receive Ports - RX8B/10B Decoder Ports.
             o_RXCHARISCOMMA    = Open(),
             o_RXCHARISK        = Cat(*[rxdata[10*i+8] for i in range(nwords)]),
 
-            # Receive Ports - Rx Channel Bonding Ports
+            # Receive Ports - Rx Channel Bonding Ports.
             i_RXCHBONDI        = 0b00000,
 
-            # Receive Ports -RX Initialization and Reset Ports
+            # Receive Ports -RX Initialization and Reset Ports.
             o_RXRESETDONE      = rx_init.Xxresetdone,
 
             # Rx AFE Ports
@@ -840,10 +842,10 @@ class GTX(LiteXModule):
             o_RXQPISENN        = Open(),
             o_RXQPISENP        = Open(),
 
-            # TX Buffer Bypass Ports
+            # TX Buffer Bypass Ports.
             i_TXPHDLYTSTCLK    = 0,
 
-            # TX Configurable Driver Ports
+            # TX Configurable Driver Ports.
             i_TXPOSTCURSOR     = 0b00000,
             i_TXPOSTCURSORINV  = 0,
             i_TXPRECURSOR      = 0b00000,
@@ -852,34 +854,34 @@ class GTX(LiteXModule):
             i_TXQPISTRONGPDOWN = 0,
             i_TXQPIWEAKPUP     = 0,
 
-            # TX Initialization and Reset Ports
+            # TX Initialization and Reset Ports.
             i_CFGRESET         = 0,
             i_GTTXRESET        = tx_init.gtXxreset,
             o_PCSRSVDOUT       = Open(),
             i_TXUSERRDY        = tx_init.Xxuserrdy,
 
-            # Transceiver Reset Mode Operation
+            # Transceiver Reset Mode Operation.
             i_GTRESETSEL       = 0,
             i_RESETOVRD        = 0,
 
-            # Transmit Ports - 8b10b Encoder Control Ports
+            # Transmit Ports - 8b10b Encoder Control Ports.
             i_TXCHARDISPMODE   = Cat(*[txdata[10*i+9] for i in range(nwords)]),
             i_TXCHARDISPVAL    = Cat(*[txdata[10*i+8] for i in range(nwords)]),
 
-            # Transmit Ports - FPGA TX Interface Ports
+            # Transmit Ports - FPGA TX Interface Ports.
             i_TXUSRCLK         = ClockSignal("tx"),
             i_TXUSRCLK2        = ClockSignal("tx"),
 
-            # Transmit Ports - PCI Express Ports
+            # Transmit Ports - PCI Express Ports.
             i_TXELECIDLE       = 0,
             i_TXMARGIN         = 0b000,
             i_TXRATE           = 0b000,
             i_TXSWING          = 0,
 
-            # Transmit Ports - Pattern Generator Ports
+            # Transmit Ports - Pattern Generator Ports.
             i_TXPRBSFORCEERR   = 0,
 
-            # Transmit Ports - TX Buffer Bypass Ports
+            # Transmit Ports - TX Buffer Bypass Ports.
             i_TXDLYBYPASS      = 1 if tx_buffer_enable else 0,
             i_TXDLYEN          = 0,
             i_TXDLYHOLD        = 0,
@@ -896,10 +898,10 @@ class GTX(LiteXModule):
             o_TXPHINITDONE     = Open(),
             i_TXPHOVRDEN       = 0,
 
-            # Transmit Ports - TX Buffer Ports
+            # Transmit Ports - TX Buffer Ports.
             o_TXBUFSTATUS      = Open(),
 
-            # Transmit Ports - TX Configurable Driver Ports
+            # Transmit Ports - TX Configurable Driver Ports.
             i_TXBUFDIFFCTRL    = 0b100,
             i_TXDEEMPH         = 0,
             i_TXDIFFCTRL       = 0b1000,
@@ -908,52 +910,52 @@ class GTX(LiteXModule):
             i_TXMAINCURSOR     = 0b0000000,
             i_TXPISOPD         = 0,
 
-            # Transmit Ports - TX Data Path interface
+            # Transmit Ports - TX Data Path interface.
             i_TXDATA           = Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
 
             # Transmit Ports - TX Driver and OOB signaling
             o_GTXTXN           = tx_pads.n,
             o_GTXTXP           = tx_pads.p,
 
-            # Transmit Ports - TX Fabric Clock Output Control Ports
+            # Transmit Ports - TX Fabric Clock Output Control Ports.
             o_TXOUTCLK         = self.txoutclk,
             o_TXOUTCLKFABRIC   = Open(),
             o_TXOUTCLKPCS      = Open(),
             i_TXOUTCLKSEL      = 0b010 if tx_buffer_enable else 0b011,
             o_TXRATEDONE       = Open(),
 
-            # Transmit Ports - TX Gearbox Ports
+            # Transmit Ports - TX Gearbox Ports.
             i_TXCHARISK        = 0b00000000,
             o_TXGEARBOXREADY   = Open(),
             i_TXHEADER         = 0b000,
             i_TXSEQUENCE       = 0b0000000,
             i_TXSTARTSEQ       = 0,
 
-            # Transmit Ports - TX Initialization and Reset Ports
+            # Transmit Ports - TX Initialization and Reset Ports.
             i_TXPCSRESET       = 0,
             i_TXPMARESET       = 0,
             o_TXRESETDONE      = tx_init.Xxresetdone,
 
-            # Transmit Ports - TX OOB signaling Ports
+            # Transmit Ports - TX OOB signaling Ports.
             o_TXCOMFINISH      = Open(),
             i_TXCOMINIT        = 0,
             i_TXCOMSAS         = 0,
             i_TXCOMWAKE        = 0,
             i_TXPDELECIDLEMODE = 0,
 
-            # Transmit Ports - TX Polarity Control Ports
+            # Transmit Ports - TX Polarity Control Ports.
             i_TXPOLARITY       = tx_polarity,
 
-            # Transmit Ports - TX Receiver Detection Ports
+            # Transmit Ports - TX Receiver Detection Ports.
             i_TXDETECTRX       = 0,
 
-            # Transmit Ports - TX8b/10b Encoder Ports
+            # Transmit Ports - TX8b/10b Encoder Ports.
             i_TX8B10BBYPASS    = 0b00000000,
 
-            # Transmit Ports - pattern Generator Ports
+            # Transmit Ports - pattern Generator Ports.
             i_TXPRBSSEL        = 0b000,
 
-            # Tx Configurable Driver  Ports
+            # Tx Configurable Driver  Ports.
             o_TXQPISENN        = Open(),
             o_TXQPISENP        = Open(),
         )
@@ -977,11 +979,11 @@ class GTX(LiteXModule):
                 txoutclk_div = pll.config["clkin"]/self.tx_clk_freq
             else:
                 txoutclk_div = 1
-            # Use txoutclk_bufg when divider is 1
+            # Use txoutclk_bufg when divider is 1.
             if txoutclk_div == 1:
                 self.comb += self.cd_tx.clk.eq(txoutclk_bufg)
                 self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
-            # Use a BUFR when integer divider (with BUFR_DIVIDE)
+            # Use a BUFR when integer divider (with BUFR_DIVIDE).
             elif txoutclk_div == int(txoutclk_div):
                 txoutclk_bufr = Signal()
                 self.specials += [
@@ -997,7 +999,7 @@ class GTX(LiteXModule):
                     ),
                     AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
                 ]
-            # Use a PLL when non-integer divider
+            # Use a PLL when non-integer divider.
             else:
                 txoutclk_pll = S7PLL()
                 self.comb += txoutclk_pll.reset.eq(tx_reset_deglitched)
@@ -1041,7 +1043,7 @@ class GTX(LiteXModule):
         self.comb += [
             self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
             If(tx_produce_square_wave,
-                # square wave @ linerate/data_width for scope observation
+                # square wave @ linerate/data_width for scope observation.
                 txdata.eq(Signal(data_width, reset=(1<<(data_width//2))-1))
             ).Elif(tx_produce_pattern,
                 txdata.eq(tx_pattern)
@@ -1055,7 +1057,7 @@ class GTX(LiteXModule):
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
             self.rx_prbs.pause.eq(rx_prbs_pause),
-            rx_prbs_errors.eq(self.rx_prbs.errors)
+            rx_prbs_errors.eq(self.rx_prbs.errors),
         ]
         for i in range(nwords):
             self.comb += self.decoders[i].input.eq(rxdata[10*i:10*(i+1)])
@@ -1071,7 +1073,7 @@ class GTX(LiteXModule):
                 clock_aligner.rxdata.eq(rxdata),
                 ps_restart.i.eq(clock_aligner.restart),
                 rx_init.restart.eq((ps_restart.o & self.rx_align) | ~self.rx_enable),
-                self.rx_ready.eq(clock_aligner.ready)
+                self.rx_ready.eq(clock_aligner.ready),
             ]
 
     def add_stream_endpoints(self):
@@ -1221,9 +1223,9 @@ class GTX(LiteXModule):
         self.add_electrical_control()
 
     def add_clock_cycles(self):
-        self.clock_latch    = CSRStorage(description="Write to latch TX/RX clock cycles")
-        self.clock_tx_cycles = CSRStorage(32, description="TX clock cycles")
-        self.clock_rx_cycles = CSRStorage(32, description="RX clock cycles")
+        self.clock_latch    = CSRStorage(description="Write to latch TX/RX clock cycles.")
+        self.clock_tx_cycles = CSRStorage(32, description="TX clock cycles.")
+        self.clock_rx_cycles = CSRStorage(32, description="RX clock cycles.")
 
         tx_cycles = Signal(32)
         rx_cycles = Signal(32)

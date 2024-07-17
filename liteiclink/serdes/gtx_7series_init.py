@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from math import ceil
@@ -22,7 +22,7 @@ class GTXInit(LiteXModule):
         self.done            = Signal() # o
         self.restart         = Signal() # i
 
-        # GTX signals
+        # GTX signals.
         self.plllock         = Signal() # i
         self.pllreset        = Signal() # o
         self.gtXxreset       = Signal() # o
@@ -33,31 +33,31 @@ class GTXInit(LiteXModule):
         self.Xxphaligndone   = Signal() # i
         self.Xxuserrdy       = Signal() # o
 
-        # DRP (optional)
+        # DRP (optional).
         self.drp_start       = Signal()        # o
         self.drp_done        = Signal(reset=1) # i
 
         # # #
 
-        # Double-latch transceiver asynch outputs
+        # Double-latch transceiver asynch outputs.
         plllock         = Signal()
         Xxresetdone     = Signal()
         Xxdlysresetdone = Signal()
         Xxphaligndone   = Signal()
         self.specials += [
-            MultiReg(self.plllock, plllock),
-            MultiReg(self.Xxresetdone, Xxresetdone),
+            MultiReg(self.plllock,         plllock),
+            MultiReg(self.Xxresetdone,     Xxresetdone),
             MultiReg(self.Xxdlysresetdone, Xxdlysresetdone),
-            MultiReg(self.Xxphaligndone, Xxphaligndone)
+            MultiReg(self.Xxphaligndone,   Xxphaligndone)
         ]
 
-        # Detect Xxphaligndone rising edge
+        # Detect Xxphaligndone rising edge.
         Xxphaligndone_r      = Signal(reset=1)
         Xxphaligndone_rising = Signal()
         self.sync += Xxphaligndone_r.eq(Xxphaligndone)
         self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
 
-        # Deglitch FSM outputs driving transceiver asynch inputs
+        # Deglitch FSM outputs driving transceiver asynch inputs.
         gtXxreset   = Signal()
         gtXxpd      = Signal()
         Xxdlysreset = Signal()
@@ -69,7 +69,7 @@ class GTXInit(LiteXModule):
             self.Xxuserrdy.eq(Xxuserrdy)
         ]
 
-        # FSM
+        # FSM.
         self.fsm = fsm = ResetInserter()(FSM(reset_state="POWER-DOWN"))
         fsm.act("POWER-DOWN",
             gtXxreset.eq(1),
@@ -91,7 +91,7 @@ class GTXInit(LiteXModule):
                 NextState("WAIT-INIT-DELAY")
             )
         )
-        # Wait 500ns after configuration before releasing GTX reset (to follow AR43482)
+        # Wait 500ns after configuration before releasing GTX reset (to follow AR43482).
         init_delay = WaitTimer(500e-9*sys_clk_freq)
         self.submodules += init_delay
         self.comb += init_delay.wait.eq(1)
@@ -107,7 +107,7 @@ class GTXInit(LiteXModule):
                 NextState("WAIT-CDR-LOCK")
             )
         )
-        # Wait for clock recovery lock (only needed for RX but we also do it for TX
+        # Wait for clock recovery lock (only needed for RX but we also do it for TX.
         cdr_lock_timer = WaitTimer(1024)
         self.submodules += cdr_lock_timer
         fsm.act("WAIT-CDR-LOCK",
@@ -132,7 +132,7 @@ class GTXInit(LiteXModule):
                 NextState("WAIT-FIRST-ALIGN-DONE")
             )
         )
-        # Align done after 2 rising edges of Xxphaligndone (UG476 / buffer bypass config mode)
+        # Align done after 2 rising edges of Xxphaligndone (UG476 / buffer bypass config mode).
         fsm.act("WAIT-FIRST-ALIGN-DONE",
             Xxuserrdy.eq(1),
             If(Xxphaligndone_rising,
@@ -153,7 +153,7 @@ class GTXInit(LiteXModule):
             )
         )
 
-        # FSM watchdog / restart
+        # FSM watchdog / restart.
         watchdog = WaitTimer(1e-3*sys_clk_freq)
         self.submodules += watchdog
         self.comb += [

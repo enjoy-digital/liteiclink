@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from math import ceil
@@ -23,7 +23,7 @@ class GTYInit(LiteXModule):
         self.done            = Signal() # o
         self.restart         = Signal() # i
 
-        # GTH signals
+        # GTH signals.
         self.plllock         = Signal() # i
         self.pllreset        = Signal() # o
         self.gtXxreset       = Signal() # o
@@ -35,27 +35,27 @@ class GTYInit(LiteXModule):
         self.Xxsyncdone      = Signal() # i
         self.Xxuserrdy       = Signal() # o
 
-        # DRP (optional)
+        # DRP (optional).
         self.drp_start       = Signal()        # o
         self.drp_done        = Signal(reset=1) # i
 
         # # #
 
-        # Double-latch transceiver asynch outputs
+        # Double-latch transceiver asynch outputs.
         plllock         = Signal()
         Xxresetdone     = Signal()
         Xxdlysresetdone = Signal()
         Xxphaligndone   = Signal()
         Xxsyncdone      = Signal()
         self.specials += [
-            MultiReg(self.plllock, plllock),
-            MultiReg(self.Xxresetdone, Xxresetdone),
+            MultiReg(self.plllock,         plllock),
+            MultiReg(self.Xxresetdone,     Xxresetdone),
             MultiReg(self.Xxdlysresetdone, Xxdlysresetdone),
-            MultiReg(self.Xxphaligndone, Xxphaligndone),
-            MultiReg(self.Xxsyncdone, Xxsyncdone)
+            MultiReg(self.Xxphaligndone,   Xxphaligndone),
+            MultiReg(self.Xxsyncdone,      Xxsyncdone)
         ]
 
-        # Deglitch FSM outputs driving transceiver asynch inputs
+        # Deglitch FSM outputs driving transceiver asynch inputs.
         gtXxreset   = Signal()
         gtXxpd      = Signal()
         Xxdlysreset = Signal()
@@ -67,7 +67,7 @@ class GTYInit(LiteXModule):
             self.Xxuserrdy.eq(Xxuserrdy)
         ]
 
-        # PLL reset must be at least 2us
+        # PLL reset must be at least 2us.
         pll_reset_cycles = ceil(2e-6*sys_clk_freq)
         pll_reset_timer  = WaitTimer(pll_reset_cycles)
         self.submodules += pll_reset_timer
@@ -111,7 +111,7 @@ class GTYInit(LiteXModule):
             gtXxreset.eq(1),
             If(plllock, NextState("RELEASE_GTY_RESET"))
         )
-        # Release GTY reset and wait for GTY resetdone (from UG578, GTY is reset on falling edge
+        # Release GTY reset and wait for GTY resetdone (from UG578, GTY is reset on falling edge.
         # of gtXxreset)
         if rx:
             fsm.act("RELEASE_GTY_RESET",
@@ -136,14 +136,14 @@ class GTYInit(LiteXModule):
                     )
                 )
             )
-        # Start delay alignment (pulse)
+        # Start delay alignment (pulse).
         fsm.act("ALIGN",
             Xxuserrdy.eq(1),
             Xxdlysreset.eq(1),
             NextState("WAIT_ALIGN")
         )
         if rx:
-            # Wait for delay alignment
+            # Wait for delay alignment.
             fsm.act("WAIT_ALIGN",
                 Xxuserrdy.eq(1),
                 If(Xxsyncdone,
@@ -151,7 +151,7 @@ class GTYInit(LiteXModule):
                 )
             )
         else:
-            # Wait for delay alignment
+            # Wait for delay alignment.
             fsm.act("WAIT_ALIGN",
                 Xxuserrdy.eq(1),
                 If(Xxdlysresetdone,
@@ -159,7 +159,7 @@ class GTYInit(LiteXModule):
                 )
             )
 
-        # Wait 2 rising edges of Xxphaligndone (from UG576 in TX Buffer Bypass in Single-Lane Auto
+        # Wait 2 rising edges of Xxphaligndone (from UG576 in TX Buffer Bypass in Single-Lane Auto.
         # Mode)
         fsm.act("WAIT_FIRST_ALIGN_DONE",
             Xxuserrdy.eq(1),

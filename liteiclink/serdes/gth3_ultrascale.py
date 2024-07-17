@@ -1,26 +1,26 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # Copyright (c) 2021 Sylvain Munaut <tnt@246tNt.com>
 # Copyright (c) 2017 Sebastien Bourdeauducq <sb@m-labs.hk>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.cdc       import MultiReg, PulseSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
 
 from litex.soc.interconnect.csr import *
-from litex.soc.interconnect import stream
-from litex.soc.cores.prbs import PRBSTX, PRBSRX
+from litex.soc.interconnect     import stream
+
+from litex.soc.cores.prbs       import PRBSTX, PRBSRX
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
+from liteiclink.serdes.common              import *
 from liteiclink.serdes.gth_ultrascale_init import GTHTXInit, GTHRXInit
-from liteiclink.serdes.clock_aligner import BruteforceClockAligner
-
-from liteiclink.serdes.common import *
+from liteiclink.serdes.clock_aligner       import BruteforceClockAligner
 
 # GTH Channel PLL ----------------------------------------------------------------------------------
 
@@ -86,7 +86,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
            linerate = config["linerate"]/1e9)
         return r
 
-# GTH Quad PLL -------------------------------------------------------------------------------------
+# GTH Quad PLL Base --------------------------------------------------------------------------------
 
 class GTHQuadPLLBase(LiteXModule):
     def __init__(self, refclk, refclk_freq, linerate):
@@ -97,7 +97,7 @@ class GTHQuadPLLBase(LiteXModule):
         self.powerdown = Signal()
         self.config = config = self.compute_config(refclk_freq, linerate)
 
-        # DRP
+        # DRP.
         self.drp = DRPInterface()
 
         # # #
@@ -225,16 +225,17 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
            linerate = config["linerate"]/1e9)
         return r
 
+# GTH3 Quad PLL ------------------------------------------------------------------------------------
+
 class GTH3QuadPLL(GTHQuadPLLBase):
     name = "GTHE3_COMMON"
 
     def __init__(self, refclk, refclk_freq, linerate):
         super().__init__(refclk, refclk_freq, linerate)
 
-        # Update params common to GTHE3/4 but that have different
-        # values and differs from the default ones
+        # Update params common to GTHE3 but that have different values and differs from the default ones.
         self.gth_params.update(
-            # QPLL0
+            # QPLL0.
             p_QPLL0_CFG0        = 0b0011001000011100,
             p_QPLL0_CFG1        = 0b0001000000011000,
             p_QPLL0_CFG1_G3     = 0b0001000000011000,
@@ -244,7 +245,7 @@ class GTH3QuadPLL(GTHQuadPLLBase):
             p_QPLL0_CFG4        = 0b0000000000001001,
             p_QPLL0_CP          = 0b0111111111,
             p_QPLL0_CP_G3       = 0b1111111111,
-            p_QPLL0_FBDIV_G3    = self.config["n"], # ?
+            p_QPLL0_FBDIV_G3    = self.config["n"], # CHECKME.
             p_QPLL0_INIT_CFG0   = 0b0000001010110010,
             p_QPLL0_INIT_CFG1   = 0b00000000,
             p_QPLL0_LOCK_CFG    = 0b0010000111101000,
@@ -252,7 +253,7 @@ class GTH3QuadPLL(GTHQuadPLLBase):
             p_QPLL0_LPF         = 0b1111111100,
             p_QPLL0_LPF_G3      = 0b0000010101,
 
-            # QPLL1
+            # QPLL1.
             p_QPLL1_CFG0        = 0b0011001000011100,
             p_QPLL1_CFG1        = 0b0001000000011000,
             p_QPLL1_CFG1_G3     = 0b0001000000011000,
@@ -262,7 +263,7 @@ class GTH3QuadPLL(GTHQuadPLLBase):
             p_QPLL1_CFG4        = 0b0000000000001001,
             p_QPLL1_CP          = 0b0001111111,
             p_QPLL1_CP_G3       = 0b1111111111,
-            p_QPLL1_FBDIV_G3    = self.config["n"], # ?
+            p_QPLL1_FBDIV_G3    = self.config["n"], # CHECKME.
             p_QPLL1_INIT_CFG0   = 0b0000001010110010,
             p_QPLL1_INIT_CFG1   = 0b00000000,
             p_QPLL1_LOCK_CFG    = 0b0010000111101000,
@@ -285,7 +286,7 @@ class GTH3(LiteXModule):
         pll_master          = True):
         assert data_width in [20, 40]
 
-        # TX controls
+        # TX controls.
         self.tx_enable              = Signal(reset=1)
         self.tx_ready               = Signal()
         self.tx_inhibit             = Signal()
@@ -294,7 +295,7 @@ class GTH3(LiteXModule):
         self.tx_pattern             = Signal(data_width)
         self.tx_prbs_config         = Signal(2)
 
-        # RX controls
+        # RX controls.
         self.rx_enable      = Signal(reset=1)
         self.rx_ready       = Signal()
         self.rx_align       = Signal(reset=1)
@@ -302,10 +303,10 @@ class GTH3(LiteXModule):
         self.rx_prbs_pause  = Signal()
         self.rx_prbs_errors = Signal(32)
 
-        # DRP
+        # DRP.
         self.drp = DRPInterface()
 
-        # Loopback
+        # Loopback.
         self.loopback = Signal(3)
 
         # # #
@@ -320,14 +321,14 @@ class GTH3(LiteXModule):
         self.decoders = [ClockDomainsRenamer("rx")(Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
 
-        # Transceiver direct clock outputs (useful to specify clock constraints)
+        # Transceiver direct clock outputs (useful to specify clock constraints).
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
         self.tx_clk_freq = pll.config["linerate"]/data_width
         self.rx_clk_freq = pll.config["linerate"]/data_width
 
-        # Control/Status CDC
+        # Control/Status CDC.
         tx_produce_square_wave = Signal()
         tx_produce_pattern     = Signal()
         tx_pattern             = Signal(data_width)
@@ -337,17 +338,19 @@ class GTH3(LiteXModule):
         rx_prbs_pause  = Signal()
         rx_prbs_errors = Signal(32)
 
+        # TX Resync.
         self.specials += [
             MultiReg(self.tx_produce_square_wave, tx_produce_square_wave, "tx"),
-            MultiReg(self.tx_produce_pattern, tx_produce_pattern, "tx"),
-            MultiReg(self.tx_pattern, tx_pattern, "tx"),
-            MultiReg(self.tx_prbs_config, tx_prbs_config, "tx"),
+            MultiReg(self.tx_produce_pattern,     tx_produce_pattern,     "tx"),
+            MultiReg(self.tx_pattern,             tx_pattern,             "tx"),
+            MultiReg(self.tx_prbs_config,         tx_prbs_config,         "tx"),
         ]
 
+        # RX Resync.
         self.specials += [
-            MultiReg(self.rx_prbs_config, rx_prbs_config, "rx"),
-            MultiReg(self.rx_prbs_pause, rx_prbs_pause, "rx"),
-            MultiReg(rx_prbs_errors, self.rx_prbs_errors, "sys"),
+            MultiReg(self.rx_prbs_config, rx_prbs_config,      "rx"),
+            MultiReg(self.rx_prbs_pause,  rx_prbs_pause,       "rx"),
+            MultiReg(rx_prbs_errors,      self.rx_prbs_errors, "sys"),
         ]
 
         # # #
@@ -356,20 +359,20 @@ class GTH3(LiteXModule):
         self.tx_init = tx_init = GTHTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
         self.comb += [
             self.tx_ready.eq(tx_init.done),
-            tx_init.restart.eq(~self.tx_enable)
+            tx_init.restart.eq(~self.tx_enable),
         ]
 
         # RX init ----------------------------------------------------------------------------------
         self.rx_init = rx_init = GTHRXInit(sys_clk_freq, buffer_enable=rx_buffer_enable)
         self.comb += [
             self.rx_ready.eq(rx_init.done),
-            rx_init.restart.eq(~self.rx_enable)
+            rx_init.restart.eq(~self.rx_enable),
         ]
 
-        # PLL ----------------------------------------------------------------------------------
+        # PLL --------------------------------------------------------------------------------------
         self.comb += [
             tx_init.plllock.eq(pll.lock),
-            rx_init.plllock.eq(pll.lock)
+            rx_init.plllock.eq(pll.lock),
         ]
         if pll_master:
             self.comb += pll.reset.eq(tx_init.pllreset)
@@ -379,8 +382,8 @@ class GTH3(LiteXModule):
         drp_mux.add_interface(self.drp)
 
         # GTHE3_CHANNEL instance -------------------------------------------------------------------
-        txdata = Signal(data_width)
-        rxdata = Signal(data_width)
+        txdata        = Signal(data_width)
+        rxdata        = Signal(data_width)
         rxphaligndone = Signal()
 
         self.gth_params = dict(
@@ -773,11 +776,11 @@ class GTH3(LiteXModule):
             p_TX_INT_DATAWIDTH             = data_width == 40,
             p_TX_XCLK_SEL                  = "TXOUT" if tx_buffer_enable else "TXUSR",
 
-            # Reset modes
+            # Reset modes.
             i_RESETOVRD       = 0,
             i_GTRESETSEL      = 0,
 
-            # DRP
+            # DRP.
             i_DRPADDR         = drp_mux.addr,
             i_DRPCLK          = drp_mux.clk,
             i_DRPDI           = drp_mux.di,
@@ -786,7 +789,7 @@ class GTH3(LiteXModule):
             o_DRPRDY          = drp_mux.rdy,
             i_DRPWE           = drp_mux.we,
 
-            # CPLL
+            # CPLL.
             i_CPLLRESET       = 0,
             i_CPLLPD          = 0 if (use_qpll0 | use_qpll1) else pll.reset,
             o_CPLLLOCK        = Signal() if (use_qpll0 | use_qpll1) else pll.lock,
@@ -795,19 +798,19 @@ class GTH3(LiteXModule):
             i_TSTIN           = 2**20-1,
             i_GTREFCLK0       = 0 if (use_qpll0 | use_qpll1) else pll.refclk,
 
-            # QPLL
+            # QPLL.
             i_QPLL0CLK        = 0 if (use_cpll | use_qpll1) else pll.clk,
             i_QPLL0REFCLK     = 0 if (use_cpll | use_qpll1) else pll.refclk,
             i_QPLL1CLK        = 0 if (use_cpll | use_qpll0) else pll.clk,
             i_QPLL1REFCLK     = 0 if (use_cpll | use_qpll0) else pll.refclk,
 
-            # TX clock
+            # TX clock.
             o_TXOUTCLK        = self.txoutclk,
             i_TXSYSCLKSEL     = 0b00 if use_cpll else 0b10 if use_qpll0 else 0b11,
             i_TXPLLCLKSEL     = 0b00 if use_cpll else 0b11 if use_qpll0 else 0b10,
             i_TXOUTCLKSEL     = 0b010 if tx_buffer_enable else 0b011,
 
-            # TX Startup/Reset
+            # TX Startup/Reset.
             i_GTTXRESET       = tx_init.gtXxreset,
             o_TXRESETDONE     = tx_init.Xxresetdone,
             i_TXDLYSRESET     = tx_init.Xxdlysreset,
@@ -818,23 +821,23 @@ class GTH3(LiteXModule):
             i_TXDLYBYPASS     = 1 if tx_buffer_enable else 0,
             i_TXPHDLYPD       = 1 if tx_buffer_enable else 0,
 
-            # TX data
+            # TX data.
             i_TXCTRL0         = Cat(*[txdata[10*i+8] for i in range(nwords)]),
             i_TXCTRL1         = Cat(*[txdata[10*i+9] for i in range(nwords)]),
             i_TXDATA          = Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
             i_TXUSRCLK        = ClockSignal("tx"),
             i_TXUSRCLK2       = ClockSignal("tx"),
 
-            # TX electrical
+            # TX electrical.
             i_TXPD            = Cat(tx_init.gtXxpd, tx_init.gtXxpd),
             i_TXDIFFCTRL      = 0b1100,
             i_TXINHIBIT       = self.tx_inhibit,
             i_TXBUFDIFFCTRL   = 0b000,
 
-            # Internal Loopback
+            # Internal Loopback.
             i_LOOPBACK        = self.loopback,
 
-            # RX Startup/Reset
+            # RX Startup/Reset.
             i_GTRXRESET       = rx_init.gtXxreset,
             o_RXRESETDONE     = rx_init.Xxresetdone,
             i_RXDLYSRESET     = rx_init.Xxdlysreset,
@@ -847,14 +850,14 @@ class GTH3(LiteXModule):
             i_RXDLYBYPASS     = 1 if rx_buffer_enable else 0,
             i_RXPHDLYPD       = 1 if rx_buffer_enable else 0,
 
-            # RX AFE
+            # RX AFE.
             i_RXDFEAGCCTRL    = 1,
             i_RXDFEXYDEN      = 1,
             i_RXLPMEN         = 1,
             i_RXOSINTCFG      = 0xd,
             i_RXOSINTEN       = 1,
 
-            # RX clock
+            # RX clock.
             i_RXRATE          = 0,
             i_RXSYSCLKSEL     = 0b00,
             i_RXOUTCLKSEL     = 0b010,
@@ -863,7 +866,7 @@ class GTH3(LiteXModule):
             i_RXUSRCLK        = ClockSignal("rx"),
             i_RXUSRCLK2       = ClockSignal("rx"),
 
-            # RX Byte and Word Alignment Ports
+            # RX Byte and Word Alignment Ports.
             o_RXBYTEISALIGNED = Open(),
             o_RXBYTEREALIGN   = Open(),
             o_RXCOMMADET      = Open(),
@@ -872,20 +875,20 @@ class GTH3(LiteXModule):
             i_RXPCOMMAALIGNEN = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
             i_RXSLIDE         = 0,
 
-            # RX data
+            # RX data.
             o_RXCTRL0         = Cat(*[rxdata[10*i+8] for i in range(nwords)]),
             o_RXCTRL1         = Cat(*[rxdata[10*i+9] for i in range(nwords)]),
             o_RXDATA          = Cat(*[rxdata[10*i:10*i+8] for i in range(nwords)]),
 
-            # RX electrical
+            # RX electrical.
             i_RXPD            = Cat(rx_init.gtXxpd, rx_init.gtXxpd),
             i_RXELECIDLEMODE  = 0b11,
 
-            # Polarity
+            # Polarity.
             i_TXPOLARITY      = tx_polarity,
             i_RXPOLARITY      = rx_polarity,
 
-            # Pads
+            # Pads.
             i_GTHRXP          = rx_pads.p,
             i_GTHRXN          = rx_pads.n,
             o_GTHTXP          = tx_pads.p,
@@ -897,7 +900,6 @@ class GTH3(LiteXModule):
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.cd_tx = ClockDomain()
-
 
         # Use/generate local tx_clk.
         # --------------------------
@@ -961,7 +963,7 @@ class GTH3(LiteXModule):
         self.comb += [
             self.rx_prbs.config.eq(rx_prbs_config),
             self.rx_prbs.pause.eq(rx_prbs_pause),
-            rx_prbs_errors.eq(self.rx_prbs.errors)
+            rx_prbs_errors.eq(self.rx_prbs.errors),
         ]
         for i in range(nwords):
             self.comb += self.decoders[i].input.eq(rxdata[10*i:10*(i+1)])
@@ -1127,9 +1129,9 @@ class GTH3(LiteXModule):
         self.add_electrical_control()
 
     def add_clock_cycles(self):
-        self.clock_latch    = CSRStorage(description="Write to latch TX/RX clock cycles")
-        self.clock_tx_cycles = CSRStorage(32, description="TX clock cycles")
-        self.clock_rx_cycles = CSRStorage(32, description="RX clock cycles")
+        self.clock_latch    = CSRStorage(description="Write to latch TX/RX clock cycles.")
+        self.clock_tx_cycles = CSRStorage(32, description="TX clock cycles.")
+        self.clock_rx_cycles = CSRStorage(32, description="RX clock cycles.")
 
         tx_cycles = Signal(32)
         rx_cycles = Signal(32)

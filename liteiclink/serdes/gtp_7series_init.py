@@ -24,7 +24,7 @@ class GTPTXInit(LiteXModule):
         self.done            = Signal() # o
         self.restart         = Signal() # i
 
-        # GTP signals
+        # GTP signals.
         self.plllock         = Signal() # i
         self.pllreset        = Signal() # o
         self.gttxreset       = Signal() # o
@@ -39,13 +39,13 @@ class GTPTXInit(LiteXModule):
         self.txdlyen         = Signal() # o
         self.txuserrdy       = Signal() # o
 
-        # DRP (optional)
+        # DRP (optional).
         self.drp_start       = Signal()        # o
         self.drp_done        = Signal(reset=1) # i
 
         # # #
 
-        # Double-latch transceiver asynch outputs
+        # Double-latch transceiver asynch outputs.
         plllock         = Signal()
         txresetdone     = Signal()
         txdlysresetdone = Signal()
@@ -59,7 +59,7 @@ class GTPTXInit(LiteXModule):
             MultiReg(self.txphaligndone,   txphaligndone)
         ]
 
-        # Deglitch FSM outputs driving transceiver asynch inputs
+        # Deglitch FSM outputs driving transceiver asynch inputs.
         gttxreset   = Signal()
         gttxpd      = Signal()
         txdlysreset = Signal()
@@ -77,13 +77,13 @@ class GTPTXInit(LiteXModule):
             self.txuserrdy.eq(txuserrdy)
         ]
 
-        # Detect txphaligndone rising edge
+        # Detect txphaligndone rising edge.
         txphaligndone_r = Signal(reset=1)
         txphaligndone_rising = Signal()
         self.sync += txphaligndone_r.eq(txphaligndone)
         self.comb += txphaligndone_rising.eq(txphaligndone & ~txphaligndone_r)
 
-        # FSM
+        # FSM.
         self.fsm = fsm =ResetInserter()(FSM(reset_state="POWER-DOWN"))
         fsm.act("POWER-DOWN",
             gttxreset.eq(1),
@@ -105,7 +105,7 @@ class GTPTXInit(LiteXModule):
                 NextState("WAIT-INIT-DELAY")
             )
         )
-        # Wait 500ns after configuration before releasing GTP reset (to follow AR43482)
+        # Wait 500ns after configuration before releasing GTP reset (to follow AR43482).
         init_delay = WaitTimer(500e-9*sys_clk_freq)
         self.submodules += init_delay
         self.comb += init_delay.wait.eq(1)
@@ -139,7 +139,7 @@ class GTPTXInit(LiteXModule):
                 NextState("WAIT-FIRST-ALIGN-DONE")
             )
         )
-        # Align done after 2 rising edges of Xxphaligndone (UG482 / buffer bypass config mode)
+        # Align done after 2 rising edges of Xxphaligndone (UG482 / buffer bypass config mode).
         fsm.act("WAIT-FIRST-ALIGN-DONE",
             txuserrdy.eq(1),
             txphalign.eq(1),
@@ -163,7 +163,7 @@ class GTPTXInit(LiteXModule):
             )
         )
 
-        # FSM watchdog / restart
+        # FSM watchdog / restart.
         watchdog = WaitTimer(1e-3*sys_clk_freq)
         self.submodules += watchdog
         self.comb += [
@@ -178,7 +178,7 @@ class GTPRXInit(LiteXModule):
         self.done            = Signal() # o
         self.restart         = Signal() # i
 
-        # GTP signals
+        # GTP signals.
         self.plllock         = Signal() # i
         self.gtrxreset       = Signal() # o
         self.gtrxpd          = Signal() # o
@@ -190,7 +190,7 @@ class GTPRXInit(LiteXModule):
         self.rxsyncdone      = Signal() # i
         self.rxpmaresetdone  = Signal() # i
 
-        # DRP
+        # DRP.
         self.drp             = DRPInterface()
 
         # # #
@@ -212,7 +212,7 @@ class GTPRXInit(LiteXModule):
         rxpmaresetdone_r = Signal()
         self.sync += rxpmaresetdone_r.eq(rxpmaresetdone)
 
-        # Double-latch transceiver asynch outputs
+        # Double-latch transceiver asynch outputs.
         plllock         = Signal()
         rxresetdone     = Signal()
         rxdlysresetdone = Signal()
@@ -224,7 +224,7 @@ class GTPRXInit(LiteXModule):
             MultiReg(self.rxsyncdone,      rxsyncdone)
         ]
 
-        # Deglitch FSM outputs driving transceiver asynch inputs
+        # Deglitch FSM outputs driving transceiver asynch inputs.
         gtrxreset   = Signal()
         gtrxpd      = Signal()
         rxdlysreset = Signal()
@@ -244,7 +244,7 @@ class GTPRXInit(LiteXModule):
             gtrxpd.eq(1),
             NextState("WAIT-INIT-DELAY")
         )
-        # Wait 500ns after configuration before releasing GTP reset (to follow AR43482)
+        # Wait 500ns after configuration before releasing GTP reset (to follow AR43482).
         init_delay = WaitTimer(500e-9*sys_clk_freq)
         self.submodules += init_delay
         self.comb += init_delay.wait.eq(1)
@@ -328,7 +328,7 @@ class GTPRXInit(LiteXModule):
             )
         )
 
-        # FSM watchdog / restart
+        # FSM watchdog / restart.
         watchdog = WaitTimer(4e-3*sys_clk_freq)
         self.submodules += watchdog
         self.comb += [

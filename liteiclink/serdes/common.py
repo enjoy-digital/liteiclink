@@ -1,14 +1,14 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2019 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 
 from litex.gen import *
 
-# DRP ----------------------------------------------------------------------------------------------
+# DRP Layout ---------------------------------------------------------------------------------------
 
 _drp_layout = [
     ("clk",                1, DIR_M_TO_S),
@@ -20,6 +20,7 @@ _drp_layout = [
     ("do",      "data_width", DIR_S_TO_M),
 ]
 
+# DRP Interface ------------------------------------------------------------------------------------
 
 class DRPInterface(Record):
     def __init__(self, address_width=9, data_width=16):
@@ -28,6 +29,7 @@ class DRPInterface(Record):
             data_width    = data_width,
         ))
 
+# DRP Mux ------------------------------------------------------------------------------------------
 
 class DRPMux(LiteXModule, DRPInterface):
     def __init__(self, **kwargs):

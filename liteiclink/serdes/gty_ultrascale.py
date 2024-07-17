@@ -1,24 +1,25 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2020 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import math
 
 from migen import *
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.cdc       import MultiReg, PulseSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.gen import *
 
 from litex.soc.interconnect.csr import *
-from litex.soc.interconnect import stream
-from litex.soc.cores.prbs import PRBSTX, PRBSRX
+from litex.soc.interconnect     import stream
+
+from litex.soc.cores.prbs       import PRBSTX, PRBSRX
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 from liteiclink.serdes.gty_ultrascale_init import GTYRXInit, GTYTXInit
-from liteiclink.serdes.clock_aligner import BruteforceClockAligner
+from liteiclink.serdes.clock_aligner       import BruteforceClockAligner
 
 from liteiclink.serdes.common import *
 
@@ -97,7 +98,7 @@ class GTYQuadPLL(LiteXModule):
         self.powerdown = Signal()
         self.config = config = self.compute_config(refclk_freq, linerate)
 
-        # DRP
+        # DRP.
         self.drp = DRPInterface()
 
         # # #
@@ -128,7 +129,7 @@ class GTYQuadPLL(LiteXModule):
             p_PPF0_CFG              = 0b0000101100000000,  # FIXME: 12g: 0b0000011000000000, 10g: 0b0000010000000000
             p_PPF1_CFG              = 0b0000011000000000,
 
-            # QPLL0 Parameters
+            # QPLL0 Parameters.
             p_QPLL0_CFG0            = 0b0011001100011100,
             p_QPLL0_CFG1            = 0b1101000000111000,
             p_QPLL0_CFG1_G3         = 0b1101000000111000,
@@ -154,7 +155,7 @@ class GTYQuadPLL(LiteXModule):
             p_QPLL0_SDM_CFG1        = 0b0000000000000000,
             p_QPLL0_SDM_CFG2        = 0b0000000000000000,
 
-            # QPLL1 Parameters
+            # QPLL1 Parameters.
             p_QPLL1_CFG0            = 0b0011001100011100,
             p_QPLL1_CFG1            = 0b1101000000111000,
             p_QPLL1_CFG1_G3         = 0b1101000000111000,
@@ -180,7 +181,7 @@ class GTYQuadPLL(LiteXModule):
             p_QPLL1_SDM_CFG1        = 0b0000000000000000,
             p_QPLL1_SDM_CFG2        = 0b0000000000000000,
 
-            # Common
+            # Common.
             i_GTREFCLK00      = refclk if use_qpll0 else 0,
             i_GTREFCLK01      = refclk if use_qpll1 else 0,
             i_GTREFCLK10      = 0,
@@ -196,7 +197,7 @@ class GTYQuadPLL(LiteXModule):
             i_BGRCALOVRDENB   = 0b1,
             i_RCALENB         = 1,
 
-            # DRP
+            # DRP.
             i_DRPADDR         = self.drp.addr,
             i_DRPCLK          = self.drp.clk,
             i_DRPDI           = self.drp.di,
@@ -205,7 +206,7 @@ class GTYQuadPLL(LiteXModule):
             o_DRPRDY          = self.drp.rdy,
             i_DRPWE           = self.drp.we,
 
-            # QPLL0
+            # QPLL0.
             i_SDM0DATA        = round(config["f"]*(2**24)),
             i_SDM0WIDTH       = 24,
             i_SDM0RESET       = 0b0,
@@ -221,7 +222,7 @@ class GTYQuadPLL(LiteXModule):
             i_QPLL0REFCLKSEL  = 0b001,
             i_QPLL0RESET      = self.reset,
 
-            # QPLL1
+            # QPLL1.
             i_SDM1DATA        = round(config["f"]*(2**24)),
             i_SDM1WIDTH       = 24,
             i_SDM1RESET       = 0b0,
@@ -262,7 +263,7 @@ class GTYQuadPLL(LiteXModule):
                     n_f = (vco_freq/refclk_freq)*m
                     if 16 <= n_f <= 160:
                         n = math.floor(n_f)
-                        f = n_f - n  # FIXME: round((n_f - n)*(2**24))/(2**24)
+                        f = n_f - n  # FIXME: round((n_f - n)*(2**24))/(2**24).
                         vco_freq_calc = refclk_freq*(n +f)/m
                         clkout_calc   = vco_freq_calc/rate
                         linerate_calc = clkout_calc*2/d
@@ -332,7 +333,7 @@ class GTY(LiteXModule):
         pll_master          = True):
         assert data_width in [20, 40, 80]
 
-        # TX controls
+        # TX controls.
         self.tx_enable              = Signal(reset=1)
         self.tx_ready               = Signal()
         self.tx_inhibit             = Signal()
@@ -341,7 +342,7 @@ class GTY(LiteXModule):
         self.tx_pattern             = Signal(data_width)
         self.tx_prbs_config         = Signal(2)
 
-        # RX controls
+        # RX controls.
         self.rx_enable      = Signal(reset=1)
         self.rx_ready       = Signal()
         self.rx_align       = Signal(reset=1)
@@ -384,17 +385,19 @@ class GTY(LiteXModule):
         rx_prbs_pause  = Signal()
         rx_prbs_errors = Signal(32)
 
+        # TX Sync.
         self.specials += [
             MultiReg(self.tx_produce_square_wave, tx_produce_square_wave, "tx"),
-            MultiReg(self.tx_produce_pattern, tx_produce_pattern, "tx"),
-            MultiReg(self.tx_pattern, tx_pattern, "tx"),
-            MultiReg(self.tx_prbs_config, tx_prbs_config, "tx"),
+            MultiReg(self.tx_produce_pattern,     tx_produce_pattern,     "tx"),
+            MultiReg(self.tx_pattern,             tx_pattern,             "tx"),
+            MultiReg(self.tx_prbs_config,         tx_prbs_config,         "tx"),
         ]
 
+        # RX Sync.
         self.specials += [
-            MultiReg(self.rx_prbs_config, rx_prbs_config, "rx"),
-            MultiReg(self.rx_prbs_pause, rx_prbs_pause, "rx"),
-            MultiReg(rx_prbs_errors, self.rx_prbs_errors, "sys"),
+            MultiReg(self.rx_prbs_config, rx_prbs_config,      "rx"),
+            MultiReg(self.rx_prbs_pause,  rx_prbs_pause,       "rx"),
+            MultiReg(rx_prbs_errors,      self.rx_prbs_errors, "sys"),
         ]
 
         # # #
@@ -403,20 +406,20 @@ class GTY(LiteXModule):
         self.tx_init = tx_init = GTYTXInit(sys_clk_freq, buffer_enable=tx_buffer_enable)
         self.comb += [
             self.tx_ready.eq(tx_init.done),
-            tx_init.restart.eq(~self.tx_enable)
+            tx_init.restart.eq(~self.tx_enable),
         ]
 
         # RX init ----------------------------------------------------------------------------------
         self.rx_init = rx_init = GTYRXInit(sys_clk_freq, buffer_enable=rx_buffer_enable)
         self.comb += [
             self.rx_ready.eq(rx_init.done),
-            rx_init.restart.eq(~self.rx_enable)
+            rx_init.restart.eq(~self.rx_enable),
         ]
 
         # PLL ----------------------------------------------------------------------------------
         self.comb += [
             tx_init.plllock.eq(pll.lock),
-            rx_init.plllock.eq(pll.lock)
+            rx_init.plllock.eq(pll.lock),
         ]
         if pll_master:
             self.comb += pll.reset.eq(tx_init.pllreset)
@@ -948,12 +951,12 @@ class GTY(LiteXModule):
             p_USB_RXIDLE_P0_CTRL           = 0b1,
             p_USB_TXIDLE_TUNE_ENABLE       = 0b1,
 
-            # Reset modes
+            # Reset modes.
             i_GTTXRESETSEL    = 0,
             i_GTRXRESETSEL    = 0,
             i_RESETOVRD       = 0,
 
-            # DRP
+            # DRP.
             i_DRPADDR         = drp_mux.addr,
             i_DRPCLK          = drp_mux.clk,
             i_DRPDI           = drp_mux.di,
@@ -962,7 +965,7 @@ class GTY(LiteXModule):
             o_DRPRDY          = drp_mux.rdy,
             i_DRPWE           = drp_mux.we,
 
-            # CPLL
+            # CPLL.
             i_GTREFCLK0       = 0 if (use_qpll0 | use_qpll1) else pll.refclk,
             i_GTREFCLK1       = 0,
             i_CPLLRESET       = 0,
@@ -974,7 +977,7 @@ class GTY(LiteXModule):
             i_CPLLFREQLOCK    = 0,
             i_CPLLLOCKDETCLK  = 0,
 
-            # QPLL
+            # QPLL.
             i_QPLL0CLK        = 0 if (use_cpll | use_qpll1) else pll.clk,
             i_QPLL0REFCLK     = 0 if (use_cpll | use_qpll1) else pll.refclk,
             i_QPLL1CLK        = 0 if (use_cpll | use_qpll0) else pll.clk,
@@ -982,18 +985,18 @@ class GTY(LiteXModule):
             i_QPLL0FREQLOCK   = 0,
             i_QPLL1FREQLOCK   = 0,
 
-            # 8B10B
+            # 8B10B.
             i_RX8B10BEN       = 0,
             i_TX8B10BEN       = 0,
 
-            # TX clock
+            # TX clock.
             i_TXRATE          = 0b000,
             o_TXOUTCLK        = self.txoutclk,
             i_TXSYSCLKSEL     = 0b00 if use_cpll else 0b10 if use_qpll0 else 0b11,
             i_TXPLLCLKSEL     = 0b00 if use_cpll else 0b11 if use_qpll0 else 0b10,
             i_TXOUTCLKSEL     = 0b010 if tx_buffer_enable else 0b101,
 
-            # TX Startup/Reset
+            # TX Startup/Reset.
             i_GTTXRESET       = tx_init.gtXxreset,
             i_TXPMARESET      = 0,
             i_TXPCSRESET      = 0,
@@ -1012,18 +1015,18 @@ class GTY(LiteXModule):
             i_TXMAINCURSOR    = 0x50,
             i_TXSYNCMODE      = 1,
 
-            # TX Buffer bypass
+            # TX Buffer bypass.
             i_TXDLYBYPASS     = 1 if tx_buffer_enable else 0,
             i_TXDLYEN         = 0,
 
-            # TX data
+            # TX data.
             i_TXCTRL0         = Cat(*[txdata[10*i+8] for i in range(nwords)]),
             i_TXCTRL1         = Cat(*[txdata[10*i+9] for i in range(nwords)]),
             i_TXDATA          = Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
             i_TXUSRCLK        = ClockSignal("tx"),
             i_TXUSRCLK2       = ClockSignal("tx"),
 
-            # TXPI
+            # TXPI.
             i_TXPIPPMEN       = 0,
             i_TXPIPPMOVRDEN   = 0,
             i_TXPIPPMPD       = 0 if tx_buffer_enable else 1,
@@ -1032,15 +1035,15 @@ class GTY(LiteXModule):
             i_TXPISOPD        = 0,
 
 
-            # TX electrical
+            # TX electrical.
             i_TXPD            = Cat(tx_init.gtXxpd, tx_init.gtXxpd),
             i_TXDIFFCTRL      = 0b11000,
             i_TXINHIBIT       = self.tx_inhibit,
 
-            # Internal Loopback
+            # Internal Loopback.
             i_LOOPBACK        = self.loopback,
 
-            # RX Startup/Reset
+            # RX Startup/Reset.
             i_GTRXRESET       = rx_init.gtXxreset,
             i_RXPMARESET      = 0,
             i_RXPCSRESET      = 0,
@@ -1058,18 +1061,18 @@ class GTY(LiteXModule):
             i_RXDLYEN         = 0,
             o_GTPOWERGOOD     = Open(),
 
-            # CDR
+            # CDR.
             i_RXCDRFREQRESET  = 0,
             i_RXCDRHOLD       = 1 if self.loopback == 0b001 else 0,
             i_RXCDROVRDEN     = 0,
             i_RXCDRRESET      = 0,
             i_RXCHBONDEN      = 0,
 
-            # RX AFE
+            # RX AFE.
             i_RXDFEXYDEN      = 1,
             i_RXLPMEN         = 1,
 
-            # RX clock
+            # RX clock.
             i_RXRATE          = 0b000,
             i_RXSYSCLKSEL     = 0b00 if use_cpll else 0b10 if use_qpll0 else 0b11,
             i_RXOUTCLKSEL     = 0b010,
@@ -1078,7 +1081,7 @@ class GTY(LiteXModule):
             i_RXUSRCLK        = ClockSignal("rx"),
             i_RXUSRCLK2       = ClockSignal("rx"),
 
-            # RX Byte and Word Alignment Ports
+            # RX Byte and Word Alignment Ports.
             o_RXBYTEISALIGNED = Open(),
             o_RXBYTEREALIGN   = Open(),
             o_RXCOMMADET      = Open(),
@@ -1087,20 +1090,20 @@ class GTY(LiteXModule):
             i_RXPCOMMAALIGNEN = (~clock_aligner & self.rx_align & (rx_prbs_config == 0b00)) if rx_buffer_enable else 0,
             i_RXSLIDE         = 0,
 
-            # RX data
+            # RX data.
             o_RXCTRL0         = Cat(*[rxdata[10*i+8] for i in range(nwords)]),
             o_RXCTRL1         = Cat(*[rxdata[10*i+9] for i in range(nwords)]),
             o_RXDATA          = Cat(*[rxdata[10*i:10*i+8] for i in range(nwords)]),
 
-            # RX electrical
+            # RX electrical.
             i_RXPD            = Cat(rx_init.gtXxpd, rx_init.gtXxpd),
             i_RXELECIDLEMODE  = 0b11,
 
-            # Polarity
+            # Polarity.
             i_TXPOLARITY      = tx_polarity,
             i_RXPOLARITY      = rx_polarity,
 
-            # Pads
+            # Pads.
             i_GTYRXP          = rx_pads.p,
             i_GTYRXN          = rx_pads.n,
             o_GTYTXP          = tx_pads.p,
@@ -1160,7 +1163,7 @@ class GTY(LiteXModule):
         self.comb += [
             self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
             If(tx_produce_square_wave,
-                # square wave @ linerate/data_width for scope observation
+                # square wave @ linerate/data_width for scope observation.
                 txdata.eq(Signal(data_width, reset=(1<<(data_width//2))-1))
             ).Elif(tx_produce_pattern,
                 txdata.eq(tx_pattern)
@@ -1336,9 +1339,9 @@ class GTY(LiteXModule):
         self.add_electrical_control()
 
     def add_clock_cycles(self):
-        self.clock_latch    = CSRStorage(description="Write to latch TX/RX clock cycles")
-        self.clock_tx_cycles = CSRStorage(32, description="TX clock cycles")
-        self.clock_rx_cycles = CSRStorage(32, description="RX clock cycles")
+        self.clock_latch    = CSRStorage(description="Write to latch TX/RX clock cycles.")
+        self.clock_tx_cycles = CSRStorage(32, description="TX clock cycles.")
+        self.clock_rx_cycles = CSRStorage(32, description="RX clock cycles.")
 
         tx_cycles = Signal(32)
         rx_cycles = Signal(32)
