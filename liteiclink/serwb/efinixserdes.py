@@ -19,7 +19,7 @@ from liteiclink.serwb.datapath import TXDatapath, RXDatapath
 # BitSlip ------------------------------------------------------------------------------------------
 
 class BitSlip(Module):
-    def __init__(self, dw, rst=None, inc=None, i=None, o=None, cycles=1):
+    def __init__(self, dw, clk="sys", rst=None, inc=None, i=None, o=None, cycles=1):
         self.i   = Signal(dw) if i is None else i
         self.o   = Signal(dw) if o is None else o
         self.rst = Signal() if rst is None else rst
@@ -39,7 +39,8 @@ class BitSlip(Module):
         self.sync += If(self.rst, value.eq(0))
 
         self.r = r = Signal((cycles+1)*dw, reset_less=True)
-        self.sync += r.eq(Cat(r[dw:], self.i))
+        _sync_clk = getattr(self.sync, clk)
+        _sync_clk += r.eq(Cat(r[dw:], self.i))
         cases = {}
         for i in range(cycles*dw):
             cases[i] = self.o.eq(r[i:dw+i])
@@ -284,7 +285,7 @@ class _EfinixSerdesClocking(LiteXModule):
 # Efinix SerDes TX ---------------------------------------------------------------------------------
 
 class _EfinixSerdesTX(LiteXModule):
-    def __init__(self, pads, clk="sys", clk4x="sys4x", clk_ratio="1:1"):
+    def __init__(self, pads, clk="sys", clk4x="sys4x"):
         # Control
         self.idle  = idle  = Signal()
         self.comma = comma = Signal()
@@ -294,30 +295,29 @@ class _EfinixSerdesTX(LiteXModule):
 
         # # #
 
-        # Clk Ratio/Phase.
-        # ----------------
-        phase     = Signal(3)
-        phase_end = {"1:1":1, "1:2":2, "1:4":4}[clk_ratio]
-        self.sync += [
-            phase.eq(phase + 1),
-            If(phase == (phase_end - 1),
-                phase.eq(0)
-            )
-        ]
-
         # Datapath.
         # ---------
         self.datapath = datapath = TXDatapath(8)
         self.comb += [
             sink.connect(datapath.sink),
-            datapath.source.ready.eq(phase == 0),
             datapath.idle.eq(idle),
             datapath.comma.eq(comma)
         ]
+
+        # CDC.
+        # ----
+        self.cdc = cdc = stream.ClockDomainCrossing(
+            layout  = [("data", 8)],
+            cd_from = "sys",
+            cd_to   = clk,
+        )
+        self.comb += datapath.source.connect(cdc.sink)
+        self.comb += cdc.source.ready.eq(1)
+
         # Output Data (DDR with sys4x).
         # -----------------------------
         self.tx = tx = EfinixSerdesDiffTx8To1(
-            data     = datapath.source.data,
+            data     = cdc.source.data,
             tx_p     = pads.tx_p,
             tx_n     = pads.tx_n,
             clk      = clk,
@@ -328,7 +328,7 @@ class _EfinixSerdesTX(LiteXModule):
 # Efinix SerDes RX ---------------------------------------------------------------------------------
 
 class _EfinixSerdesRX(LiteXModule):
-    def __init__(self, pads, clk="sys", clk4x="sys4x", clk_ratio="1:1", static_delay_taps=0):
+    def __init__(self, pads, clk="sys", clk4x="sys4x", static_delay_taps=0):
         # Control.
         self.delay_rst = delay_rst = Signal()
         self.delay_inc = delay_inc = Signal()
@@ -370,33 +370,32 @@ class _EfinixSerdesRX(LiteXModule):
             rx.delay_rst.eq(delay_rst),
         ]
 
-        # Clk Ratio/Phase.
-        # ----------------
-        phase     = Signal(3)
-        phase_end = {"1:1":1, "1:2":2, "1:4":4}[clk_ratio]
-        self.sync += [
-            phase.eq(phase + 1),
-            If(phase == (phase_end - 1),
-                phase.eq(0)
-            )
-        ]
-
         # Bitslip.
         # --------
         self.data = data = Signal(8)
         self.data_bitslip = data_bitslip = BitSlip(8,
+            clk    = clk,
             inc    = self.shift_inc,
             cycles = 1,
             i      = _data,
             o      = data,
         )
 
+        # CDC.
+        # ----
+        self.cdc = cdc = stream.ClockDomainCrossing(
+            layout  = [("data", 8)],
+            cd_from = clk,
+            cd_to   = "sys",
+        )
+        self.comb += cdc.sink.valid.eq(1)
+        self.comb += cdc.sink.data.eq(data)
+
         # Datapath.
         # ---------
         self.datapath = datapath = RXDatapath(8)
         self.comb += [
-            datapath.sink.valid.eq(phase == phase_sel),
-            datapath.sink.data.eq(data),
+            cdc.source.connect(datapath.sink),
             datapath.shift_inc.eq(self.shift_inc & (_shift == 0b111)),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
@@ -404,15 +403,14 @@ class _EfinixSerdesRX(LiteXModule):
         ]
 
 
-
 # Efinix SerDes ------------------------------------------------------------------------------------
 
-@ResetInserter()
+@ResetInserter({"sys"})
 class EfinixSerdes(LiteXModule):
     def __init__(self, pads, mode="master", clk="sys", clk4x="sys4x", clk_ratio="1:1", clk_delay_taps=0, rx_delay_taps=0):
         assert clk_ratio in ["1:1", "1:2", "1:4"]
         clk   = {"master": clk,   "slave": "rx_clk"  }[mode]
         clk4x = {"master": clk4x, "slave": "rx_clk4x"}[mode]
         self.clocking = _EfinixSerdesClocking(pads, mode, clk, clk4x, clk_ratio, static_delay_taps=clk_delay_taps)
-        self.tx       = _EfinixSerdesTX(pads, clk, clk4x, clk_ratio)
-        self.rx       = _EfinixSerdesRX(pads, clk, clk4x, clk_ratio, static_delay_taps=rx_delay_taps)
+        self.tx       = _EfinixSerdesTX(pads, clk, clk4x)
+        self.rx       = _EfinixSerdesRX(pads, clk, clk4x, static_delay_taps=rx_delay_taps)

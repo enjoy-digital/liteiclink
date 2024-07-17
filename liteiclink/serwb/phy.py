@@ -351,11 +351,13 @@ class _SerdesControl(LiteXModule):
         # -----------
         if mode == "slave":
             # In Slave mode, reset is coming from link, Master reset the Slave by putting the link
-            # in IDLE state..
-            self.sync += [
-                init.reset.eq(serdes.rx.idle),
-                serdes.reset.eq(serdes.rx.idle)
-            ]
+            # in IDLE state.
+            self.sync += init.reset.eq(serdes.rx.idle)
+            if hasattr(serdes, "reset"):
+                self.sync += serdes.reset.eq(serdes.rx.idle)
+            if hasattr(serdes, "reset_sys"):
+                self.sync += serdes.reset_sys.eq(serdes.rx.idle)
+
         # Control/Status.
         # ---------------
         self.comb += [
