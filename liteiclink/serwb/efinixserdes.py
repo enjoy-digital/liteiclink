@@ -108,7 +108,7 @@ class EfinixSerdesDiffRx1To8(LiteXModule):
 
         # # #
 
-        # only keep _p
+        # Only keep _p.
         io_name = platform.get_pin_name(rx_p)
         io_pad  = platform.get_pad_name(rx_p) # need real pad name
         io_prop = platform.get_pin_properties(rx_p)
@@ -173,7 +173,7 @@ class EfinixSerdesDiffRx1To8(LiteXModule):
                 "delay_inc" : delay_inc,
             })
 
-        # Trion: fix static delay at build time
+        # Trion: Fixed static delay at build time.
         if platform.family == "Trion":
             block.update({"delay" : static_delay_taps})
 
@@ -202,7 +202,7 @@ class _EfinixSerdesClocking(LiteXModule):
         # Generate the linerate/8 clock. Slave will re-multiply it.
         if mode == "master":
             self.submodules += EfinixSerdesDiffTx8To1(
-                data = 0b11110000,
+                data     = 0b11110000,
                 tx_p     = pads.clk_p,
                 tx_n     = pads.clk_n,
                 clk      = clk,
@@ -237,7 +237,7 @@ class _EfinixSerdesClocking(LiteXModule):
                 if platform.device[:2] == "T1":
                     assert "RXP" in io_pad
                     # diff output pins are RXPYY and RXNYY
-                    # lvds block needs RXYY
+                    # lvds block needs RXYY
                     if "_CLK" in io_pad:
                         io_pad = io_pad.split("_CLK")[0]
                     io_pad = io_pad.replace("RXP", "RX")
