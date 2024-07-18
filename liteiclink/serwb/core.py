@@ -46,9 +46,8 @@ class SERWBCore(LiteXModule):
 
         # Buffering.
         # ----------
-        tx_fifo = ResetInserter()(stream.SyncFIFO([("data", 32)], tx_buffer_depth, buffered=True))
-        rx_fifo = ResetInserter()(stream.SyncFIFO([("data", 32)], rx_buffer_depth, buffered=True))
-        self.submodules += tx_fifo, rx_fifo
+        self.tx_fifo = tx_fifo = ResetInserter()(stream.SyncFIFO([("data", 32)], tx_buffer_depth, buffered=True))
+        self.rx_fifo = rx_fifo = ResetInserter()(stream.SyncFIFO([("data", 32)], rx_buffer_depth, buffered=True))
 
         # Data-Path.
         # ----------
