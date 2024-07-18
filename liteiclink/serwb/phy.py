@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -19,12 +19,12 @@ from liteiclink.serwb.efinixserdes import EfinixSerdes
 
 # SerDes Initialization/Synchronisation ------------------------------------------------------------
 #
-# - Master sends IDLE patterns (zeroes) to Slave to reset it.
-# - Master sends K28.5 commas to allow Slave to calibrate, Slave sends IDLE patterns.
-# - Slave sends K28.5 commas to allow Master to calibrate, Master sends K28.5 commas.
-# - Master stops sending K28.5 commas.
-# - Slave stops sending K28.5 commas.
-# - Physical link is ready.
+# - 1) Master sends IDLE patterns (zeroes) to Slave to reset it.
+# - 2) Master sends K28.5 commas to allow Slave to calibrate, Slave sends IDLE patterns.
+# - 3) Slave sends K28.5 commas to allow Master to calibrate, Master sends K28.5 commas.
+# - 4) Master stops sending K28.5 commas.
+# - 5) Slave stops sending K28.5 commas.
+# - 6) Physical link is ready.
 # --------------------------------------------------------------------------------------------------
 
 # Serdes Master Init -------------------------------------------------------------------------------

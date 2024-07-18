@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -11,7 +11,7 @@ from litex.gen.genlib.misc import BitSlip, WaitTimer
 
 from litex.build.io import *
 
-from litex.soc.interconnect import stream
+from litex.soc.interconnect     import stream
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 from liteiclink.serwb.datapath import TXDatapath, RXDatapath
@@ -78,7 +78,7 @@ class _KUSerdesTX(LiteXModule):
             sink.connect(datapath.sink),
             datapath.source.ready.eq(1),
             datapath.idle.eq(idle),
-            datapath.comma.eq(comma)
+            datapath.comma.eq(comma),
         ]
 
         # Output Data (DDR with sys4x).
@@ -171,7 +171,7 @@ class _KUSerdesRX(LiteXModule):
             datapath.shift_inc.eq(shift_inc),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
-            comma.eq(datapath.comma)
+            comma.eq(datapath.comma),
         ]
 
 # KU SerDes ----------------------------------------------------------------------------------------

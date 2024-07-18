@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -65,7 +65,7 @@ class Scrambler(LiteXModule):
                 source.d.eq(scrambler.o),
                 If(source.ready,
                     sink.ready.eq(1),
-                    scrambler.ce.eq(1)
+                    scrambler.ce.eq(1),
                 )
             )
         ]
@@ -96,7 +96,7 @@ class Descrambler(LiteXModule):
                     source.data.eq(descrambler.o),
                     If(source.ready,
                         sink.ready.eq(1),
-                        descrambler.ce.eq(1)
+                        descrambler.ce.eq(1),
                     )
                 )
             )

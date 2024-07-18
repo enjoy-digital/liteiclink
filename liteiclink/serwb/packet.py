@@ -9,7 +9,7 @@ from migen import *
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
-from litex.soc.interconnect import stream
+from litex.soc.interconnect        import stream
 from litex.soc.interconnect.packet import HeaderField, Header
 
 # Layouts ------------------------------------------------------------------------------------------

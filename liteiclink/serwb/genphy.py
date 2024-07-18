@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -11,7 +11,7 @@ from litex.build.io import *
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
-from litex.soc.interconnect import stream
+from litex.soc.interconnect     import stream
 from litex.soc.interconnect.csr import *
 
 from liteiclink.serwb.datapath import TXDatapath, RXDatapath
@@ -62,7 +62,7 @@ class _SerdesTX(LiteXModule):
             sink.connect(datapath.sink),
             datapath.source.ready.eq(1),
             datapath.idle.eq(idle),
-            datapath.comma.eq(comma)
+            datapath.comma.eq(comma),
         ]
 
         # Output data (on rising edge of sys_clk).
@@ -110,7 +110,7 @@ class _SerdesRX(LiteXModule):
             datapath.shift_inc.eq(self.shift),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
-            comma.eq(datapath.comma)
+            comma.eq(datapath.comma),
         ]
 
 # SerDes -------------------------------------------------------------------------------------------
@@ -126,12 +126,12 @@ class _Serdes(LiteXModule):
 
 # SerDes Initialization/Synchronisation ------------------------------------------------------------
 #
-# - Master sends IDLE patterns (zeroes) to Slave to reset it.
-# - Master sends K28.5 commas to allow Slave to calibrate, Slave sends IDLE patterns.
-# - Slave sends K28.5 commas to allow Master to calibrate, Master sends K28.5 commas.
-# - Master stops sending K28.5 commas.
-# - Slave stops sending K28.5 commas.
-# - Physical link is ready.
+# - 1) Master sends IDLE patterns (zeroes) to Slave to reset it.
+# - 2) Master sends K28.5 commas to allow Slave to calibrate, Slave sends IDLE patterns.
+# - 3) Slave sends K28.5 commas to allow Master to calibrate, Master sends K28.5 commas.
+# - 4) Master stops sending K28.5 commas.
+# - 5) Slave stops sending K28.5 commas.
+# - 6) Physical link is ready.
 # --------------------------------------------------------------------------------------------------
 
 # SerDes Master Init -------------------------------------------------------------------------------
@@ -323,7 +323,7 @@ class _SerdesControl(LiteXModule):
             # in IDLE state.
             self.sync += [
                 init.reset.eq(serdes.rx.idle),
-                serdes.reset.eq(serdes.rx.idle)
+                serdes.reset.eq(serdes.rx.idle),
             ]
 
         # Control/Status.
@@ -331,7 +331,7 @@ class _SerdesControl(LiteXModule):
         self.comb += [
             self.ready.status.eq(init.ready),
             self.error.status.eq(init.error),
-            self.shift.status.eq(init.shift)
+            self.shift.status.eq(init.shift),
         ]
 
         # PRBS.
@@ -389,7 +389,7 @@ class SERWBPHY(LiteXModule):
                 self.serdes.rx.source.connect(source)
             ),
             self.serdes.tx.sink.valid.eq(1),  # Always transmitting.
-            self.serdes.rx.source.ready.eq(1) # Always receiving.
+            self.serdes.rx.source.ready.eq(1),# Always receiving.
         ]
 
         # PRBS.
