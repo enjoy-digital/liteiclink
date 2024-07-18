@@ -13,21 +13,22 @@ from migen import *
 from litex.gen import *
 
 from litex.build.generic_platform import *
-from litex.build.sim import SimPlatform
-from litex.build.sim.config import SimConfig
+from litex.build.sim              import SimPlatform
+from litex.build.sim.config       import SimConfig
 
 from litex.soc.interconnect.csr import *
-from litex.soc.integration.soc_core import *
-from litex.soc.integration.soc import SoCRegion
-from litex.soc.integration.builder import *
-from litex.soc.interconnect import wishbone
+from litex.soc.interconnect     import wishbone
 
-from liteeth.phy.model import LiteEthPHYModel
-from liteeth.core import LiteEthUDPIPCore
+from litex.soc.integration.soc_core import *
+from litex.soc.integration.soc      import SoCRegion
+from litex.soc.integration.builder  import *
+
+from liteeth.phy.model          import LiteEthPHYModel
+from liteeth.core               import LiteEthUDPIPCore
 from liteeth.frontend.etherbone import LiteEthEtherbone
 
 from liteiclink.serwb.genphy import SERWBPHY
-from liteiclink.serwb.core import SERWBCore, SERIOCore
+from liteiclink.serwb.core   import SERWBCore, SERIOCore
 
 # IOs ----------------------------------------------------------------------------------------------
 
