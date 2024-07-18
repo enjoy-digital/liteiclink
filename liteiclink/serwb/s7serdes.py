@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
@@ -11,7 +11,7 @@ from litex.gen.genlib.misc import BitSlip, WaitTimer
 
 from litex.build.io import *
 
-from litex.soc.interconnect import stream
+from litex.soc.interconnect     import stream
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 from liteiclink.serwb.datapath import TXDatapath, RXDatapath
@@ -86,7 +86,7 @@ class _S7SerdesTX(LiteXModule):
             sink.connect(datapath.sink),
             datapath.source.ready.eq(1),
             datapath.idle.eq(idle),
-            datapath.comma.eq(comma)
+            datapath.comma.eq(comma),
         ]
 
         # Output Data (DDR with sys4x).
@@ -116,7 +116,7 @@ class _S7SerdesTX(LiteXModule):
                 i_D8     = data[7],
                 o_OQ     = data_serialized,
             ),
-            DifferentialOutput(data_serialized, pads.tx_p, pads.tx_n)
+            DifferentialOutput(data_serialized, pads.tx_p, pads.tx_n),
         ]
 
 # S7 SerDes RX -------------------------------------------------------------------------------------
@@ -200,7 +200,7 @@ class _S7SerdesRX(LiteXModule):
             datapath.shift_inc.eq(self.shift_inc & (_shift == 0b111)),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
-            comma.eq(datapath.comma)
+            comma.eq(datapath.comma),
         ]
 
 # S7 SerDes ----------------------------------------------------------------------------------------

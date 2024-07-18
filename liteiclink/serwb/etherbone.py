@@ -1,7 +1,7 @@
 #
 # This file is part of LiteICLink.
 #
-# Copyright (c) 2017-2023 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
 """
@@ -20,7 +20,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from liteeth.common import *
+from liteeth.common             import *
 from liteeth.frontend.etherbone import *
 
 # Etherbone Packet ---------------------------------------------------------------------------------
@@ -31,7 +31,7 @@ class _EtherbonePacket(LiteXModule):
         self.rx = rx = LiteEthEtherbonePacketRX()
         self.comb += [
             tx.source.connect(port_sink),
-            port_source.connect(rx.sink)
+            port_source.connect(rx.sink),
         ]
         self.sink, self.source = self.tx.sink, self.rx.source
 
@@ -44,13 +44,13 @@ class Etherbone(LiteXModule):
 
         # # #
 
-        # Encode/encode etherbone packets
+        # Encode/encode etherbone packets.
         self.packet = packet = _EtherbonePacket(source, sink)
 
-		# Packets are records with writes and reads
+		# Packets are records with writes and reads.
         self.record = record = LiteEthEtherboneRecord(buffer_depth)
 
-        # Create MMAP wishbone
+        # Create MMAP wishbone.
         self.wishbone = {
             "master": LiteEthEtherboneWishboneMaster(),
             "slave":  LiteEthEtherboneWishboneSlave(),
@@ -59,5 +59,5 @@ class Etherbone(LiteXModule):
             packet.source.connect(record.sink),
             record.source.connect(packet.sink),
             record.receiver.source.connect(self.wishbone.sink),
-            self.wishbone.source.connect(record.sender.sink)
+            self.wishbone.source.connect(record.sender.sink),
         ]

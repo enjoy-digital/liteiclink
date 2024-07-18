@@ -9,11 +9,11 @@ from migen.genlib.cdc import MultiReg
 
 from litex.gen import *
 
-from litex.soc.interconnect import stream
+from litex.soc.interconnect        import stream
 from litex.soc.interconnect.packet import Arbiter, Dispatcher
 
-from liteiclink.serwb.packet import packet_description
-from liteiclink.serwb.packet import Packetizer, Depacketizer
+from liteiclink.serwb.packet    import packet_description
+from liteiclink.serwb.packet    import Packetizer, Depacketizer
 from liteiclink.serwb.etherbone import Etherbone
 
 # SERWB Core ---------------------------------------------------------------------------------------
@@ -53,10 +53,11 @@ class SERWBCore(LiteXModule):
         # Data-Path.
         # ----------
         self.comb += [
-            # Phy <--> Core
+            # Core -> PHY.
             packetizer.source.connect(tx_fifo.sink),
             tx_fifo.source.connect(phy.sink),
 
+            # PHY -> Core.
             phy.source.connect(rx_fifo.sink),
             rx_fifo.source.connect(depacketizer.sink),
         ]
