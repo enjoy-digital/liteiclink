@@ -22,6 +22,7 @@ class TXDatapath(LiteXModule):
     def __init__(self, phy_dw, with_scrambling=False):
         self.idle   = idle   = Signal()
         self.comma  = comma  = Signal()
+        self.wait   = wait   = Signal()
         self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", phy_dw)])
 
@@ -57,21 +58,30 @@ class TXDatapath(LiteXModule):
             converter.source.connect(source),
         ]
 
-        # Encode Comma (K28.5).
-        # ---------------------
-        self.comb += If(comma,
-            sink.ready.eq(0),
-            encoder.sink.valid.eq(1),
-            encoder.sink.k.eq(0b1),
-            encoder.sink.d.eq(K(28,5)),
-        )
-
         # Encode Idle.
         # ------------
         self.comb += If(idle,
             sink.ready.eq(0),
             converter.sink.valid.eq(1),
             converter.sink.data.eq(0),
+        )
+
+        # Encode Comma (K28.5).
+        # ---------------------
+        self.comb += If(comma,
+            sink.ready.eq(0),
+            encoder.sink.valid.eq(1),
+            encoder.sink.k.eq(0b1),
+            encoder.sink.d.eq(K(28, 5)),
+        )
+
+        # Encode Wait (K28.1).
+        # --------------------
+        self.comb += If(wait,
+            sink.ready.eq(0),
+            encoder.sink.valid.eq(1),
+            encoder.sink.k.eq(0b1),
+            encoder.sink.d.eq(K(28, 1)),
         )
 
 # RX Aligner ---------------------------------------------------------------------------------------
@@ -123,6 +133,7 @@ class RXDatapath(LiteXModule):
         self.source     = source     = stream.Endpoint([("data", 32)])
         self.idle       = idle       = Signal()
         self.comma      = comma      = Signal()
+        self.wait       = wait       = Signal()
 
         # # #
 
@@ -159,6 +170,10 @@ class RXDatapath(LiteXModule):
             self.comb += [
                 decoder.source.connect(source, omit={"d", "k"}),
                 source.data.eq(decoder.source.d),
+                If(wait,
+                    source.valid.eq(0),
+                    decoder.source.ready.eq(1),
+                )
             ]
 
         # Decode Idle.
@@ -178,5 +193,14 @@ class RXDatapath(LiteXModule):
             comma.eq(
                 (decoder.source.k == 1) &
                 (decoder.source.d == K(28, 5))
+            )
+        )
+
+        # Decode Wait (K28.1).
+        # --------------------
+        self.comb += If(decoder.source.valid,
+            wait.eq(
+                (decoder.source.k == 1) &
+                (decoder.source.d == K(28, 1))
             )
         )
