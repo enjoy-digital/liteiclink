@@ -173,7 +173,7 @@ class SerWBMinSoC(SoCMini):
 # SerWBSoC -----------------------------------------------------------------------------------------
 
 class SerWBSoC(SoCCore):
-    def __init__(self, with_serio=True, with_debug=True):
+    def __init__(self, with_serio=False, with_debug=False, write_stress=False, read_stress=False):
         platform     = Platform()
         sys_clk_freq = int(1e6)
 
@@ -308,6 +308,73 @@ class SerWBSoC(SoCCore):
             )
             self.sync += If(latency_s2m_display, Display("S2M Latency: %d Cycles.", latency_count))
 
+        # Stress -----------------------------------------------------------------------------------
+
+        if write_stress or read_stress:
+            # Delay SRAM Ack.
+            self.comb += self.serwb_sram.bus.ack.eq(0)
+            serwb_fsm_count = Signal(32)
+            self.serwb_fsm = serwb_fsm = FSM(reset_state="IDLE")
+            serwb_fsm.act("IDLE",
+                If(serwb_slave_core.bus.stb & serwb_slave_core.bus.cyc,
+                    NextValue(serwb_fsm_count, 0),
+                    NextState("WAIT")
+                )
+            )
+            serwb_fsm.act("WAIT",
+                NextValue(serwb_fsm_count, serwb_fsm_count + 1),
+                If(serwb_fsm_count == (16 - 1),
+                    NextState("ACK")
+                )
+            )
+            serwb_fsm.act("ACK",
+                self.serwb_sram.bus.ack.eq(1),
+                NextState("IDLE")
+            )
+
+        if write_stress:
+            write_bus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+            self.bus.add_master("write_stress", write_bus)
+            self.write_fsm = write_fsm = FSM(reset_state="IDLE")
+            write_fsm.act("IDLE",
+                NextState("WRITE")
+            )
+            write_count = Signal(32)
+            write_fsm.act("WRITE",
+                write_bus.stb.eq(1),
+                write_bus.cyc.eq(1),
+                write_bus.we.eq(1),
+                write_bus.adr.eq(0x30000000),
+                write_bus.sel.eq(0b1111),
+                write_bus.dat_w.eq(0x12345678),
+                If(write_bus.ack,
+                    NextValue(write_count, write_count + 1),
+                    NextState("IDLE")
+                )
+            )
+            self.sync += If(write_bus.stb & write_bus.cyc & write_bus.ack, Display("Write %d", write_count))
+
+        if read_stress:
+            read_bus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+            self.bus.add_master("read_stress", read_bus)
+            self.read_fsm = read_fsm = FSM(reset_state="IDLE")
+            read_fsm.act("IDLE",
+                NextState("WRITE")
+            )
+            read_count = Signal(32)
+            read_fsm.act("WRITE",
+                read_bus.stb.eq(1),
+                read_bus.cyc.eq(1),
+                read_bus.we.eq(0),
+                read_bus.adr.eq(0x30000000),
+                read_bus.sel.eq(0b1111),
+                If(read_bus.ack,
+                    NextValue(read_count, read_count + 1),
+                    NextState("IDLE")
+                )
+            )
+            self.sync += If(read_bus.stb & read_bus.cyc & read_bus.ack, Display("Read %d", read_count))
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -315,6 +382,8 @@ def main():
     parser.add_argument("--min",          action="store_true", help="Run Minimal simulation (SerSBMinSoC).")
     parser.add_argument("--with-serio",   action="store_true", help="Enable SerIO.")
     parser.add_argument("--with-debug",   action="store_true", help="Enable Debug traces.")
+    parser.add_argument("--write-stress", action="store_true", help="Enable Write Stress.")
+    parser.add_argument("--read-stress",  action="store_true", help="Enable Read Stress.")
     parser.add_argument("--trace",        action="store_true", help="Enable tracing.")
     parser.add_argument("--trace-start",  default="0",         help="Cycle to start VCD tracing.")
     parser.add_argument("--trace-end",    default="-1",        help="Cycle to end VCD tracing.")
@@ -327,7 +396,12 @@ def main():
         sim_config.add_module("serial2console", "serial")
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
 
-    soc     = SerWBMinSoC() if args.min else SerWBSoC(with_serio=args.with_serio, with_debug=args.with_debug)
+    soc     = SerWBMinSoC() if args.min else SerWBSoC(
+        with_serio   = args.with_serio,
+        with_debug   = args.with_debug,
+        write_stress = args.write_stress,
+        read_stress  = args.read_stress,
+    )
     builder = Builder(soc, csr_csv="csr.csv")
     builder.build(sim_config=sim_config,
         trace       = args.trace,
