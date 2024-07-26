@@ -173,7 +173,7 @@ class SerWBMinSoC(SoCMini):
 # SerWBSoC -----------------------------------------------------------------------------------------
 
 class SerWBSoC(SoCCore):
-    def __init__(self, with_serio=False, with_debug=False, write_stress=False, read_stress=False):
+    def __init__(self, with_serio=False, with_debug=False, write_stress=False, read_stress=False, alt_stress=False):
         platform     = Platform()
         sys_clk_freq = int(1e6)
 
@@ -233,11 +233,26 @@ class SerWBSoC(SoCCore):
 
         # Wishbone Slave.
         # ---------------
-        self.serwb_master_core = serwb_master_core = SERWBCore(self.serwb_master_phy, self.clk_freq, mode="slave")
+        self.serwb_master_core = serwb_master_core = SERWBCore(
+            phy      = self.serwb_master_phy,
+            clk_freq = self.clk_freq,
+            mode     = "slave",
+            etherbone_buffer_depth = 4,
+            tx_buffer_depth        = 8,
+            rx_buffer_depth        = 8,
+        )
 
         # Wishbone Master.
         # ----------------
-        self.serwb_slave_core = serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master")
+        self.serwb_slave_core = serwb_slave_core = SERWBCore(
+            phy      = self.serwb_slave_phy,
+            clk_freq = self.clk_freq,
+            mode     = "master",
+            etherbone_buffer_depth = 4,
+            tx_buffer_depth        = 8,
+            rx_buffer_depth        = 8,
+
+        )
 
         # Wishbone SRAM.
         # --------------
@@ -375,6 +390,58 @@ class SerWBSoC(SoCCore):
             )
             self.sync += If(read_bus.stb & read_bus.cyc & read_bus.ack, Display("Read %d", read_count))
 
+        if alt_stress:
+            alt_bus = wishbone.Interface(data_width=32, address_width=32, addressing="byte")
+            self.bus.add_master("alt_stress", alt_bus)
+            self.alt_fsm = alt_fsm = FSM(reset_state="IDLE")
+            alt_fsm.act("IDLE",
+                NextState("WRITE")
+            )
+            write_count = Signal(32)
+            alt_fsm.act("WRITE",
+                alt_bus.stb.eq(1),
+                alt_bus.cyc.eq(1),
+                alt_bus.we.eq(1),
+                alt_bus.adr.eq(0x30000000),
+                alt_bus.sel.eq(0b1111),
+                alt_bus.dat_w.eq(0x12345678),
+                If(alt_bus.ack,
+                    NextValue(write_count, write_count + 1),
+                    NextState("WRITE-CHECK"),
+                )
+            )
+            alt_fsm.act("WRITE-CHECK",
+                If(write_count == 4,
+                    NextValue(write_count, 0),
+                    NextState("READ")
+                ).Else(
+                    NextState("WRITE")
+                )
+            )
+            self.sync += If(alt_bus.stb & alt_bus.cyc & alt_bus.ack, Display("Write %d", write_count))
+
+            read_count = Signal(32)
+            alt_fsm.act("READ",
+                alt_bus.stb.eq(1),
+                alt_bus.cyc.eq(1),
+                alt_bus.we.eq(0),
+                alt_bus.adr.eq(0x30000000),
+                alt_bus.sel.eq(0b1111),
+                If(alt_bus.ack,
+                    NextValue(read_count, read_count + 1),
+                    NextState("READ-CHECK")
+                )
+            )
+            alt_fsm.act("READ-CHECK",
+                If(read_count == 4,
+                    NextValue(read_count, 0),
+                    NextState("IDLE")
+                ).Else(
+                    NextState("READ")
+                )
+            )
+            self.sync += If(alt_bus.stb & alt_bus.cyc & alt_bus.ack, Display("Read %d", read_count))
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
@@ -384,6 +451,7 @@ def main():
     parser.add_argument("--with-debug",   action="store_true", help="Enable Debug traces.")
     parser.add_argument("--write-stress", action="store_true", help="Enable Write Stress.")
     parser.add_argument("--read-stress",  action="store_true", help="Enable Read Stress.")
+    parser.add_argument("--alt-stress",   action="store_true", help="Enable Alternate Write/Read Stress.")
     parser.add_argument("--trace",        action="store_true", help="Enable tracing.")
     parser.add_argument("--trace-start",  default="0",         help="Cycle to start VCD tracing.")
     parser.add_argument("--trace-end",    default="-1",        help="Cycle to end VCD tracing.")
@@ -401,6 +469,7 @@ def main():
         with_debug   = args.with_debug,
         write_stress = args.write_stress,
         read_stress  = args.read_stress,
+        alt_stress   = args.alt_stress,
     )
     builder = Builder(soc, csr_csv="csr.csv")
     builder.build(sim_config=sim_config,
