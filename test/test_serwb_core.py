@@ -169,8 +169,8 @@ class TestSERWBCore(unittest.TestCase):
             # Check
             print(datas_w)
             print(datas_r)
-            for i in range(data_length-2): # FIXME +-2.
-                if datas_r[i + 2] != datas_w[i]:
+            for i in range(data_length):
+                if datas_r[i] != datas_w[i]:
                     dut.errors += 1
 
         dut = DUTCore()
