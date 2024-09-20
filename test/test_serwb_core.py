@@ -11,6 +11,8 @@ import random
 
 from migen import *
 
+from litex.gen import *
+
 from litex.gen.sim import *
 
 from litex.soc.interconnect import stream
@@ -22,12 +24,12 @@ from litex.soc.interconnect.wishbone import SRAM
 
 # Fake Init/Serdes/PHY -----------------------------------------------------------------------------
 
-class FakeInit(Module):
+class FakeInit(LiteXModule):
     def __init__(self):
         self.ready = Signal(reset=1)
 
 
-class FakeSerdes(Module):
+class FakeSerdes(LiteXModule):
     def __init__(self):
         self.tx_ce = Signal()
         self.tx_k  = Signal(4)
@@ -46,15 +48,15 @@ class FakeSerdes(Module):
             self.rx_ce.eq(data_ce[0])
         ]
 
-class FakePHY(Module):
+class FakePHY(LiteXModule):
     def __init__(self):
         self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
 
         # # #
 
-        self.submodules.init   = FakeInit()
-        self.submodules.serdes = FakeSerdes()
+        self.init   = FakeInit()
+        self.serdes = FakeSerdes()
 
         # TX dataflow
         self.comb += [
@@ -76,24 +78,24 @@ class FakePHY(Module):
 
 # DUT Scrambler ------------------------------------------------------------------------------------
 
-class DUTScrambler(Module):
+class DUTScrambler(LiteXModule):
     def __init__(self):
-        self.submodules.scrambler   = scrambler.Scrambler(sync_interval=16)
-        self.submodules.descrambler = scrambler.Descrambler()
+        self.scrambler   = scrambler.Scrambler(sync_interval=16)
+        self.descrambler = scrambler.Descrambler()
         self.comb += self.scrambler.source.connect(self.descrambler.sink)
 
 # DUT Core -----------------------------------------------------------------------------------------
 
-class DUTCore(Module):
+class DUTCore(LiteXModule):
     def __init__(self, **kwargs):
         # Wishbone slave
         phy_slave   = FakePHY()
-        serwb_slave = SERWBCore(phy_slave, int(1e6), "slave")
+        serwb_slave = SERWBCore(phy_slave, int(1e6), mode="slave")
         self.submodules += phy_slave, serwb_slave
 
         # Wishbone master
         phy_master   = FakePHY()
-        serwb_master = SERWBCore(phy_master, int(1e6), "master")
+        serwb_master = SERWBCore(phy_master, int(1e6), mode="master")
         self.submodules += phy_master, serwb_master
 
         # Connect phy
