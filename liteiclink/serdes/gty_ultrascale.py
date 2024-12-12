@@ -90,7 +90,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 # GTY Quad PLL -------------------------------------------------------------------------------------
 
 class GTYQuadPLL(LiteXModule):
-    def __init__(self, refclk, refclk_freq, linerate):
+    def __init__(self, refclk, refclk_freq, linerate, refclk_from_fabric=False):
         self.clk       = Signal()
         self.refclk    = Signal()
         self.reset     = Signal()
@@ -182,10 +182,12 @@ class GTYQuadPLL(LiteXModule):
             p_QPLL1_SDM_CFG2        = 0b0000000000000000,
 
             # Common.
-            i_GTREFCLK00      = refclk if use_qpll0 else 0,
-            i_GTREFCLK01      = refclk if use_qpll1 else 0,
+            i_GTREFCLK00      = refclk if (use_qpll0 and not refclk_from_fabric) else 0,
+            i_GTREFCLK01      = refclk if (use_qpll1 and not refclk_from_fabric) else 0,
             i_GTREFCLK10      = 0,
             i_GTREFCLK11      = 0,
+            i_GTGREFCLK0      = refclk if refclk_from_fabric else 0,
+            i_GTGREFCLK1      = refclk if refclk_from_fabric else 0,
             i_QPLLRSVD1       = 0,
             i_QPLLRSVD2       = 0,
             i_QPLLRSVD3       = 0,
