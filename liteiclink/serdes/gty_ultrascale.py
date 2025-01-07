@@ -101,6 +101,10 @@ class GTYQuadPLL(LiteXModule):
         # DRP.
         self.drp = DRPInterface()
 
+        # SDM.
+        self.sdm0_data = Signal(24, reset=round(config["f"]*(2**24)))
+        self.sdm1_data = Signal(24, reset=round(config["f"]*(2**24)))
+
         # # #
 
         use_qpll0 = config["qpll"] == "qpll0"
@@ -209,7 +213,7 @@ class GTYQuadPLL(LiteXModule):
             i_DRPWE           = self.drp.we,
 
             # QPLL0.
-            i_SDM0DATA        = round(config["f"]*(2**24)),
+            i_SDM0DATA        = self.sdm0_data,
             i_SDM0WIDTH       = 24,
             i_SDM0RESET       = 0b0,
             i_SDM0TOGGLE      = 0b0,
@@ -225,7 +229,7 @@ class GTYQuadPLL(LiteXModule):
             i_QPLL0RESET      = self.reset,
 
             # QPLL1.
-            i_SDM1DATA        = round(config["f"]*(2**24)),
+            i_SDM1DATA        = self.sdm1_data,
             i_SDM1WIDTH       = 24,
             i_SDM1RESET       = 0b0,
             i_SDM1TOGGLE      = 0b0,
