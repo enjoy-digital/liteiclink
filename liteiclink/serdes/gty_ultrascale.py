@@ -257,7 +257,6 @@ class GTYQuadPLL(LiteXModule):
             else:
                 rate = 2 # Half
             vco_freq = pllclk_out*rate
-            print("vco_freq:", vco_freq)
             if 8e9 <= vco_freq <= 13e9:
                 qpll = "qpll1"
             elif 9.8e9 <= vco_freq <= 16.375e9:
