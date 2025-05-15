@@ -1012,7 +1012,7 @@ class GTY(LiteXModule):
             i_TXPHALIGN       = 0,
             i_TXPHALIGNEN     = 0,
             i_TXPHINIT        = 0,
-            o_TXPHINITDONE    = 0,
+            o_TXPHINITDONE    = tx_init.Xxphinitdone,
             o_TXPHALIGNDONE   = tx_init.Xxphaligndone,
             i_TXUSERRDY       = tx_init.Xxuserrdy,
             i_TXPHDLYPD       = 1 if tx_buffer_enable else 0,
