@@ -10,7 +10,7 @@ with open("README.md", "r", encoding="utf-8") as fp:
 
 setup(
     name                          = "liteiclink",
-    version                       = "2024.12",
+    version                       = "2025.04",
     description                   = "Small footprint and configurable Inter-Chip communication cores",
     long_description              = long_description,
     long_description_content_type = "text/markdown",
