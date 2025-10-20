@@ -62,7 +62,7 @@ class BruteforceClockAligner(Module):
         comma_seen_rxclk = Signal()
         comma_seen = Signal()
         comma_seen_rxclk.attr.add("no_retiming")
-        self.specials += MultiReg(comma_seen_rxclk, comma_seen)
+        self.specials += MultiReg(comma_seen_rxclk, comma_seen, "tx")
         self.sync.rx += \
             If(checks_reset.o,
                 comma_seen_rxclk.eq(0)
@@ -73,7 +73,7 @@ class BruteforceClockAligner(Module):
         error_seen_rxclk = Signal()
         error_seen = Signal()
         error_seen_rxclk.attr.add("no_retiming")
-        self.specials += MultiReg(error_seen_rxclk, error_seen)
+        self.specials += MultiReg(error_seen_rxclk, error_seen, "tx")
         rx1cnt = Signal(max=11)
         self.sync.rx += [
             rx1cnt.eq(reduce(add, [self.rxdata[i] for i in range(10)])),
