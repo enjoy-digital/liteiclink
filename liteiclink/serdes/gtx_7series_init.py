@@ -58,11 +58,13 @@ class GTXInit(LiteXModule):
         self.comb += Xxphaligndone_rising.eq(Xxphaligndone & ~Xxphaligndone_r)
 
         # Deglitch FSM outputs driving transceiver asynch inputs.
+        pllreset    = Signal()
         gtXxreset   = Signal()
         gtXxpd      = Signal()
         Xxdlysreset = Signal()
         Xxuserrdy   = Signal()
         self.sync += [
+            self.pllreset.eq(pllreset),
             self.gtXxreset.eq(gtXxreset),
             self.gtXxpd.eq(gtXxpd),
             self.Xxdlysreset.eq(Xxdlysreset),
@@ -74,12 +76,12 @@ class GTXInit(LiteXModule):
         fsm.act("POWER-DOWN",
             gtXxreset.eq(1),
             gtXxpd.eq(1),
-            self.pllreset.eq(1),
+            pllreset.eq(1),
             NextState("DRP")
         )
         fsm.act("DRP",
             gtXxreset.eq(1),
-            self.pllreset.eq(1),
+            pllreset.eq(1),
             self.drp_start.eq(1),
             If(self.drp_done,
                 NextState("WAIT-PLL-RESET")
