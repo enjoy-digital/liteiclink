@@ -109,7 +109,7 @@ class _KUSerdesTX(LiteXModule):
 # KU SerDes RX -------------------------------------------------------------------------------------
 
 class _KUSerdesRX(LiteXModule):
-    def __init__(self, pads, usp=False):
+    def __init__(self, pads, usp=False, bitslip=False):
         # Control.
         self.delay_rst = delay_rst = Signal()
         self.delay_inc = delay_inc = Signal()
@@ -128,6 +128,7 @@ class _KUSerdesRX(LiteXModule):
         # ----------------------------
         data_nodelay      = Signal()
         data_delayed      = Signal()
+        data_raw          = Signal(8)
         self.data = data  = Signal(8)
         self.specials += [
             DifferentialInput(pads.rx_p, pads.rx_n, data_nodelay),
@@ -163,17 +164,32 @@ class _KUSerdesRX(LiteXModule):
                 i_CLK    = ClockSignal("sys4x"),
                 i_CLK_B  = ClockSignal("sys4x"), # Locally inverted
                 i_CLKDIV = ClockSignal("sys"),
-                o_Q      = data
+                o_Q      = data_raw
             )
         ]
 
         # Datapath.
         # ---------
         self.datapath = datapath = RXDatapath(8)
+
+        self.submodules.bitslip = bitslip = BitSlip(8)
+        self.sync += If(shift_inc, bitslip.value.eq(bitslip.value + 1))
+
+        _shift = Signal(3)
+        self.sync += If(self.shift_inc, _shift.eq(_shift + 1))
+
+        if bitslip:
+            self.comb += [
+                bitslip.i.eq(data_raw),
+                data.eq(bitslip.o),
+            ]
+        else:
+            self.comb += data.eq(data_raw),
+
         self.comb += [
             datapath.sink.valid.eq(1),
             datapath.sink.data.eq(data),
-            datapath.shift_inc.eq(shift_inc),
+            datapath.shift_inc.eq(shift_inc & (_shift == 0b111)),
             datapath.source.connect(source),
             idle.eq(datapath.idle),
             comma.eq(datapath.comma),
