@@ -56,11 +56,13 @@ class GTYInit(LiteXModule):
         ]
 
         # Deglitch FSM outputs driving transceiver asynch inputs.
+        pllreset    = Signal()
         gtXxreset   = Signal()
         gtXxpd      = Signal()
         Xxdlysreset = Signal()
         Xxuserrdy   = Signal()
         self.sync += [
+            self.pllreset.eq(pllreset),
             self.gtXxreset.eq(gtXxreset),
             self.gtXxpd.eq(gtXxpd),
             self.Xxdlysreset.eq(Xxdlysreset),
@@ -93,7 +95,7 @@ class GTYInit(LiteXModule):
         fsm.act("POWER_DOWN",
             gtXxreset.eq(1),
             gtXxpd.eq(1),
-            self.pllreset.eq(1),
+            pllreset.eq(1),
             pll_reset_timer.wait.eq(1),
             If(pll_reset_timer.done,
                 NextState("DRP")
@@ -101,7 +103,7 @@ class GTYInit(LiteXModule):
         )
         fsm.act("DRP",
             gtXxreset.eq(1),
-            self.pllreset.eq(1),
+            pllreset.eq(1),
             self.drp_start.eq(1),
             If(self.drp_done,
                 NextState("RELEASE_PLL_RESET")
