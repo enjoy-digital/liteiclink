@@ -395,7 +395,7 @@ class _SerdesControl(LiteXModule):
 # SERWB PHY ----------------------------------------------------------------------------------------
 
 class SERWBPHY(LiteXModule):
-    def __init__(self, device, pads, mode="master", init_timeout=2**16, clk="sys", clk4x="sys4x", clk_ratio="1:1", clk_delay_taps=0, rx_delay_taps=0):
+    def __init__(self, device, pads, mode="master", init_timeout=2**16, clk="sys", clk4x="sys4x", clk_ratio="1:1", clk_delay_taps=0, rx_delay_taps=0, usp=False):
         self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
@@ -409,7 +409,7 @@ class SERWBPHY(LiteXModule):
         if device[:4] in ["xcku", "xvu", "xczu"]:
             assert clk_ratio == "1:1"
             taps = 512
-            self.serdes = KUSerdes(pads, mode)
+            self.serdes = KUSerdes(pads, mode, usp=usp)
 
         # Xilinx 7-Series.
         elif device[:4] in ["xc7a", "xc7k", "xc7v", "xc7z"]:
