@@ -412,7 +412,7 @@ class SERWBPHY(LiteXModule):
             self.serdes = KUSerdes(pads, mode, usp=usp)
 
         # Xilinx 7-Series.
-        elif device[:4] in ["xc7a", "xc7k", "xc7v", "xc7z"]:
+        elif device[:4] in ["xc7a", "xc7k", "xc7v", "xc7z", "xc7s"]:
             assert clk_ratio == "1:1"
             taps = 32
             self.serdes = S7Serdes(pads, mode)
