@@ -372,7 +372,7 @@ class SerDesECP5(LiteXModule):
         self.dual    = dual
         self.channel = channel
 
-        # TX controls
+        # TX controls.
         self.tx_enable              = Signal(reset=1)
         self.tx_ready               = Signal()
         self.tx_inhibit             = Signal() # FIXME
@@ -382,7 +382,7 @@ class SerDesECP5(LiteXModule):
         self.tx_prbs_config         = Signal(2)
         self.tx_idle                = Signal()
 
-        # RX controls
+        # RX controls.
         self.rx_enable              = Signal(reset=1)
         self.rx_ready               = Signal()
         self.rx_align               = Signal(reset=1)
@@ -392,7 +392,7 @@ class SerDesECP5(LiteXModule):
         self.rx_idle                = Signal()
         self.rx_cdr_hold            = Signal()
 
-        # Loopback
+        # Loopback.
         self.loopback               = Signal() # FIXME: reconfigure lb_ctl to 0b0001 but does not seem enough
 
         # # #
@@ -402,7 +402,7 @@ class SerDesECP5(LiteXModule):
         self.encoder  = ClockDomainsRenamer("tx")(Encoder(nwords, True))
         self.decoders = [ClockDomainsRenamer("rx")(Decoder(True)) for _ in range(nwords)]
 
-        # Transceiver direct clock outputs (useful to specify clock constraints)
+        # Transceiver direct clock outputs (useful to specify clock constraints).
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
@@ -773,7 +773,7 @@ class SerDesECP5(LiteXModule):
             self._rx_ready.fields.ready.eq(self.rx_ready),
         ]
 
-    def add_prbs_control(self):
+    def add_prbs_control(self, rx_errors_width=32):
         self._tx_prbs_config = CSRStorage(fields=[
             CSRField("config", size=2, values=[
                 ("``0b00``", "PRBS   Disabled."),
@@ -791,12 +791,12 @@ class SerDesECP5(LiteXModule):
             ]),
             CSRField("pause", size=1, description="Pause RX PRBS."),
         ])
-        self._rx_prbs_errors = CSRStatus(32, description="RX PRBS errors.")
+        self._rx_prbs_errors = CSRStatus(rx_errors_width, description="RX PRBS errors.")
         self.comb += [
             self.tx_prbs_config.eq(self._tx_prbs_config.fields.config),
             self.rx_prbs_config.eq(self._rx_prbs_config.fields.config),
             self.rx_prbs_pause.eq(self._rx_prbs_config.fields.pause),
-            self._rx_prbs_errors.status.eq(self.rx_prbs_errors)
+            self._rx_prbs_errors.status.eq(self.rx_prbs_errors),
         ]
 
     def add_loopback_control(self):
@@ -804,9 +804,9 @@ class SerDesECP5(LiteXModule):
         self.comb += self.loopback.eq(self._loopback.storage)
 
 
-    def add_controls(self, auto_enable=True):
+    def add_controls(self, auto_enable=True, rx_prbs_errors_width=32):
         self.add_base_control(auto_enable)
-        self.add_prbs_control()
+        self.add_prbs_control(rx_errors_width=rx_prbs_errors_width)
         self.add_loopback_control()
 
     def add_clock_cycles(self):

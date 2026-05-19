@@ -34,7 +34,7 @@ class GTPQuadPLL(LiteXModule):
         self.lock    = Signal()
         self.config  = config = self.compute_config(refclk_freq, linerate)
 
-        # DRP
+        # DRP.
         self.drp = DRPInterface()
 
         # # #
@@ -1089,7 +1089,7 @@ class GTP(LiteXModule):
         self._tx_produce_square_wave = CSRStorage(fields=[
                 CSRField("enable", size=1, values=[
                     ("``0b0``", "Normal operation."),
-                    ("``0b1``", "TX square wave genration enabled (linerate observation/checks).")
+                    ("``0b1``", "TX square wave generation enabled (linerate observation/checks).")
                 ])
             ])
         self._rx_enable = CSRStorage(fields=[

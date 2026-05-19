@@ -18,10 +18,9 @@ from litex.soc.interconnect     import stream
 from litex.soc.cores.prbs       import PRBSTX, PRBSRX
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
+from liteiclink.serdes.common              import *
 from liteiclink.serdes.gty_ultrascale_init import GTYRXInit, GTYTXInit
 from liteiclink.serdes.clock_aligner       import BruteforceClockAligner
-
-from liteiclink.serdes.common import *
 
 # GTY Channel PLL ----------------------------------------------------------------------------------
 
@@ -355,10 +354,10 @@ class GTY(LiteXModule):
         self.rx_prbs_pause  = Signal()
         self.rx_prbs_errors = Signal(32)
 
-        # DRP
+        # DRP.
         self.drp = DRPInterface()
 
-        # Loopback
+        # Loopback.
         self.loopback = Signal(3)
 
         # # #
@@ -373,14 +372,14 @@ class GTY(LiteXModule):
         self.decoders = [ClockDomainsRenamer("rx")(Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
 
-        # Transceiver direct clock outputs (useful to specify clock constraints)
+        # Transceiver direct clock outputs (useful to specify clock constraints).
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
         self.tx_clk_freq = pll.config["linerate"]/data_width
         self.rx_clk_freq = pll.config["linerate"]/data_width
 
-        # Control/Status CDC
+        # Control/Status CDC.
         tx_produce_square_wave = Signal()
         tx_produce_pattern     = Signal()
         tx_pattern             = Signal(data_width)
@@ -1244,7 +1243,7 @@ class GTY(LiteXModule):
         self._tx_produce_square_wave = CSRStorage(fields=[
                 CSRField("enable", size=1, values=[
                     ("``0b0``", "Normal operation."),
-                    ("``0b1``", "TX square wave genration enabled (linerate observation/checks).")
+                    ("``0b1``", "TX square wave generation enabled (linerate observation/checks).")
                 ])
             ])
         self._rx_enable = CSRStorage(fields=[
@@ -1270,7 +1269,7 @@ class GTY(LiteXModule):
             self._rx_ready.fields.ready.eq(self.rx_ready),
         ]
 
-    def add_prbs_control(self):
+    def add_prbs_control(self, rx_errors_width=32):
         self._tx_prbs_config = CSRStorage(fields=[
             CSRField("config", size=2, values=[
                 ("``0b00``", "PRBS   Disabled."),
@@ -1288,12 +1287,12 @@ class GTY(LiteXModule):
             ]),
             CSRField("pause", size=1, description="Pause RX PRBS."),
         ])
-        self._rx_prbs_errors = CSRStatus(32, description="RX PRBS errors.")
+        self._rx_prbs_errors = CSRStatus(rx_errors_width, description="RX PRBS errors.")
         self.comb += [
             self.tx_prbs_config.eq(self._tx_prbs_config.fields.config),
             self.rx_prbs_config.eq(self._rx_prbs_config.fields.config),
             self.rx_prbs_pause.eq(self._rx_prbs_config.fields.pause),
-            self._rx_prbs_errors.status.eq(self.rx_prbs_errors)
+            self._rx_prbs_errors.status.eq(self.rx_prbs_errors),
         ]
 
     def add_loopback_control(self):
@@ -1336,9 +1335,9 @@ class GTY(LiteXModule):
             i_TXPRECURSOR     = self._tx_precursor.storage,
         )
 
-    def add_controls(self, auto_enable=True):
+    def add_controls(self, auto_enable=True, rx_prbs_errors_width=32):
         self.add_base_control(auto_enable)
-        self.add_prbs_control()
+        self.add_prbs_control(rx_errors_width=rx_prbs_errors_width)
         self.add_loopback_control()
         self.add_polarity_control()
         self.add_electrical_control()
