@@ -109,7 +109,7 @@ class GTXInit(LiteXModule):
                 NextState("WAIT-CDR-LOCK")
             )
         )
-        # Wait for clock recovery lock (only needed for RX but we also do it for TX.
+        # Wait for clock recovery lock (only needed for RX, but also done for TX).
         cdr_lock_timer = WaitTimer(1024)
         self.submodules += cdr_lock_timer
         fsm.act("WAIT-CDR-LOCK",
@@ -169,5 +169,6 @@ class GTXTXInit(GTXInit):
     pass
 
 # GTX RX Init --------------------------------------------------------------------------------------
+
 class GTXRXInit(GTXInit):
     pass

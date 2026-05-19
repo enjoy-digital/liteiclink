@@ -162,7 +162,7 @@ class GTHInit(LiteXModule):
             )
 
         # Wait 2 rising edges of Xxphaligndone (from UG576 in TX Buffer Bypass in Single-Lane Auto
-        # Mode).
+        # mode).
         fsm.act("WAIT_FIRST_ALIGN_DONE",
             Xxuserrdy.eq(1),
             If(Xxphaligndone_rising, NextState("WAIT_SECOND_ALIGN_DONE"))

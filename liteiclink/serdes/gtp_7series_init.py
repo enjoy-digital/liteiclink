@@ -86,7 +86,7 @@ class GTPTXInit(LiteXModule):
         self.comb += txphaligndone_rising.eq(txphaligndone & ~txphaligndone_r)
 
         # FSM.
-        self.fsm = fsm =ResetInserter()(FSM(reset_state="POWER-DOWN"))
+        self.fsm = fsm = ResetInserter()(FSM(reset_state="POWER-DOWN"))
         fsm.act("POWER-DOWN",
             gttxreset.eq(1),
             gttxpd.eq(1),

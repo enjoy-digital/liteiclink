@@ -23,7 +23,7 @@ class GTYInit(LiteXModule):
         self.done            = Signal() # o
         self.restart         = Signal() # i
 
-        # GTH signals.
+        # GTY signals.
         self.plllock         = Signal() # i
         self.pllreset        = Signal() # o
         self.gtXxreset       = Signal() # o
@@ -113,8 +113,8 @@ class GTYInit(LiteXModule):
             gtXxreset.eq(1),
             If(plllock, NextState("RELEASE_GTY_RESET"))
         )
-        # Release GTY reset and wait for GTY resetdone (from UG578, GTY is reset on falling edge.
-        # of gtXxreset)
+        # Release GTY reset and wait for GTY resetdone (from UG578, GTY is reset on falling edge
+        # of gtXxreset).
         if rx:
             fsm.act("RELEASE_GTY_RESET",
                 Xxuserrdy.eq(1),
@@ -161,8 +161,8 @@ class GTYInit(LiteXModule):
                 )
             )
 
-        # Wait 2 rising edges of Xxphaligndone (from UG576 in TX Buffer Bypass in Single-Lane Auto.
-        # Mode)
+        # Wait 2 rising edges of Xxphaligndone (from UG576 in TX Buffer Bypass in Single-Lane Auto
+        # mode).
         fsm.act("WAIT_FIRST_ALIGN_DONE",
             Xxuserrdy.eq(1),
             If(Xxphaligndone_rising, NextState("WAIT_SECOND_ALIGN_DONE"))
