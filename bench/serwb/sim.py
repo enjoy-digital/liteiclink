@@ -103,7 +103,7 @@ class SerWBMinSoC(SoCMini):
         self.serwb_slave_phy = serwb_slave_phy = SERWBPHY(
             device       = platform.device,
             pads         = serwb_slave_pads,
-            mode         ="slave",
+            mode         = "slave",
             init_timeout = 128,
         )
 
@@ -151,8 +151,8 @@ class SerWBMinSoC(SoCMini):
         self.submodules += EndpointCounterChecker("Slave",  ready=ready, endpoint=serwb_slave_phy.source)
 
 
-        # Simu Status.
-        # ------------
+        # Simulation Status.
+        # ------------------
         serwb_master_phy.init.fsm.finalize()
         serwb_slave_phy.init.fsm.finalize()
         for phy, fsm in [
@@ -167,7 +167,7 @@ class SerWBMinSoC(SoCMini):
                     )
                 ]
 
-        # Simulation End
+        # Simulation End.
         self.sync += If(timer > 10000, Finish())
 
 # SerWBSoC -----------------------------------------------------------------------------------------
@@ -190,7 +190,7 @@ class SerWBSoC(SoCCore):
         # CRG --------------------------------------------------------------------------------------
         self.crg = CRG(platform.request("sys_clk"))
 
-        # Etherbone---------------------------------------------------------------------------------
+        # Etherbone --------------------------------------------------------------------------------
         self.ethphy = LiteEthPHYModel(self.platform.request("eth"))
         self.add_etherbone(phy=self.ethphy)
 
@@ -227,7 +227,7 @@ class SerWBSoC(SoCCore):
         self.serwb_slave_phy = SERWBPHY(
             device       = platform.device,
             pads         = serwb_slave_pads,
-            mode         ="slave",
+            mode         = "slave",
             init_timeout = 128,
         )
 

@@ -45,7 +45,7 @@ class SerdesModel(Module):
 
         self.sync += [
             If(self.rx.shift_inc,
-                shift.eq(shift+1)
+                shift.eq(shift + 1)
             ),
             If(self.rx.delay_rst,
                 delay.eq(0)

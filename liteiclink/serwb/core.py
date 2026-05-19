@@ -77,7 +77,6 @@ class SERWBCore(LiteXModule):
             raise ValueError(f"Downstream endpoint for port {port} already exists.")
         self.downstream_endpoints[port] = endpoint
 
-
     def add_upstream_endpoint(self, port, endpoint):
         if port in self.upstream_endpoints.keys():
             raise ValueError(f"Upstream endpoint for port {port} already exists.")

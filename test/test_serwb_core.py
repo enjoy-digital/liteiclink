@@ -58,7 +58,7 @@ class FakePHY(LiteXModule):
         self.init   = FakeInit()
         self.serdes = FakeSerdes()
 
-        # TX dataflow
+        # TX dataflow.
         self.comb += [
             If(self.init.ready,
                 sink.ready.eq(self.serdes.tx_ce),
@@ -68,7 +68,7 @@ class FakePHY(LiteXModule):
             )
         ]
 
-        # RX dataflow
+        # RX dataflow.
         self.comb += [
             If(self.init.ready,
                 source.valid.eq(self.serdes.rx_ce),

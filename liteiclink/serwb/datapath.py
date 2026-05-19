@@ -154,8 +154,8 @@ class RXDatapath(LiteXModule):
         if with_scrambling:
             self.descrambler = descrambler = Descrambler()
 
-        # Dataflow.
-        # ---------
+        # Data-Path.
+        # ----------
         self.comb += [
             sink.connect(aligner.sink),
             aligner.source.connect(converter.sink),

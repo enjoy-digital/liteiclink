@@ -69,7 +69,7 @@ class _S7SerdesClocking(LiteXModule):
 
 class _S7SerdesTX(LiteXModule):
     def __init__(self, pads):
-        # Control
+        # Control.
         self.idle  = idle  = Signal()
         self.comma = comma = Signal()
 
@@ -77,7 +77,6 @@ class _S7SerdesTX(LiteXModule):
         self.sink = sink = stream.Endpoint([("data", 32)])
 
         # # #
-
 
         # Datapath.
         # ---------
@@ -92,7 +91,7 @@ class _S7SerdesTX(LiteXModule):
         # Output Data (DDR with sys4x).
         # -----------------------------
         self.data = data = Signal(8)
-        data_serialized  = Signal()
+        data_serialized = Signal()
         self.comb += data.eq(datapath.source.data)
         self.specials += [
             Instance("OSERDESE2",
@@ -129,10 +128,10 @@ class _S7SerdesRX(LiteXModule):
         self.shift_inc = shift_inc = Signal()
 
         # Status.
-        self.idle  =  idle = Signal()
+        self.idle  = idle  = Signal()
         self.comma = comma = Signal()
 
-        # Datapath
+        # Datapath.
         self.source = source = stream.Endpoint([("data", 32)])
 
         # # #

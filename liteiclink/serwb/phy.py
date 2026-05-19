@@ -351,7 +351,7 @@ class _SerdesControl(LiteXModule):
         # -----------
         if mode == "slave":
             # In Slave mode, reset is coming from link, Master reset the Slave by putting the link
-            # in IDLE state..
+            # in IDLE state.
             self.sync += [
                 init.reset.eq(serdes.rx.idle),
                 serdes.reset.eq(serdes.rx.idle)
@@ -452,8 +452,8 @@ class SERWBPHY(LiteXModule):
         # ---------------
         self.control = _SerdesControl(self.serdes, self.init, mode)
 
-        # Dataflow.
-        # ---------
+        # Data-Path.
+        # ----------
         self.comb += [
             If(self.init.ready,
                 If(sink.valid,

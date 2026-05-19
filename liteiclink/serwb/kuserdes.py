@@ -72,7 +72,6 @@ class _KUSerdesTX(LiteXModule):
 
         # # #
 
-
         # Datapath.
         # ---------
         self.datapath = datapath = TXDatapath(8)
@@ -86,16 +85,16 @@ class _KUSerdesTX(LiteXModule):
         # Output Data (DDR with sys4x).
         # -----------------------------
         self.data = data = Signal(8)
-        data_serialized  = Signal()
+        data_serialized = Signal()
         self.comb += data.eq(datapath.source.data)
         self.specials += [
-              Instance("OSERDESE3",
+            Instance("OSERDESE3",
                 p_DATA_WIDTH         = 8,
                 p_INIT               = 0,
                 p_IS_CLK_INVERTED    = 0,
                 p_IS_CLKDIV_INVERTED = 0,
                 p_IS_RST_INVERTED    = 0,
-                p_SIM_DEVICE    = "ULTRASCALE_PLUS" if usp  else "ULTRASCALE",
+                p_SIM_DEVICE         = "ULTRASCALE_PLUS" if usp else "ULTRASCALE",
 
                 i_RST    = ResetSignal("sys"),
                 i_CLK    = ClockSignal("sys4x"),
@@ -103,7 +102,7 @@ class _KUSerdesTX(LiteXModule):
                 i_D      = data,
                 o_OQ     = data_serialized,
             ),
-            DifferentialOutput(data_serialized, pads.tx_p, pads.tx_n)
+            DifferentialOutput(data_serialized, pads.tx_p, pads.tx_n),
         ]
 
 # KU SerDes RX -------------------------------------------------------------------------------------
@@ -116,10 +115,10 @@ class _KUSerdesRX(LiteXModule):
         self.shift_inc = shift_inc = Signal()
 
         # Status.
-        self.idle  =  idle = Signal()
+        self.idle  = idle  = Signal()
         self.comma = comma = Signal()
 
-        # Datapath
+        # Datapath.
         self.source = source = stream.Endpoint([("data", 32)])
 
         # # #
@@ -142,7 +141,7 @@ class _KUSerdesRX(LiteXModule):
                 p_DELAY_SRC        = "IDATAIN",
                 p_DELAY_TYPE       = "VARIABLE",
                 p_DELAY_VALUE      = 0,
-                p_SIM_DEVICE    = "ULTRASCALE_PLUS" if usp else "ULTRASCALE",
+                p_SIM_DEVICE       = "ULTRASCALE_PLUS" if usp else "ULTRASCALE",
 
                 i_CLK     = ClockSignal("sys"),
                 i_RST     = delay_rst,
@@ -151,20 +150,20 @@ class _KUSerdesRX(LiteXModule):
                 i_EN_VTC  = 0,
                 i_CE      = delay_inc,
                 i_IDATAIN = data_nodelay,
-                o_DATAOUT = data_delayed
+                o_DATAOUT = data_delayed,
             ),
             Instance("ISERDESE3",
                 p_IS_CLK_INVERTED   = 0,
                 p_IS_CLK_B_INVERTED = 1,
                 p_DATA_WIDTH        = 8,
-                p_SIM_DEVICE    = "ULTRASCALE_PLUS" if usp else "ULTRASCALE",
+                p_SIM_DEVICE        = "ULTRASCALE_PLUS" if usp else "ULTRASCALE",
 
                 i_D      = data_delayed,
                 i_RST    = ResetSignal("sys"),
                 i_CLK    = ClockSignal("sys4x"),
                 i_CLK_B  = ClockSignal("sys4x"), # Locally inverted
                 i_CLKDIV = ClockSignal("sys"),
-                o_Q      = data_raw
+                o_Q      = data_raw,
             )
         ]
 

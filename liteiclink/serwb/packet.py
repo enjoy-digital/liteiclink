@@ -32,7 +32,7 @@ class Packetizer(LiteXModule):
 
         # # #
 
-        # Packet description
+        # Packet description.
         # - Preamble : 4 bytes.
         # - Port     : 1 byte.
         # - Length   : 2 bytes.
@@ -76,7 +76,7 @@ class Depacketizer(LiteXModule):
 
         # # #
 
-        # Packet description
+        # Packet description.
         # - Preamble : 4 bytes.
         # - Port     : 1 byte.
         # - Length   : 2 bytes.

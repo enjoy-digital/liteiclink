@@ -10,7 +10,7 @@ from migen import *
 
 from litex.gen import *
 
-from litex.soc.cores.clock.efinix import TITANIUMPLL,TRIONPLL
+from litex.soc.cores.clock.efinix import TITANIUMPLL, TRIONPLL
 
 from litex.soc.interconnect import stream
 
@@ -27,7 +27,7 @@ class BitSlip(Module):
 
         # # #
 
-        self.value = value = Signal(max=(cycles+1)*dw)
+        self.value = value = Signal(max=(cycles + 1)*dw)
         self.sync += [
             If(self.inc,
                 value.eq(value + 1),
@@ -38,20 +38,20 @@ class BitSlip(Module):
         ]
         self.sync += If(self.rst, value.eq(0))
 
-        self.r = r = Signal((cycles+1)*dw, reset_less=True)
+        self.r = r = Signal((cycles + 1)*dw, reset_less=True)
         self.sync += r.eq(Cat(r[dw:], self.i))
         cases = {}
         for i in range(cycles*dw):
-            cases[i] = self.o.eq(r[i:dw+i])
+            cases[i] = self.o.eq(r[i:dw + i])
         self.comb += Case(value, cases)
 
 # Efinix Serdes Diff TX ----------------------------------------------------------------------------
 
 class EfinixSerdesDiffTx8To1(LiteXModule):
     def __init__(self, data, tx_p, tx_n, clk, clk4x, platform):
-        # only keep _p
+        # Only keep _p.
         io_name = platform.get_pin_name(tx_p)
-        io_pad  = platform.get_pad_name(tx_p) # need real pad name
+        io_pad  = platform.get_pad_name(tx_p) # Need real pad name.
         io_prop = platform.get_pin_properties(tx_p)
 
         _data = platform.add_iface_io(io_name + "_gen", 8)
@@ -110,7 +110,7 @@ class EfinixSerdesDiffRx1To8(LiteXModule):
 
         # Only keep _p.
         io_name = platform.get_pin_name(rx_p)
-        io_pad  = platform.get_pad_name(rx_p) # need real pad name
+        io_pad  = platform.get_pad_name(rx_p) # Need real pad name.
         io_prop = platform.get_pin_properties(rx_p)
 
         _data = platform.add_iface_io(io_name + "_gen", 8)
@@ -227,7 +227,7 @@ class _EfinixSerdesClocking(LiteXModule):
 
             if platform.family == "Trion":
                 io_name = platform.get_pin_name(pads.clk_p)
-                io_pad  = platform.get_pad_name(pads.clk_p) # need real pad name
+                io_pad  = platform.get_pad_name(pads.clk_p) # Need real pad name.
                 io_prop = platform.get_pin_properties(pads.clk_p)
 
                 if platform.device[:2] == "T2":
@@ -260,8 +260,7 @@ class _EfinixSerdesClocking(LiteXModule):
                     "half_rate" : "0",
                 }
 
-                # Trion as no dynamic delay:
-                # Fix/set it at build time.
+                # Trion has no dynamic delay: fix/set it at build time.
                 if platform.family == "Trion":
                     block.update({"delay" : static_delay_taps})
 
@@ -285,7 +284,7 @@ class _EfinixSerdesClocking(LiteXModule):
 
 class _EfinixSerdesTX(LiteXModule):
     def __init__(self, pads, clk="sys", clk4x="sys4x", clk_ratio="1:1"):
-        # Control
+        # Control.
         self.idle  = idle  = Signal()
         self.comma = comma = Signal()
 
@@ -336,10 +335,10 @@ class _EfinixSerdesRX(LiteXModule):
         self.phase_sel = phase_sel = Signal(2)
 
         # Status.
-        self.idle  =  idle = Signal()
+        self.idle  = idle  = Signal()
         self.comma = comma = Signal()
 
-        # Datapath
+        # Datapath.
         self.source = source = stream.Endpoint([("data", 32)])
 
         # # #

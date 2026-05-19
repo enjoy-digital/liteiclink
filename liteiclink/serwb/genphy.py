@@ -372,7 +372,7 @@ class SERWBPHY(LiteXModule):
 
         # SerDes Init.
         # ------------
-        init_cls = {"master": _SerdesMasterInit, "slave":  _SerdesSlaveInit}[mode]
+        init_cls = {"master": _SerdesMasterInit, "slave": _SerdesSlaveInit}[mode]
         self.init = init_cls(self.serdes, init_timeout)
 
         # SerDes Control.
@@ -388,8 +388,8 @@ class SERWBPHY(LiteXModule):
                 ),
                 self.serdes.rx.source.connect(source)
             ),
-            self.serdes.tx.sink.valid.eq(1),  # Always transmitting.
-            self.serdes.rx.source.ready.eq(1),# Always receiving.
+            self.serdes.tx.sink.valid.eq(1),   # Always transmitting.
+            self.serdes.rx.source.ready.eq(1), # Always receiving.
         ]
 
         # PRBS.
