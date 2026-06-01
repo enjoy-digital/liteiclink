@@ -19,7 +19,7 @@ from litex_boards.platforms import sqrl_xcu1525
 from litex.build.generic_platform import *
 
 from litex.soc.cores.clock import USPMMCM
-from litex.soc.integration.soc_core import *
+from litex.soc.integration.soc import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.code_8b10b import K
 

@@ -19,7 +19,7 @@ from litex.build.generic_platform import *
 from litex_boards.platforms import trellisboard
 from litex_boards.targets.trellisboard import _CRG
 
-from litex.soc.integration.soc_core import *
+from litex.soc.integration.soc import *
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.builder import *
 from litex.soc.interconnect import wishbone

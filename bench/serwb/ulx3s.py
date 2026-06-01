@@ -19,7 +19,7 @@ from litex.build.generic_platform import *
 from litex_boards.platforms import radiona_ulx3s
 from litex_boards.targets.radiona_ulx3s import _CRG
 
-from litex.soc.integration.soc_core import *
+from litex.soc.integration.soc import *
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.builder import *
 from litex.soc.interconnect import wishbone
