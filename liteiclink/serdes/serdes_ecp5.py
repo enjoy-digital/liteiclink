@@ -167,10 +167,10 @@ class SerDesECP5SCIReconfig(LiteXModule):
         fsm.act("IDLE",
             self.done.status.eq(1),
             If(self.pause.storage,
-                If(self.we.re,
+                If(self.we.wr_stb,
                     NextState("WRITE")
                 ),
-                If(self.re.re,
+                If(self.re.wr_stb,
                     NextState("READ")
                 )
             ).Else(
@@ -819,7 +819,7 @@ class SerDesECP5(LiteXModule):
         self.sync.tx += tx_cycles.eq(tx_cycles + 1)
         self.sync.rx += rx_cycles.eq(rx_cycles + 1)
 
-        self.sync += If(self.clock_latch.re,
+        self.sync += If(self.clock_latch.wr_stb,
             self.clock_tx_cycles.storage.eq(tx_cycles),
             self.clock_rx_cycles.storage.eq(rx_cycles),
         )

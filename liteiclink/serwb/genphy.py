@@ -314,7 +314,7 @@ class _SerdesControl(LiteXModule):
         if mode == "master":
             # In Master mode, reset is coming from CSR, it resets the Master that will also reset
             # the Slave by putting the link in IDLE state.
-            self.sync += init.reset.eq(self.reset.re)
+            self.sync += init.reset.eq(self.reset.wr_stb)
 
         # Slave Mode.
         # -----------
@@ -341,7 +341,7 @@ class _SerdesControl(LiteXModule):
         self.prbs_fsm = prbs_fsm = FSM(reset_state="IDLE")
         prbs_fsm.act("IDLE",
             NextValue(prbs_cycles, 0),
-            If(self.prbs_start.re,
+            If(self.prbs_start.wr_stb,
                 NextValue(prbs_errors, 0),
                 NextState("CHECK")
             )

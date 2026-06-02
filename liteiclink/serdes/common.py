@@ -67,7 +67,7 @@ class DRPControl(LiteXModule):
 
         # FSM.
         self.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
-        self.comb += fsm.reset.eq(self._start.re)
+        self.comb += fsm.reset.eq(self._start.wr_stb)
 
         fsm.act("IDLE",
             NextState("ACCESS")

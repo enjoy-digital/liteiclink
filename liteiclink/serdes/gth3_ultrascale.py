@@ -1138,7 +1138,7 @@ class GTH3(LiteXModule):
         self.sync.tx += tx_cycles.eq(tx_cycles + 1)
         self.sync.rx += rx_cycles.eq(rx_cycles + 1)
 
-        self.sync += If(self.clock_latch.re,
+        self.sync += If(self.clock_latch.wr_stb,
             self.clock_tx_cycles.storage.eq(tx_cycles),
             self.clock_rx_cycles.storage.eq(rx_cycles),
         )
