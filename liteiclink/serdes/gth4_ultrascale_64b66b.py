@@ -99,6 +99,10 @@ class GTH4_64B66B(LiteXModule):
         #           0b100=Far-End PMA, 0b110=Far-End PCS).
         self.loopback = Signal(3)
 
+        # Polarity inversion (lane routing); reset from the constructor parameters.
+        self.tx_polarity = Signal(reset=tx_polarity)
+        self.rx_polarity = Signal(reset=rx_polarity)
+
         # Streams.
         self.sink   = stream.Endpoint([("data", 64), ("header", 2)])
         self.source = stream.Endpoint([("data", 64), ("header", 2)])
@@ -839,8 +843,8 @@ class GTH4_64B66B(LiteXModule):
             i_RXELECIDLEMODE  = 0b11,
 
             # Polarity.
-            i_TXPOLARITY      = tx_polarity,
-            i_RXPOLARITY      = rx_polarity,
+            i_TXPOLARITY      = self.tx_polarity,
+            i_RXPOLARITY      = self.rx_polarity,
 
             # Pads.
             i_GTHRXP          = rx_pads.p,
@@ -915,6 +919,8 @@ class GTH4_64B66B(LiteXModule):
         self._rx_prbs_cnt_reset = CSRStorage(description="RX PRBS error counter reset.")
         self._rx_prbs_errors    = CSRStatus(32, description="RX PRBS error counter.")
         self._rx_prbs_locked    = CSRStatus(description="RX PRBS checker locked.")
+        self._tx_polarity       = CSRStorage(reset=self.tx_polarity.reset, description="TX polarity inversion.")
+        self._rx_polarity       = CSRStorage(reset=self.rx_polarity.reset, description="RX polarity inversion.")
         self.comb += [
             self.tx_enable.eq(self._tx_enable.storage),
             self._tx_ready.status.eq(self.tx_ready),
@@ -927,6 +933,8 @@ class GTH4_64B66B(LiteXModule):
             self.rx_prbs_cnt_reset.eq(self._rx_prbs_cnt_reset.re),
             self._rx_prbs_errors.status.eq(self.rx_prbs_errors),
             self._rx_prbs_locked.status.eq(self.rx_prbs_locked),
+            self.tx_polarity.eq(self._tx_polarity.storage),
+            self.rx_polarity.eq(self._rx_polarity.storage),
         ]
 
     def do_finalize(self):
