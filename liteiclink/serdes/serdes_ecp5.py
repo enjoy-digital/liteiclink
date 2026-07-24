@@ -494,6 +494,10 @@ class SerDesECP5(LiteXModule):
                  2: "0b010",
                  1: "0b000"}[pll.config["d"]],
             p_D_BITCLK_LOCAL_EN     = "0b1",    # Use clock from local PLL
+            p_D_SYNC_LOCAL_EN       = "0b1",    # Enable local TX sync; without it the TX gearbox
+                                                # sync never starts and FF_TX_PCLK stays dead on
+                                                # nextpnr/trellis builds (TX PLL still reports
+                                                # lock). Diamond/Clarity always sets it.
 
             # DCU ­— unknown
             p_D_CMUSETBIASI         = "0b00",   # begin undocumented (10BSER sample code used)
