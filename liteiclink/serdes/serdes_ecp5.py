@@ -81,6 +81,73 @@ CLKIN +-->  M  +--> VCO +--> /D  +--> LINERATE
            linerate = config["linerate"]/1e9)
         return r
 
+# ECP5 SerDes Word Aligner -------------------------------------------------------------------------
+
+class SerDesECP5WordAligner(LiteXModule):
+    """Align the raw 10BSER receive bus on a K28.5 comma.
+
+    The ECP5 comma aligner is inactive on the raw 10BSER datapath. This aligner searches a
+    two-word window for either running-disparity form of the K28.5 comma and adjusts the fabric
+    word boundary after two consecutive detections agree.
+    """
+    def __init__(self):
+        self.enable = Signal(reset=1)
+        self.sink   = Signal(20)
+        self.source = Signal(20)
+        self.slip   = Signal(5)
+
+        # # #
+
+        previous = Signal(20)
+        window   = Signal(40)
+        window_d = Signal(40)
+        matches  = Signal(20)
+        match    = Signal()
+        slip     = Signal(5)
+        enable_d = Signal()
+        match_d  = Signal()
+        slip_d   = Signal(5)
+
+        candidate       = Signal(5)
+        candidate_valid = Signal()
+
+        self.comb += window.eq(Cat(previous, self.sink))
+        self.sync += [
+            previous.eq(self.sink),
+            window_d.eq(window),
+            matches.eq(Cat(*[
+                (window[n:n + 7] == 0x7c) | (window[n:n + 7] == 0x03)
+                for n in range(20)
+            ])),
+        ]
+
+        self.comb += [
+            match.eq(matches != 0),
+            slip.eq(self.slip),
+        ]
+        for n in reversed(range(20)):
+            self.comb += If(matches[n], slip.eq(n))
+
+        shifted = Signal(40)
+        self.comb += shifted.eq(window_d >> self.slip)
+        self.sync += [
+            enable_d.eq(self.enable),
+            match_d.eq(match),
+            slip_d.eq(slip),
+            If(enable_d & match_d,
+                If(slip_d == self.slip,
+                    candidate_valid.eq(0),
+                ).Elif(candidate_valid & (slip_d == candidate),
+                    self.slip.eq(slip_d),
+                    candidate_valid.eq(0),
+                ).Else(
+                    candidate.eq(slip_d),
+                    candidate_valid.eq(1),
+                )
+            ),
+            self.source.eq(shifted[:20]),
+        ]
+
 # SerDesSCI ----------------------------------------------------------------------------------------
 
 class SerDesECP5SCI(LiteXModule):
@@ -140,7 +207,7 @@ class SerDesECP5SCI(LiteXModule):
 
 @ResetInserter()
 class SerDesECP5SCIReconfig(LiteXModule):
-    def __init__(self, serdes):
+    def __init__(self, serdes, tx_idle_via_sci=True):
         self.loopback    = Signal()
         self.rx_polarity = Signal()
         self.tx_idle     = Signal()
@@ -218,7 +285,9 @@ class SerDesECP5SCIReconfig(LiteXModule):
             sci.dat_w[1].eq(self.tx_polarity),
             If(~first & sci.done,
                 sci.we.eq(0),
-                NextState("READ-CH-02")
+                # CH-02 controls PCIe electrical idle. Do not update it when the direct
+                # FFC_EI_EN input is in use: concurrent SCI writes disturb short SATA handoffs.
+                NextState("READ-CH-02" if tx_idle_via_sci else "READ-CH-15")
             )
         )
         fsm.act("READ-CH-02",
@@ -357,6 +426,151 @@ class SerdesInit(LiteXModule):
             )
         )
 
+# SerdesInitOOB ------------------------------------------------------------------------------------
+
+class SerdesInitOOB(LiteXModule):
+    def __init__(self, tx_lol, rx_lol, rx_los):
+        self.rst        = Signal()
+        self.tx_pll_rst = Signal(reset=1)
+        self.tx_pcs_rst = Signal(reset=1)
+        self.rx_cdr_rst = Signal(reset=1)
+        self.rx_pcs_rst = Signal(reset=1)
+        self.tx_ready   = Signal()
+        self.rx_ready   = Signal()
+
+        # # #
+
+        self.tx_lol = _tx_lol = Signal()
+        self.rx_lol = _rx_lol = Signal()
+        self.rx_los = _rx_los = Signal()
+        self.specials += MultiReg(tx_lol, _tx_lol)
+        self.specials += MultiReg(rx_lol, _rx_lol)
+        self.specials += MultiReg(rx_los, _rx_los)
+
+        # Bring TX up before RX so an OOB initiator can transmit without a receive signal.
+        startup_timer   = WaitTimer(1024)
+        reset_timer     = WaitTimer(8)
+        tx_lock_timer   = WaitTimer(1024)
+        rx_signal_timer = WaitTimer(64)
+        rx_lock_timer   = WaitTimer(64)
+        self.submodules += \
+            startup_timer, reset_timer, tx_lock_timer, rx_signal_timer, rx_lock_timer
+
+        fsm = FSM(reset_state="RESET-ALL")
+        fsm = ResetInserter()(fsm)
+        self.fsm = fsm
+        self.comb += fsm.reset.eq(self.rst)
+        fsm.act("RESET-ALL",
+            NextValue(self.tx_pll_rst, 1),
+            NextValue(self.tx_pcs_rst, 1),
+            NextValue(self.rx_cdr_rst, 1),
+            NextValue(self.rx_pcs_rst, 1),
+            NextValue(self.tx_ready, 0),
+            NextValue(self.rx_ready, 0),
+            startup_timer.wait.eq(1),
+            If(startup_timer.done,
+                NextState("WAIT-TX-PLL-LOCK")
+            )
+        )
+        fsm.act("WAIT-TX-PLL-LOCK",
+            NextValue(self.tx_pll_rst, 0),
+            NextValue(self.tx_pcs_rst, 1),
+            NextValue(self.rx_cdr_rst, 1),
+            NextValue(self.rx_pcs_rst, 1),
+            tx_lock_timer.wait.eq(~_tx_lol),
+            If(tx_lock_timer.done,
+                NextState("RESET-TX-PCS")
+            )
+        )
+        fsm.act("RESET-TX-PCS",
+            NextValue(self.tx_pll_rst, 0),
+            NextValue(self.tx_pcs_rst, 1),
+            NextValue(self.rx_cdr_rst, 1),
+            NextValue(self.rx_pcs_rst, 1),
+            reset_timer.wait.eq(1),
+            If(_tx_lol,
+                NextState("RESET-ALL")
+            ).Elif(reset_timer.done,
+                NextState("WAIT-RX-SIGNAL")
+            )
+        )
+        fsm.act("WAIT-RX-SIGNAL",
+            NextValue(self.tx_pll_rst, 0),
+            NextValue(self.tx_pcs_rst, 0),
+            NextValue(self.rx_cdr_rst, 0),
+            NextValue(self.rx_pcs_rst, 1),
+            NextValue(self.tx_ready, 1),
+            NextValue(self.rx_ready, 0),
+            rx_signal_timer.wait.eq(~_rx_los),
+            If(_tx_lol,
+                NextState("RESET-ALL")
+            ).Elif(rx_signal_timer.done,
+                NextState("RESET-RX-CDR")
+            )
+        )
+        fsm.act("RESET-RX-CDR",
+            NextValue(self.tx_pll_rst, 0),
+            NextValue(self.tx_pcs_rst, 0),
+            NextValue(self.rx_cdr_rst, 1),
+            NextValue(self.rx_pcs_rst, 1),
+            NextValue(self.tx_ready, 1),
+            NextValue(self.rx_ready, 0),
+            reset_timer.wait.eq(1),
+            If(_tx_lol,
+                NextState("RESET-ALL")
+            ).Elif(reset_timer.done,
+                NextState("WAIT-RX-CDR-LOCK")
+            )
+        )
+        fsm.act("WAIT-RX-CDR-LOCK",
+            NextValue(self.tx_pll_rst, 0),
+            NextValue(self.tx_pcs_rst, 0),
+            NextValue(self.rx_cdr_rst, 0),
+            NextValue(self.rx_pcs_rst, 1),
+            NextValue(self.tx_ready, 1),
+            NextValue(self.rx_ready, 0),
+            rx_lock_timer.wait.eq(~_rx_los & ~_rx_lol),
+            If(_tx_lol,
+                NextState("RESET-ALL")
+            ).Elif(_rx_los,
+                NextState("WAIT-RX-SIGNAL")
+            ).Elif(rx_lock_timer.done,
+                NextState("RESET-RX-PCS")
+            )
+        )
+        fsm.act("RESET-RX-PCS",
+            NextValue(self.tx_pll_rst, 0),
+            NextValue(self.tx_pcs_rst, 0),
+            NextValue(self.rx_cdr_rst, 0),
+            NextValue(self.rx_pcs_rst, 1),
+            NextValue(self.tx_ready, 1),
+            NextValue(self.rx_ready, 0),
+            reset_timer.wait.eq(1),
+            If(_tx_lol,
+                NextState("RESET-ALL")
+            ).Elif(_rx_los | _rx_lol,
+                NextState("WAIT-RX-SIGNAL")
+            ).Elif(reset_timer.done,
+                NextState("READY")
+            )
+        )
+        fsm.act("READY",
+            NextValue(self.tx_pll_rst, 0),
+            NextValue(self.tx_pcs_rst, 0),
+            NextValue(self.rx_cdr_rst, 0),
+            NextValue(self.rx_pcs_rst, 0),
+            NextValue(self.tx_ready, 1),
+            If(_tx_lol,
+                NextValue(self.rx_ready, 0),
+                NextState("RESET-ALL")
+            ).Elif(_rx_lol,
+                NextValue(self.rx_ready, 0),
+                NextState("WAIT-RX-SIGNAL")
+            ).Else(
+                NextValue(self.rx_ready, 1)
+            )
+        )
+
 # SerDesECP5 ---------------------------------------------------------------------------------------
 
 class SerDesECP5(LiteXModule):
@@ -365,7 +579,8 @@ class SerDesECP5(LiteXModule):
         channel     = 0,
         data_width  = 20,
         tx_polarity = 0,
-        rx_polarity = 0):
+        rx_polarity = 0,
+        with_oob    = False):
         assert dual       in [0, 1]
         assert channel    in [0, 1]
         assert data_width in [20]
@@ -381,6 +596,8 @@ class SerDesECP5(LiteXModule):
         self.tx_pattern             = Signal(data_width)
         self.tx_prbs_config         = Signal(2)
         self.tx_idle                = Signal()
+        self.tx_raw_enable          = Signal()
+        self.tx_raw_data            = Signal(data_width)
 
         # RX controls.
         self.rx_enable              = Signal(reset=1)
@@ -391,6 +608,7 @@ class SerDesECP5(LiteXModule):
         self.rx_prbs_errors         = Signal(32)
         self.rx_idle                = Signal()
         self.rx_cdr_hold            = Signal()
+        self.rx_raw_data            = Signal(data_width)
 
         # Loopback.
         self.loopback               = Signal() # FIXME: reconfigure lb_ctl to 0b0001 but does not seem enough
@@ -401,6 +619,7 @@ class SerDesECP5(LiteXModule):
 
         self.encoder  = ClockDomainsRenamer("tx")(Encoder(nwords, True))
         self.decoders = [ClockDomainsRenamer("rx")(Decoder(True)) for _ in range(nwords)]
+        self.submodules += self.decoders
 
         # Transceiver direct clock outputs (useful to specify clock constraints).
         self.txoutclk = Signal()
@@ -419,6 +638,7 @@ class SerDesECP5(LiteXModule):
 
         tx_lol     = Signal()
         tx_data    = Signal(20)
+        tx_data_d  = Signal(20)
         tx_bus     = Signal(24)
 
         # Control/Status CDC -----------------------------------------------------------------------
@@ -446,19 +666,80 @@ class SerDesECP5(LiteXModule):
             MultiReg(rx_prbs_errors, self.rx_prbs_errors, "sys"),
         ]
 
+        if with_oob:
+            # The raw 10BSER bus has no working DCU comma alignment. Align it in the fabric before
+            # decoding. Re-arm only after a sustained absence of valid K28.5 characters: scrambled
+            # payload can contain isolated comma-like bit patterns that must not move a healthy
+            # link.
+            self.rx_aligner = rx_aligner = ClockDomainsRenamer("rx")(SerDesECP5WordAligner())
+            rx_invalid = Signal()
+            rx_kseen   = Signal()
+            rx_k285    = Signal()
+            no_comma   = Signal(16)
+            k285_age   = Signal(11)
+            invalids   = Signal(6)
+            self.comb += [
+                rx_aligner.sink.eq(Cat(rx_bus[0:10], rx_bus[12:22])),
+                self.rx_raw_data.eq(rx_aligner.source),
+                rx_invalid.eq(Cat(*[decoder.invalid for decoder in self.decoders]) != 0),
+                rx_kseen.eq(Cat(*[decoder.k for decoder in self.decoders]) != 0),
+                rx_k285.eq(
+                    ((self.decoders[0].k == 1) & (self.decoders[0].d == 0xbc)) |
+                    ((self.decoders[1].k == 1) & (self.decoders[1].d == 0xbc))
+                ),
+                rx_aligner.enable.eq(
+                    rx_align & (k285_age == (2**11 - 1)) &
+                    ((invalids >= 8) | (no_comma >= 4096))),
+            ]
+            self.sync.rx += [
+                If(rx_kseen,
+                    no_comma.eq(0)
+                ).Elif(no_comma != (2**16 - 1),
+                    no_comma.eq(no_comma + 1)
+                ),
+                If(rx_k285,
+                    k285_age.eq(0),
+                    invalids.eq(0),
+                ).Else(
+                    If(k285_age != (2**11 - 1),
+                        k285_age.eq(k285_age + 1)
+                    ),
+                    If(rx_invalid & (invalids != (2**6 - 1)),
+                        invalids.eq(invalids + 1)
+                    )
+                ),
+            ]
+        else:
+            self.comb += self.rx_raw_data.eq(Cat(rx_bus[0:10], rx_bus[12:22]))
+
         # DCU init ---------------------------------------------------------------------------------
-        self.init = init = SerdesInit(tx_lol, rx_lol, rx_los)
+        if with_oob:
+            self.init = init = SerdesInitOOB(tx_lol, rx_lol, rx_los)
+            tx_ready   = init.tx_ready
+            rx_ready   = init.rx_ready
+            tx_pll_rst = init.tx_pll_rst
+            tx_pcs_rst = init.tx_pcs_rst
+            rx_cdr_rst = init.rx_cdr_rst
+            rx_pcs_rst = init.rx_pcs_rst
+        else:
+            self.init = init = SerdesInit(tx_lol, rx_lol, rx_los)
+            tx_ready   = init.ready
+            rx_ready   = init.ready
+            tx_pll_rst = init.tx_rst
+            tx_pcs_rst = init.pcs_rst
+            rx_cdr_rst = init.rx_rst
+            rx_pcs_rst = init.pcs_rst
 
         # Clocking ---------------------------------------------------------------------------------
         self.cd_tx = ClockDomain()
         self.comb += self.cd_tx.clk.eq(self.txoutclk)
-        self.specials += AsyncResetSynchronizer(self.cd_tx, ~init.ready)
-        self.comb += self.tx_ready.eq(init.ready)
+        self.specials += AsyncResetSynchronizer(self.cd_tx, ~tx_ready)
+        self.comb += self.tx_ready.eq(tx_ready)
 
         self.cd_rx = ClockDomain()
         self.comb += self.cd_rx.clk.eq(self.rxoutclk)
-        self.specials += AsyncResetSynchronizer(self.cd_rx, ~init.ready)
-        self.comb += self.rx_ready.eq(init.ready)
+        self.specials += AsyncResetSynchronizer(self.cd_rx, ~rx_ready)
+        self.comb += self.rx_ready.eq(rx_ready)
 
         # DCU instance -----------------------------------------------------------------------------
         self.serdes_params = dict(
@@ -534,8 +815,8 @@ class SerDesECP5(LiteXModule):
             i_CHX_FFC_RXPWDNB       = 1,
 
             # CHX RX — reset
-            i_CHX_FFC_RRST          = ~self.rx_enable | init.rx_rst,
-            i_CHX_FFC_LANE_RX_RST   = ~self.rx_enable | init.pcs_rst,
+            i_CHX_FFC_RRST          = ~self.rx_enable | rx_cdr_rst,
+            i_CHX_FFC_LANE_RX_RST   = ~self.rx_enable | rx_pcs_rst,
 
             # CHX RX — input
             i_CHX_HDINP             = rx_pads.p,
@@ -631,8 +912,8 @@ class SerDesECP5(LiteXModule):
             i_CHX_FFC_TXPWDNB       = 1,
 
             # CHX TX — reset
-            i_D_FFC_TRST            = ~self.tx_enable | init.tx_rst,
-            i_CHX_FFC_LANE_TX_RST   = ~self.tx_enable | init.pcs_rst,
+            i_D_FFC_TRST            = ~self.tx_enable | tx_pll_rst,
+            i_CHX_FFC_LANE_TX_RST   = ~self.tx_enable | tx_pcs_rst,
 
             # CHX TX - output
             o_CHX_HDOUTP            = tx_pads.p,
@@ -673,32 +954,62 @@ class SerDesECP5(LiteXModule):
             **{"i_CHX_FF_TX_D_%d" % n: tx_bus[n] for n in range(tx_bus.nbits)}
         )
 
+        if with_oob:
+            self.serdes_params.update(
+                p_D_SYNC_LOCAL_EN = "0b1", # Enable the local TX gearbox clock.
+                p_CHX_LSM_DISABLE = "0b1", # Use fabric word alignment.
+            )
+
         # SCI Reconfiguration ----------------------------------------------------------------------
-        self.sci_reconfig = sci_reconfig = SerDesECP5SCIReconfig(self)
-        self.comb += sci_reconfig.reset.eq(~self.init.ready)
+        self.sci_reconfig = sci_reconfig = SerDesECP5SCIReconfig(
+            self, tx_idle_via_sci=not with_oob)
+        self.comb += sci_reconfig.reset.eq(~tx_ready)
         self.comb += sci_reconfig.sci.dual_sel.eq(dual)
         self.comb += sci_reconfig.loopback.eq(self.loopback)
-        self.comb += sci_reconfig.tx_idle.eq(self.tx_idle)
+        self.comb += sci_reconfig.tx_idle.eq(self.tx_idle if not with_oob else 0)
         self.comb += sci_reconfig.rx_polarity.eq(rx_polarity)
         self.comb += sci_reconfig.tx_polarity.eq(tx_polarity)
         self.comb += sci_reconfig.rx_cdr_hold.eq(self.rx_cdr_hold)
 
+        if with_oob:
+            tx_idle = Signal()
+            self.specials += MultiReg(self.tx_idle, tx_idle, "tx")
+            # Raw OOB data must remain driven while the normal serializer output is in idle.
+            self.serdes_params["i_CHX_FFC_EI_EN"] = tx_idle & ~self.tx_raw_enable
+
         # TX Datapath and PRBS ---------------------------------------------------------------------
         self.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, reverse=True))
         self.comb += self.tx_prbs.config.eq(tx_prbs_config)
-        self.comb += [
-            self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)])),
-            If(tx_produce_square_wave,
-                # square wave @ linerate/data_width for scope observation
-                tx_data.eq(Signal(data_width, reset=(1<<(data_width//2))-1))
-            ).Elif(tx_produce_pattern,
-                tx_data.eq(tx_pattern)
-            ).Else(
-                tx_data.eq(self.tx_prbs.o)
-            ),
-            tx_bus[ 0:10].eq(tx_data[ 0:10]),
-            tx_bus[12:22].eq(tx_data[10:20]),
-        ]
+        self.comb += self.tx_prbs.i.eq(Cat(*[self.encoder.output[i] for i in range(nwords)]))
+        if with_oob:
+            self.comb += [
+                If(tx_produce_square_wave,
+                    # square wave @ linerate/data_width for scope observation
+                    tx_data.eq(Signal(data_width, reset=(1<<(data_width//2))-1))
+                ).Elif(self.tx_raw_enable,
+                    tx_data.eq(self.tx_raw_data)
+                ).Elif(tx_produce_pattern,
+                    tx_data.eq(tx_pattern)
+                ).Else(
+                    tx_data.eq(self.tx_prbs.o)
+                ),
+                tx_bus[ 0:10].eq(tx_data_d[ 0:10]),
+                tx_bus[12:22].eq(tx_data_d[10:20]),
+            ]
+            self.sync.tx += tx_data_d.eq(tx_data)
+        else:
+            self.comb += [
+                If(tx_produce_square_wave,
+                    # square wave @ linerate/data_width for scope observation
+                    tx_data.eq(Signal(data_width, reset=(1<<(data_width//2))-1))
+                ).Elif(tx_produce_pattern,
+                    tx_data.eq(tx_pattern)
+                ).Else(
+                    tx_data.eq(self.tx_prbs.o)
+                ),
+                tx_bus[ 0:10].eq(tx_data[ 0:10]),
+                tx_bus[12:22].eq(tx_data[10:20]),
+            ]
 
         # RX Datapath and PRBS ---------------------------------------------------------------------
         self.rx_prbs = ClockDomainsRenamer("rx")(PRBSRX(data_width, reverse=True))
@@ -706,9 +1017,14 @@ class SerDesECP5(LiteXModule):
             self.rx_prbs.config.eq(rx_prbs_config),
             self.rx_prbs.pause.eq(rx_prbs_pause),
             rx_prbs_errors.eq(self.rx_prbs.errors),
-            rx_data[ 0:10].eq(rx_bus[ 0:10]),
-            rx_data[10:20].eq(rx_bus[12:22]),
         ]
+        if with_oob:
+            self.comb += rx_data.eq(self.rx_raw_data)
+        else:
+            self.comb += [
+                rx_data[ 0:10].eq(rx_bus[ 0:10]),
+                rx_data[10:20].eq(rx_bus[12:22]),
+            ]
         for i in range(nwords):
             self.sync.rx += self.decoders[i].input.eq(rx_data[10*i:10*(i+1)])
         self.sync.rx += self.rx_prbs.i.eq(rx_data)
