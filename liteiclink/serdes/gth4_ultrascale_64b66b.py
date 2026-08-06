@@ -780,6 +780,8 @@ class GTH4_64B66B(LiteXModule):
 
             # RX Startup/Reset.
             i_GTRXRESET       = rx_init.gtXxreset,
+            i_RXCKCALRESET    = 0,
+            i_RXCKCALSTART    = 0,
             i_RXPMARESET      = 0,
             i_RXPCSRESET      = 0,
             o_RXRESETDONE     = rx_init.Xxresetdone,
@@ -804,8 +806,21 @@ class GTH4_64B66B(LiteXModule):
             i_RXCHBONDEN      = 0,
 
             # RX AFE.
+            i_RXDFEAGCCTRL    = 1,
             i_RXDFEXYDEN      = 1,
             i_RXLPMEN         = 0, # DFE.
+            i_RXTERMINATION   = 0,
+
+            # RX Equalizer.
+            i_FREQOS          = 0,
+            i_RXDFECFOKFCNUM  = 0xD,
+            i_RXDFECFOKFEN    = 0,
+            i_RXDFECFOKFPULSE = 0,
+            i_RXDFECFOKHOLD   = 0,
+            i_RXDFECFOKOVREN  = 0,
+            i_RXDFEKHHOLD     = 0,
+            i_RXDFEKHOVRDEN   = 0,
+            i_RXAFECFOKEN     = 1,
 
             # RX clock.
             i_RXRATE          = 0b000,
