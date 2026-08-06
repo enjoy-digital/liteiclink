@@ -141,14 +141,14 @@ class GTH4_64B66B(LiteXModule):
         self.comb += rx_prbs_cnt_reset.eq(self.rx_prbs_cnt_reset_ps.o)
 
         # TX init ----------------------------------------------------------------------------------
-        self.tx_init = tx_init = GTHTXInit(sys_clk_freq, buffer_enable=True)
+        self.tx_init = tx_init = GTHTXInit(sys_clk_freq, buffer_enable=False)
         self.comb += [
             self.tx_ready.eq(tx_init.done),
             tx_init.restart.eq(~self.tx_enable),
         ]
 
         # RX init ----------------------------------------------------------------------------------
-        self.rx_init = rx_init = GTHRXInit(sys_clk_freq, buffer_enable=True)
+        self.rx_init = rx_init = GTHRXInit(sys_clk_freq, buffer_enable=False)
         self.comb += [
             self.rx_ready.eq(rx_init.done),
             rx_init.restart.eq(~self.rx_enable),
@@ -740,13 +740,13 @@ class GTH4_64B66B(LiteXModule):
             o_TXPHINITDONE    = Open(),
             o_TXPHALIGNDONE   = tx_init.Xxphaligndone,
             i_TXUSERRDY       = tx_init.Xxuserrdy,
-            i_TXPHDLYPD       = 1,
+            i_TXPHDLYPD       = 0,
             i_TXPHOVRDEN      = 0,
             i_TXMAINCURSOR    = 0x50,
-            i_TXSYNCMODE      = 0,
+            i_TXSYNCMODE      = 1,
 
             # TX Buffer bypass.
-            i_TXDLYBYPASS     = 1,
+            i_TXDLYBYPASS     = 0,
             i_TXDLYEN         = 0,
 
             # TX data.
@@ -788,10 +788,10 @@ class GTH4_64B66B(LiteXModule):
             i_RXSYNCALLIN     = rxphaligndone,
             i_RXUSERRDY       = rx_init.Xxuserrdy,
             i_RXSYNCIN        = 0,
-            i_RXSYNCMODE      = 0,
+            i_RXSYNCMODE      = 1,
             o_RXSYNCDONE      = rx_init.Xxsyncdone,
-            i_RXDLYBYPASS     = 1,
-            i_RXPHDLYPD       = 1,
+            i_RXDLYBYPASS     = 0,
+            i_RXPHDLYPD       = 0,
             i_RXBUFRESET      = 0,
             i_RXDLYEN         = 0,
             o_GTPOWERGOOD     = Open(),
@@ -869,7 +869,7 @@ class GTH4_64B66B(LiteXModule):
         # RXUSRCLK: linerate/33 (PCS, no fabric logic); RXUSRCLK2: linerate/66 (fabric).
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
-        self.sync.tx += rx_reset_deglitched.eq(~rx_init.done)
+        self.sync += rx_reset_deglitched.eq(~rx_init.done)
         self.cd_rx = ClockDomain()
         self.specials += [
             Instance("BUFG_GT", i_I=self.rxoutclk, i_DIV=0b000, o_O=rxusrclk),
