@@ -89,13 +89,25 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 # GTY Quad PLL -------------------------------------------------------------------------------------
 
 class GTYQuadPLL(LiteXModule):
-    def __init__(self, refclk, refclk_freq, linerate, refclk_from_fabric=False):
+    """GTY QPLL with optional selection and primitive tuning.
+
+    qpll selects "qpll0" or "qpll1"; None keeps automatic selection. qpll_params
+    overrides named primitive tuning parameters (without the p_ prefix). Divider,
+    clock-output-rate and SDM-bypass settings remain derived from the PLL config.
+    """
+    def __init__(self, refclk, refclk_freq, linerate, refclk_from_fabric=False,
+        qpll=None, qpll_params=None):
         self.clk       = Signal()
         self.refclk    = Signal()
         self.reset     = Signal()
         self.lock      = Signal()
         self.powerdown = Signal()
-        self.config = config = self.compute_config(refclk_freq, linerate)
+        # Keep two-argument compute_config overrides working for existing subclasses.
+        if qpll is None:
+            config = self.compute_config(refclk_freq, linerate)
+        else:
+            config = self.compute_config(refclk_freq, linerate, qpll=qpll)
+        self.config = config
 
         # DRP.
         self.drp = DRPInterface()
@@ -109,7 +121,7 @@ class GTYQuadPLL(LiteXModule):
         use_qpll0 = config["qpll"] == "qpll0"
         use_qpll1 = config["qpll"] == "qpll1"
 
-        self.specials += Instance("GTYE4_COMMON",
+        self.gty_params = dict(
             p_AEN_QPLL0_FBDIV       = 0b1,
             p_AEN_QPLL1_FBDIV       = 0b1,
             p_AEN_SDM0TOGGLE        = 0b0,
@@ -244,10 +256,30 @@ class GTYQuadPLL(LiteXModule):
             i_QPLL1RESET      = self.reset,
         )
 
+        # Tuning is explicit at construction, before the common primitive is instantiated.
+        derived_params = {
+            f"QPLL{index}{suffix}" for index in (0, 1) for suffix in
+            ("_FBDIV", "_REFCLK_DIV", "CLKOUT_RATE", "_SDM_CFG0")
+        }
+        for name, value in (qpll_params or {}).items():
+            if name in derived_params or "p_" + name not in self.gty_params:
+                raise ValueError(f"Unsupported QPLL tuning parameter: {name}.")
+            self.gty_params["p_" + name] = value
+
+        # Bit 7 bypasses the sigma-delta modulator. Fractional feedback needs it enabled.
+        # Preserve the existing integer-N settings, including those of the inactive QPLL.
+        if config["f"]:
+            self.gty_params[f"p_{config['qpll'].upper()}_SDM_CFG0"] &= ~(1 << 7)
+
+        self.specials += Instance("GTYE4_COMMON", **self.gty_params)
+
     @staticmethod
-    def compute_config(refclk_freq, linerate):
+    def compute_config(refclk_freq, linerate, qpll=None):
         # FIXME: cleanup.
-        assert linerate <= 32.75e9
+        if qpll not in (None, "qpll0", "qpll1"):
+            raise ValueError(f"Unsupported QPLL selection: {qpll}.")
+        if refclk_freq <= 0 or not 0 < linerate <= 32.75e9:
+            raise ValueError("Reference clock and line rate must be positive; maximum line rate is 32.75 Gb/s.")
         for d in [1, 2, 4, 8, 16]:
             pllclk_out = (linerate*d)/2
 
@@ -256,13 +288,13 @@ class GTYQuadPLL(LiteXModule):
             else:
                 rate = 2 # Half
             vco_freq = pllclk_out*rate
-            if 8e9 <= vco_freq <= 13e9:
-                qpll = "qpll1"
-            elif 9.8e9 <= vco_freq <= 16.375e9:
-                qpll = "qpll0"
+            if qpll in (None, "qpll1") and 8e9 <= vco_freq <= 13e9:
+                selected_qpll = "qpll1"
+            elif qpll in (None, "qpll0") and 9.8e9 <= vco_freq <= 16.375e9:
+                selected_qpll = "qpll0"
             else:
-                qpll = None
-            if qpll is not None:
+                selected_qpll = None
+            if selected_qpll is not None:
                 for m in [1, 2, 3, 4]:
                     n_f = (vco_freq/refclk_freq)*m
                     if 16 <= n_f <= 160:
@@ -273,7 +305,7 @@ class GTYQuadPLL(LiteXModule):
                         linerate_calc = clkout_calc*2/d
                         return {"n": n, "m": m, "d": d, "f": f,
                                 "vco_freq": vco_freq_calc,
-                                "qpll": qpll,
+                                "qpll": selected_qpll,
                                 "clkin": refclk_freq,
                                 "clkout_rate": rate,
                                 "clkout": clkout_calc,
