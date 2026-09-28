@@ -236,7 +236,7 @@ class GTYQuadPLL(LiteXModule):
             o_QPLL0OUTCLK     = self.clk       if use_qpll0 else Signal(),
             o_QPLL0OUTREFCLK  = self.refclk    if use_qpll0 else Signal(),
             i_QPLL0PD         = self.powerdown if use_qpll0 else 1,
-            i_QPLL0REFCLKSEL  = 0b001,
+            i_QPLL0REFCLKSEL  = 0b111 if refclk_from_fabric else 0b001,
             i_QPLL0RESET      = self.reset,
 
             # QPLL1.
@@ -252,7 +252,7 @@ class GTYQuadPLL(LiteXModule):
             o_QPLL1OUTCLK     = self.clk       if use_qpll1 else Signal(),
             o_QPLL1OUTREFCLK  = self.refclk    if use_qpll1 else Signal(),
             i_QPLL1PD         = self.powerdown if use_qpll1 else 1,
-            i_QPLL1REFCLKSEL  = 0b001,
+            i_QPLL1REFCLKSEL  = 0b111 if refclk_from_fabric else 0b001,
             i_QPLL1RESET      = self.reset,
         )
 
