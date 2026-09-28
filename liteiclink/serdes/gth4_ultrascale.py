@@ -89,7 +89,7 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
 # GTH Quad PLL Base --------------------------------------------------------------------------------
 
 class GTHQuadPLLBase(LiteXModule):
-    def __init__(self, refclk, refclk_freq, linerate):
+    def __init__(self, refclk, refclk_freq, linerate, refclk_from_fabric=False):
         self.clk       = Signal()
         self.refclk    = Signal()
         self.reset     = Signal()
@@ -107,8 +107,10 @@ class GTHQuadPLLBase(LiteXModule):
 
         self.gth_params = dict(
             # Common
-            i_GTREFCLK00       = refclk,
-            i_GTREFCLK01       = refclk,
+            i_GTREFCLK00       = 0 if refclk_from_fabric else refclk,
+            i_GTREFCLK01       = 0 if refclk_from_fabric else refclk,
+            i_GTGREFCLK0       = refclk if refclk_from_fabric else 0,
+            i_GTGREFCLK1       = refclk if refclk_from_fabric else 0,
             i_QPLLRSVD1        = 0,
             i_QPLLRSVD2        = 0,
             i_QPLLRSVD3        = 0,
@@ -140,7 +142,7 @@ class GTHQuadPLLBase(LiteXModule):
             o_QPLL0OUTCLK      = self.clk       if use_qpll0 else Signal(),
             o_QPLL0OUTREFCLK   = self.refclk    if use_qpll0 else Signal(),
             i_QPLL0PD          = self.powerdown if use_qpll0 else 1,
-            i_QPLL0REFCLKSEL   = 0b001,
+            i_QPLL0REFCLKSEL   = 0b111 if refclk_from_fabric else 0b001,
             i_QPLL0RESET       = self.reset,
 
             # QPLL1
@@ -154,7 +156,7 @@ class GTHQuadPLLBase(LiteXModule):
             o_QPLL1OUTCLK      = self.clk       if use_qpll1 else Signal(),
             o_QPLL1OUTREFCLK   = self.refclk    if use_qpll1 else Signal(),
             i_QPLL1PD          = self.powerdown if use_qpll1 else 1,
-            i_QPLL1REFCLKSEL   = 0b001,
+            i_QPLL1REFCLKSEL   = 0b111 if refclk_from_fabric else 0b001,
             i_QPLL1RESET       = self.reset,
         )
 
@@ -230,8 +232,8 @@ CLKIN +----> /M  +-->       Charge Pump         | +------------+->/2+--> CLKOUT
 class GTH4QuadPLL(GTHQuadPLLBase):
     name = "GTHE4_COMMON"
 
-    def __init__(self, refclk, refclk_freq, linerate):
-        super().__init__(refclk, refclk_freq, linerate)
+    def __init__(self, refclk, refclk_freq, linerate, refclk_from_fabric=False):
+        super().__init__(refclk, refclk_freq, linerate, refclk_from_fabric=refclk_from_fabric)
 
         # Update params common to GTHE4 but that have different values and differs from the default ones.
         self.gth_params.update(
