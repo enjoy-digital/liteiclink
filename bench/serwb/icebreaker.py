@@ -13,6 +13,7 @@ from migen import *
 from litex.gen import *
 
 from litex.build.generic_platform import *
+from litex.build.pmod import Pmod1BitSquaredBreakOff
 
 from litex_boards.platforms import icebreaker
 from litex_boards.targets.icebreaker import _CRG
@@ -155,7 +156,7 @@ def main():
     args = parser.parse_args()
 
     platform = icebreaker.Platform()
-    platform.add_extension(icebreaker.break_off_pmod)
+    platform.add_extension(Pmod1BitSquaredBreakOff("PMOD2"))
     platform.add_extension(serwb_io)
     soc     = SerWBTestSoC(platform)
     builder = Builder(soc, csr_csv="csr.csv")
