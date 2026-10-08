@@ -13,9 +13,9 @@ from migen import *
 from litex.gen import *
 
 from litex.build.generic_platform import *
-from litex.build.pmod import Pmod1BitSquaredBreakOff
 
 from litex_boards.platforms import icebreaker
+from litex_boards.extensions.pmod import Pmod1BitSquaredBreakOff
 from litex_boards.targets.icebreaker import _CRG
 
 from litex.soc.integration.soc import *
