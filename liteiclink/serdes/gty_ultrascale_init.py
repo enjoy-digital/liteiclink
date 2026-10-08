@@ -31,6 +31,7 @@ class GTYInit(LiteXModule):
         self.Xxresetdone     = Signal() # i
         self.Xxdlysreset     = Signal() # o
         self.Xxdlysresetdone = Signal() # i
+        self.Xxphinitdone    = Signal() # o
         self.Xxphaligndone   = Signal() # i
         self.Xxsyncdone      = Signal() # i
         self.Xxuserrdy       = Signal() # o
