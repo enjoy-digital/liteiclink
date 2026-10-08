@@ -31,7 +31,10 @@ class _EtherbonePacket(LiteXModule):
         self.rx = rx = LiteEthEtherbonePacketRX()
         self.comb += [
             tx.source.connect(port_sink),
-            port_source.connect(rx.sink),
+            port_source.connect(rx.sink, omit={"be"}),
+            # SERWB only transports full 32-bit words: mark all bytes valid (LiteEth Etherbone
+            # discards records with partial byte enables).
+            rx.sink.be.eq(2**len(rx.sink.be) - 1),
         ]
         self.sink, self.source = self.tx.sink, self.rx.source
 
