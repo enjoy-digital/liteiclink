@@ -50,7 +50,7 @@ SerDes:
 LiteICLink is already used in commercial and open-source designs:
 - Software Defined Radio boards for CPRI/JESD204B: http://enjoy-digital.fr/
 - USB3 Pipe: https://github.com/enjoy-digital/usb3_pipe
-- ARTIQ: https://m-labs.hk/artiq/
+- ARTIQ: https://m-labs.hk/artiq/artiq/
 - and others commercial designs...
 
 [> Possible improvements
