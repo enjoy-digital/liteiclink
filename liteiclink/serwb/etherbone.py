@@ -50,8 +50,9 @@ class Etherbone(LiteXModule):
         # Encode/encode etherbone packets.
         self.packet = packet = _EtherbonePacket(source, sink)
 
-		# Packets are records with writes and reads.
-        self.record = record = LiteEthEtherboneRecord(buffer_depth)
+        # Packets are records with writes and reads (no byte swapping: SerWB is little-endian on
+        # both sides of the link).
+        self.record = record = LiteEthEtherboneRecord(endianness="little", buffer_depth=buffer_depth)
 
         # Create MMAP wishbone.
         self.wishbone = {
