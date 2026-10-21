@@ -15,6 +15,7 @@ from litex.soc.interconnect.csr import *
 from liteiclink.serwb.kuserdes import KUSerdes
 from liteiclink.serwb.s7serdes import S7Serdes
 from liteiclink.serwb.efinixserdes import EfinixSerdes
+from liteiclink.serwb.datapath     import FlowControl
 
 
 # SerDes Initialization/Synchronisation ------------------------------------------------------------
@@ -339,7 +340,20 @@ class _SerdesControl(LiteXModule):
         self.prbs_cycles = CSRStorage(32)
         self.prbs_errors = CSRStatus(32)
 
+        self.invalid_errors = CSRStatus(32, description="Number of invalid 8b10b words received (link ready).")
+
         # # #
+
+        # Invalid 8b10b Words Counter (cleared on link reset).
+        # ----------------------------------------------------
+        invalid_errors = self.invalid_errors.status
+        self.sync += [
+            If(~init.ready,
+                invalid_errors.eq(0)
+            ).Elif(serdes.rx.datapath.invalid & (invalid_errors != (2**32 - 1)),
+                invalid_errors.eq(invalid_errors + 1)
+            )
+        ]
 
         # Master Mode.
         # ------------
@@ -395,7 +409,7 @@ class _SerdesControl(LiteXModule):
 # SERWB PHY ----------------------------------------------------------------------------------------
 
 class SERWBPHY(LiteXModule):
-    def __init__(self, device, pads, mode="master", init_timeout=2**16, clk="sys", clk4x="sys4x", clk_ratio="1:1", clk_delay_taps=0, rx_delay_taps=0, usp=False):
+    def __init__(self, device, pads, mode="master", init_timeout=2**16, clk="sys", clk4x="sys4x", clk_ratio="1:1", clk_delay_taps=0, rx_delay_taps=0, usp=False, with_flow_control=False):
         self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
@@ -454,17 +468,33 @@ class SERWBPHY(LiteXModule):
 
         # Data-Path.
         # ----------
-        self.comb += [
-            If(self.init.ready,
-                If(sink.valid,
-                    sink.connect(self.serdes.tx.sink),
+        # Optional link level flow control (XON/XOFF, K28.1 fill characters when idle). Must be
+        # enabled on both sides of the link. The core drives `pause` from its RX buffer level.
+        if with_flow_control:
+            self.flow_control = FlowControl(
+                tx        = self.serdes.tx.datapath,
+                rx        = self.serdes.rx.datapath,
+                tx_sink   = self.serdes.tx.sink,
+                rx_source = self.serdes.rx.source,
+                ready     = self.init.ready,
+            )
+            self.pause = self.flow_control.pause
+            self.comb += [
+                sink.connect(self.flow_control.sink),
+                self.flow_control.source.connect(source),
+            ]
+        else:
+            self.comb += [
+                If(self.init.ready,
+                    If(sink.valid,
+                        sink.connect(self.serdes.tx.sink),
+                    ),
+                    self.serdes.rx.source.connect(source)
+                ).Else(
+                    self.serdes.rx.source.ready.eq(1)
                 ),
-                self.serdes.rx.source.connect(source)
-            ).Else(
-                self.serdes.rx.source.ready.eq(1)
-            ),
-            self.serdes.tx.sink.valid.eq(1) # Always transmitting
-        ]
+                self.serdes.tx.sink.valid.eq(1) # Always transmitting
+            ]
 
         # PRBS.
         # -----
