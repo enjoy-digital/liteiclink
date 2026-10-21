@@ -13,7 +13,33 @@ jobs:
       # Install Tools
       - name: Install Tools
         run: |
-          sudo apt-get install wget build-essential
+          sudo apt-get update
+          sudo apt-get install wget build-essential help2man
+          sudo apt-get install libevent-dev libjson-c-dev flex bison
+          sudo apt-get install libfl-dev libfl2 zlib1g-dev
+
+      # Cache Verilator install (same pinned version as LiteX CI, used by SerWB simulation tests).
+      - name: Cache Verilator install
+        id: verilator-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/verilator-install
+          key: verilator-ubuntu22-7d2d32420a630befa4097170ecbf227e04e32522
+
+      # Build / Install Verilator (only on cache miss).
+      - name: Build Verilator
+        if: steps.verilator-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/verilator/verilator
+          cd verilator
+          git checkout 7d2d32420a630befa4097170ecbf227e04e32522
+          autoconf
+          ./configure --prefix=/tmp/verilator-install
+          make -j$(nproc)
+          make install
+
+      - name: Install Verilator into /usr/local
+        run: sudo cp -a /tmp/verilator-install/. /usr/local/
 
       - name: Set up Python 3.9
         uses: actions/setup-python@v4

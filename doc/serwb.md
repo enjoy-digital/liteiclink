@@ -161,10 +161,19 @@ Limitations:
 
 ## Tests and benches
 
-- Unit tests: `python3 -m pytest -v test/test_serwb_*.py` (init, packet layer, end-to-end link
-  over loopback/datapath PHY models, flow control, CRC, SerIO, AXI-Lite).
-- Simulation: `bench/serwb/sim.py` (LiteX/Verilator with the generic PHY, `--write-stress`,
-  `--read-stress`, `--alt-stress`, `--with-serio`, `--with-debug` for latency measurements).
+- Unit tests: `python3 -m pytest -v test/test_serwb_*.py`:
+  - `test_serwb_init.py`: link init FSMs (delay/shift scans, Efinix phase selection, generic PHY),
+    PHY control CSRs (reset, PRBS, invalid 8b10b counter).
+  - `test_serwb_packet.py`: packet layer (bubbles, backpressure, timeout, CRC).
+  - `test_serwb_link.py`: end-to-end over word-level and 8b10b datapath PHY models (Etherbone and
+    native protocols, flow control, CRC, SerIO, AXI-Lite, link down/recovery, bit errors fuzzing).
+  - `test_serwb_sim.py`: Verilator simulations with the bit-level generic PHY (`bench/serwb/sim.py
+    --test`), skipped when Verilator is not installed.
+  - `LITEICLINK_QUICK_TESTS=1` skips the slowest tests for quick local iterations.
+- Simulation: `bench/serwb/sim.py` (LiteX/Verilator with the generic PHY): `--test` for a
+  self-checking run (`--protocol`, `--with-flow-control`, `--with-crc`, `--sram-latency`), or the SoC
+  with Etherbone/UART (`--write-stress`, `--read-stress`, `--alt-stress`, `--with-serio`,
+  `--with-debug` for latency measurements).
 - Hardware: `bench/serwb/` board targets and `bench/serwb/test_serwb.py`.
 - Resources: `bench/serwb/resources.py` (Yosys `synth_xilinx` estimation of PHY + core configurations,
   `--json`/`--compare` to track changes; Yosys/ABC results vary by a few LUTs between runs).
