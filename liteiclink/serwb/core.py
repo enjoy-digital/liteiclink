@@ -10,10 +10,11 @@ from migen.genlib.cdc import MultiReg
 from litex.gen import *
 
 from litex.soc.interconnect        import stream
+from litex.soc.interconnect.csr    import CSRStatus
 from litex.soc.interconnect.packet import Arbiter, Dispatcher
 
 from liteiclink.serwb.packet    import packet_description
-from liteiclink.serwb.packet    import Packetizer, Depacketizer
+from liteiclink.serwb.packet    import Packetizer, Depacketizer, CRCDepacketizer
 from liteiclink.serwb.etherbone import Etherbone
 
 # SERWB Core ---------------------------------------------------------------------------------------
@@ -21,9 +22,26 @@ from liteiclink.serwb.etherbone import Etherbone
 class SERWBCore(LiteXModule):
     def __init__(self, phy, clk_freq, mode, with_rst_on_link_down=True, port=0,
         etherbone_buffer_depth = 4,
-        tx_buffer_depth        = 8,
-        rx_buffer_depth        = 8,
+        tx_buffer_depth        = None,
+        rx_buffer_depth        = None,
+        depacketizer_timeout   = 1e-3,
+        with_crc               = False,
+        crc_max_words          = None,
     ):
+        # Default buffering: at least one full Etherbone packet (SerWB header + Etherbone header +
+        # record header + base address + data words).
+        packet_max_words = 2 + 2 + 1 + 1 + etherbone_buffer_depth
+        # With PHY flow control, RX buffer also has to absorb the words in flight on the link after
+        # a pause request.
+        with_flow_control  = hasattr(phy, "pause")
+        flow_control_margin = 16
+        if tx_buffer_depth is None:
+            tx_buffer_depth = max(8, packet_max_words)
+        if rx_buffer_depth is None:
+            rx_buffer_depth = max(8, packet_max_words)
+            if with_flow_control:
+                rx_buffer_depth += flow_control_margin
+
         # Downstream/Upstream Endpoints.
         # ------------------------------
         self.downstream_endpoints = {}
@@ -37,12 +55,30 @@ class SERWBCore(LiteXModule):
 
         # Bus.
         # ----
-        self.bus = etherbone.wishbone.bus
+        self.bus = bus = etherbone.wishbone.bus
+
+        # Return an error on accesses when link is down (instead of stalling the bus).
+        if mode == "slave":
+            self.comb += If(~phy.init.ready, bus.err.eq(bus.cyc & bus.stb))
 
         # Packetizer / Depacketizer.
         # --------------------------
-        self.packetizer   = packetizer   = ResetInserter()(Packetizer())
-        self.depacketizer = depacketizer = ResetInserter()(Depacketizer(clk_freq))
+        # With CRC (must be enabled on both sides), received packets are checked and dropped when
+        # invalid; crc_max_words is the largest payload accepted (default: Etherbone packet).
+        self.packetizer = packetizer = ResetInserter()(Packetizer(with_crc=with_crc))
+        if with_crc:
+            if crc_max_words is None:
+                crc_max_words = max(16, packet_max_words - 2)
+            self.depacketizer = depacketizer = ResetInserter()(CRCDepacketizer(clk_freq,
+                timeout   = depacketizer_timeout,
+                max_words = crc_max_words,
+            ))
+            self.crc_errors = CSRStatus(32, description="Number of packets dropped on CRC error.")
+            self.sync += If(depacketizer.crc_error & (self.crc_errors.status != (2**32 - 1)),
+                self.crc_errors.status.eq(self.crc_errors.status + 1)
+            )
+        else:
+            self.depacketizer = depacketizer = ResetInserter()(Depacketizer(clk_freq, timeout=depacketizer_timeout))
 
         # Buffering.
         # ----------
@@ -60,6 +96,13 @@ class SERWBCore(LiteXModule):
             phy.source.connect(rx_fifo.sink),
             rx_fifo.source.connect(depacketizer.sink),
         ]
+
+        # Flow Control.
+        # -------------
+        # Request remote to pause when RX buffer is almost full.
+        if with_flow_control:
+            assert rx_buffer_depth > flow_control_margin
+            self.comb += phy.pause.eq(rx_fifo.level >= (rx_buffer_depth - flow_control_margin))
 
         # Reset internal module when link down.
         # -------------------------------------
@@ -98,12 +141,16 @@ class SERWBCore(LiteXModule):
 
         # Upstream Dispatching.
         # ---------------------
+        # Packets for unknown ports are sent to a drop endpoint.
+        drop_endpoint = stream.Endpoint(packet_description(32))
+        self.comb += drop_endpoint.ready.eq(1)
         self.dispatcher = Dispatcher(
             master  = self.depacketizer.source,
-            slaves  = [ep for _, ep in self.upstream_endpoints.items()],
+            slaves  = [ep for _, ep in self.upstream_endpoints.items()] + [drop_endpoint],
             one_hot = False,
             keep    = {"valid", "ready", "last", "data", "length"},
         )
+        self.comb += self.dispatcher.sel.eq(len(self.upstream_endpoints))
         for i, (k, v) in enumerate(self.upstream_endpoints.items()):
             self.comb += If(self.depacketizer.source.port == k, self.dispatcher.sel.eq(i))
 
@@ -123,18 +170,27 @@ class SERIOPacketizer(LiteXModule):
 
         # Re-Synchronize Inputs.
         # ----------------------
+        # Note: Each bit is re-synchronized independently, so multi-bit values changing at the same
+        # time are not guaranteed to be transferred coherently.
         self.specials += MultiReg(self.i, i)
-
-        # Register Inputs.
-        # ----------------
-        self.sync += If(source.ready, i_d.eq(i))
 
         # Generate Packet.
         # ----------------
+        # Latch the changed value and hold it until accepted (stream protocol).
+        self.sync += [
+            If(source.valid & source.ready,
+                source.valid.eq(0),
+            ),
+            If(~source.valid | source.ready,
+                If(i != i_d,
+                    source.valid.eq(1),
+                    source.data.eq(i),
+                    i_d.eq(i),
+                )
+            )
+        ]
         self.comb += [
-            source.valid.eq(i != i_d),
             source.last.eq(1),
-            source.data.eq(i),
             source.length.eq(4),
         ]
 
