@@ -212,7 +212,7 @@ class _SerdesInit(LiteXModule):
 # SERWB PHY ----------------------------------------------------------------------------------------
 
 class SERWBPHY(SERWBPHYBase):
-    def __init__(self, device, pads, mode="master", init_timeout=2**16, clk="sys", clk4x="sys4x", clk_ratio="1:1", clk_delay_taps=0, rx_delay_taps=0, usp=False, with_flow_control=False):
+    def __init__(self, device, pads, mode="master", init_timeout=2**16, clk="sys", clk4x="sys4x", clk_ratio="1:1", clk_delay_taps=0, rx_delay_taps=0, usp=False, with_flow_control=False, with_prbs=False, with_auto_retrain=False):
         self.sink   = sink   = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
@@ -262,10 +262,13 @@ class SERWBPHY(SERWBPHYBase):
 
         # SerDes Control.
         # ---------------
-        self.control = SerdesControl(self.serdes, self.init, mode)
+        self.control = SerdesControl(self.serdes, self.init, mode,
+            with_prbs         = with_prbs,
+            with_auto_retrain = with_auto_retrain,
+        )
 
         # Data-Path.
         # ----------
         if with_flow_control:
             self.flow_control = FlowControl(self.serdes, ready=self.init.ready)
-        self.add_datapath()
+        self.add_datapath(with_prbs=with_prbs)

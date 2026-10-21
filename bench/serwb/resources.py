@@ -31,6 +31,8 @@ from litex.gen import *
 
 from litex.build.xilinx import XilinxPlatform
 
+from litex.soc.interconnect.csr import CSR, CSRStatus, CSRStorage
+
 from liteiclink.serwb.phy    import SERWBPHY
 from liteiclink.serwb.genphy import SERWBPHY as SERWBGenPHY
 from liteiclink.serwb.core   import SERWBCore
@@ -51,6 +53,7 @@ OPTIONS = {
     "crc"          : ({},                          {"with_crc": True}),
     "native"       : ({},                          {"protocol": "native"}),
     "native_fc"    : ({"with_flow_control": True}, {"protocol": "native"}),
+    "prbs"         : ({"with_prbs": True},         {}),
 }
 
 # Design -------------------------------------------------------------------------------------------
@@ -66,6 +69,14 @@ class SERWBTop(LiteXModule):
             **core_kwargs
         )
         self.ios = set(pads.flatten()) | set(core.bus.flatten())
+        # Keep CSR logic (as read/written by a CSR bank in a SoC), otherwise pruned by synthesis.
+        for csr in phy.get_csrs() + core.get_csrs():
+            if isinstance(csr, CSRStatus):
+                self.ios.add(csr.status)
+            elif isinstance(csr, CSRStorage):
+                self.ios |= {csr.storage, csr.re}
+            elif isinstance(csr, CSR):
+                self.ios |= {csr.r, csr.re}
         for name in ["sys", "sys4x", "sys4x_dly", "idelay"]:
             cd = ClockDomain(name)
             setattr(self, f"cd_{name}", cd)
