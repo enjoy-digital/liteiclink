@@ -16,6 +16,7 @@ from litex.soc.interconnect.packet import Arbiter, Dispatcher
 from liteiclink.serwb.packet    import packet_description
 from liteiclink.serwb.packet    import Packetizer, Depacketizer, CRCDepacketizer
 from liteiclink.serwb.etherbone import Etherbone
+from liteiclink.serwb.mmap      import SERWBMMAPSlave, SERWBMMAPMaster
 
 # SERWB Core ---------------------------------------------------------------------------------------
 
@@ -27,7 +28,14 @@ class SERWBCore(LiteXModule):
         depacketizer_timeout   = 1e-3,
         with_crc               = False,
         crc_max_words          = None,
+        protocol               = "etherbone",
+        burst_depth            = 4,
+        coalescing_timeout     = 4,
     ):
+        # Protocol: "etherbone" (default) or "native" (lighter SerWB MMAP protocol with write
+        # coalescing up to burst_depth words, see serwb/mmap.py). Must match on both sides.
+        assert protocol in ["etherbone", "native"]
+
         # Etherbone record buffering: LiteEth requires at least 2 data words (smaller values, accepted
         # but ignored before, are clamped).
         etherbone_buffer_depth = max(2, etherbone_buffer_depth)
@@ -35,6 +43,9 @@ class SERWBCore(LiteXModule):
         # Default buffering: at least one full Etherbone packet (SerWB header + Etherbone header +
         # record header + base address + data words).
         packet_max_words = 2 + 2 + 1 + 1 + etherbone_buffer_depth
+        if protocol == "native":
+            # SerWB header + cmd/status + address + data words.
+            packet_max_words = 2 + 2 + burst_depth
         # With PHY flow control, RX buffer also has to absorb the words in flight on the link after
         # a pause request.
         with_flow_control  = hasattr(phy, "pause")
@@ -53,13 +64,27 @@ class SERWBCore(LiteXModule):
 
         # Etherbone.
         # ----------
-        self.etherbone = etherbone = ResetInserter()(Etherbone(mode, etherbone_buffer_depth))
-        self.add_downstream_endpoint(port=port, endpoint=etherbone.source)
-        self.add_upstream_endpoint(  port=port, endpoint=etherbone.sink)
+        if protocol == "etherbone":
+            self.etherbone = etherbone = ResetInserter()(Etherbone(mode, etherbone_buffer_depth))
+            self.add_downstream_endpoint(port=port, endpoint=etherbone.source)
+            self.add_upstream_endpoint(  port=port, endpoint=etherbone.sink)
+            bus = etherbone.wishbone.bus
+
+        # Native MMAP.
+        # ------------
+        if protocol == "native":
+            if mode == "slave":
+                etherbone = SERWBMMAPSlave(burst_depth=burst_depth, coalescing_timeout=coalescing_timeout)
+            else:
+                etherbone = SERWBMMAPMaster(burst_depth=burst_depth)
+            self.mmap = etherbone = ResetInserter()(etherbone)
+            self.add_downstream_endpoint(port=port, endpoint=etherbone.source)
+            self.add_upstream_endpoint(  port=port, endpoint=etherbone.sink)
+            bus = etherbone.bus
 
         # Bus.
         # ----
-        self.bus = bus = etherbone.wishbone.bus
+        self.bus = bus
 
         # Return an error on accesses when link is down (instead of stalling the bus).
         if mode == "slave":
