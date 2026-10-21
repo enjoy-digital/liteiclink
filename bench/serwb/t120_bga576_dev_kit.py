@@ -13,7 +13,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from litex.gen import *
 
 from litex.build.generic_platform import *
-from litex_boards.platforms import efinix_trion_t120_bga576_dev_kit
+from litex_boards.platforms import efinix_t120_f576_dev_kit
 
 from litex.soc.cores.clock import TRIONPLL
 
@@ -77,7 +77,7 @@ class _CRG(LiteXModule):
         # Clk/Rst.
         # --------
         clk40 = platform.request("clk40")
-        rst_n = platform.request("user_btn", 0)
+        rst_n = platform.request("user_btn_n", 0)
 
         # PLL.
         # ----
@@ -201,14 +201,14 @@ class SerWBTestSoC(SoCMini):
 
 def main():
     from litex.build.parser import LiteXArgumentParser
-    parser = LiteXArgumentParser(platform=efinix_trion_t120_bga576_dev_kit.Platform, description="LiteICLink SerWB bench on Efinix Trion T120 BGA576 Dev Kit.")
+    parser = LiteXArgumentParser(platform=efinix_t120_f576_dev_kit.Platform, description="LiteICLink SerWB bench on Efinix Trion T120 BGA576 Dev Kit.")
     parser.add_target_argument("--flash",          action="store_true", help="Flash bitstream.")
     parser.add_target_argument("--with-analyzer",  action="store_true", help="Add LiteScope Analyzer.")
     parser.add_target_argument("--lvds-rx-delay",  default=0, type=int, help="Static delay value for LVDS_RX Data.")
     parser.add_target_argument("--lvds-clk-delay", default=0, type=int, help="Static delay value for LVDS_RX PLL_CLKIN.")
     args = parser.parse_args()
 
-    platform = efinix_trion_t120_bga576_dev_kit.Platform()
+    platform = efinix_t120_f576_dev_kit.Platform()
     platform.add_extension(serwb_io)
 
     soc = SerWBTestSoC(platform,

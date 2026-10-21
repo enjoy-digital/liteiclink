@@ -47,7 +47,7 @@ class Etherbone(LiteXModule):
 
         # # #
 
-        # Encode/encode etherbone packets.
+        # Encode/decode etherbone packets.
         self.packet = packet = _EtherbonePacket(source, sink)
 
         # Packets are records with writes and reads (no byte swapping: SerWB is little-endian on

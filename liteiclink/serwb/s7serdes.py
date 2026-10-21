@@ -7,12 +7,9 @@
 from migen import *
 
 from litex.gen import *
-from litex.gen.genlib.misc import BitSlip, WaitTimer
-
 from litex.build.io import *
 
-from litex.soc.interconnect     import stream
-from litex.soc.cores.code_8b10b import Encoder, Decoder
+from litex.soc.interconnect import stream
 
 from liteiclink.serwb.datapath import TXDatapath, RXDatapath
 
