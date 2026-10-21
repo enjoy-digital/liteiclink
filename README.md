@@ -29,14 +29,17 @@ design flow by generating the verilog rtl that you will use as a standard core.
 
 [> Features
 -----------
-SerWB:
+SerWB (see [doc/serwb.md](doc/serwb.md)):
   - Wishbone over 3 LVDS I/Os (high speed) or 3 Single-Ended I/Os (low speed).
-  - Artix7, Kintex7, Kintex Ultrascale high-speed PHYs.
+  - Xilinx 7-Series (Artix7/Kintex7/Virtex7/Zynq7/Spartan7), Ultrascale(+) and Efinix Titanium/Trion high-speed PHYs.
   - Vendor agnostic low-speed PHY.
   - 8B/10B, integrated gearbox.
   - Up to 1.25Gbps linerate / 32 bits @ 31.25Mhz user interface.
-  - Automatic sampling window adjustement at startup.
-  - Encapsulated Etherbone protocol with buffered writes.
+  - Automatic sampling window adjustement at startup, PRBS link test.
+  - Encapsulated Etherbone protocol with posted writes.
+  - Multi-port packet layer (SerIO for slow I/Os, user ports).
+  - Optional link level flow control (XON/XOFF) and per-packet CRC32.
+  - AXI-Lite/AXI SoCs supported through LiteX bridges.
 
 SerDes:
   - Artix7 GTP support.
@@ -74,7 +77,7 @@ enjoy-digital.fr.
 Unit tests are available in ./test/.
 To run all the unit tests:
 ```sh
-$ ./setup.py test
+$ python3 -m pytest -v test/
 ```
 
 Tests can also be run individually:
