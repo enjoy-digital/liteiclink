@@ -144,6 +144,8 @@ Limitations:
 - Simulation: `bench/serwb/sim.py` (LiteX/Verilator with the generic PHY, `--write-stress`,
   `--read-stress`, `--alt-stress`, `--with-serio`, `--with-debug` for latency measurements).
 - Hardware: `bench/serwb/` board targets and `bench/serwb/test_serwb.py`.
+- Resources: `bench/serwb/resources.py` (Yosys `synth_xilinx` estimation of PHY + core configurations,
+  `--json`/`--compare` to track changes).
 
 ## Possible improvements
 
