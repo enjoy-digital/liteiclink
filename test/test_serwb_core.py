@@ -167,8 +167,6 @@ class TestSERWBCore(unittest.TestCase):
                 datas_r.append((yield from dut.wishbone.read(data_base + i)))
 
             # Check
-            print(datas_w)
-            print(datas_r)
             for i in range(data_length):
                 if datas_r[i] != datas_w[i]:
                     dut.errors += 1
