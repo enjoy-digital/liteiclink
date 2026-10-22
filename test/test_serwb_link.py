@@ -120,6 +120,21 @@ class SlowAck(LiteXModule):
             )
         ]
 
+# Error Wishbone Slave -----------------------------------------------------------------------------
+
+class ErrorAbove(LiteXModule):
+    """Returns Wishbone errors for accesses at/above `adr` (forwards others)."""
+    def __init__(self, master, slave, adr=32):
+        error = Signal()
+        self.comb += [
+            error.eq(master.adr >= adr),
+            master.connect(slave, omit={"stb", "cyc", "ack", "err"}),
+            slave.cyc.eq(master.cyc & ~error),
+            slave.stb.eq(master.stb & ~error),
+            master.ack.eq(slave.ack),
+            master.err.eq(master.cyc & master.stb & error),
+        ]
+
 # DUT ----------------------------------------------------------------------------------------------
 
 class DUTLink(LiteXModule):
@@ -128,7 +143,7 @@ class DUTLink(LiteXModule):
     bus -> SERWBCore("slave") -> PHY <-> PHY -> SERWBCore("master") -> SRAM
     """
     def __init__(self, connected=True, with_serio=False, serio_extra_port=False,
-        phy="loopback", with_flow_control=False, sram_latency=0, **kwargs):
+        phy="loopback", with_flow_control=False, sram_latency=0, error_above=None, **kwargs):
         # PHYs.
         if phy == "loopback":
             self.master_phy = LoopbackPHY()
@@ -155,11 +170,15 @@ class DUTLink(LiteXModule):
         self.slave_core  = SERWBCore(self.slave_phy,  clk_freq=int(1e6), mode="master", **kwargs)
 
         # SRAM.
+        sram_bus = self.slave_core.bus
+        if error_above is not None:
+            _sram_bus  = wishbone.Interface()
+            self.error = ErrorAbove(sram_bus, _sram_bus, adr=error_above)
+            sram_bus   = _sram_bus
         if sram_latency:
-            sram_bus  = wishbone.Interface()
-            self.slow = SlowAck(self.slave_core.bus, sram_bus, latency=sram_latency)
-        else:
-            sram_bus  = self.slave_core.bus
+            _sram_bus = wishbone.Interface()
+            self.slow = SlowAck(sram_bus, _sram_bus, latency=sram_latency)
+            sram_bus  = _sram_bus
         self.sram = wishbone.SRAM(64, bus=sram_bus)
 
         # SerIO.
@@ -335,6 +354,67 @@ class TestSERWBLink(unittest.TestCase):
     def test_flow_control_write_stress(self):
         self.assertTrue(self.write_stress_test(with_flow_control=True))
         self.assertFalse(self.write_stress_test(with_flow_control=False))
+
+    # Native protocol ------------------------------------------------------------------------------
+
+    def test_native_wishbone(self):
+        self.wishbone_test(protocol="native", with_sel=True)
+
+    def test_native_datapath_phy(self):
+        # Real TX/RX datapaths with flow control + CRC.
+        self.wishbone_test(n=2, protocol="native", phy="datapath", with_flow_control=True, with_crc=True)
+
+    def test_native_write_coalescing(self):
+        # Back-to-back consecutive writes must be coalesced in burst_depth requests, and a read must
+        # see previous (pending) writes.
+        dut      = DUTLink(protocol="native", burst_depth=4)
+        requests = []
+        @passive
+        def monitor():
+            source = dut.master_core.mmap.source
+            while True:
+                if (yield source.valid) and (yield source.ready) and (yield source.last):
+                    requests.append(1)
+                yield
+        def generator():
+            for i in range(8):
+                _, err = yield from bus_access(dut.bus, i, we=1, dat_w=0x100 + i)
+                self.assertEqual(err, 0)
+            # Read right after writes: pending writes are sent first.
+            dat_r, err = yield from bus_access(dut.bus, 7)
+            self.assertEqual((dat_r, err), (0x107, 0))
+            for i in [0, 3, 4]:
+                dat_r, err = yield from bus_access(dut.bus, i)
+                self.assertEqual((dat_r, err), (0x100 + i, 0))
+        run_simulation(dut, [generator(), monitor()])
+        # 2 write requests (2x4 words) + 4 read requests.
+        self.assertEqual(len(requests), 2 + 4)
+
+    def test_native_flow_control_write_stress(self):
+        # Coalesced writes (bursts) to a slow remote slave with flow control.
+        self.assertTrue(self.write_stress_test(protocol="native", with_flow_control=True))
+
+    def test_native_remote_error(self):
+        # Remote Wishbone errors are reported on reads (Etherbone does not report them).
+        dut = DUTLink(protocol="native", error_above=32)
+        def generator():
+            _, err = yield from bus_access(dut.bus, 1, we=1, dat_w=0x1234)
+            dat_r, err = yield from bus_access(dut.bus, 1)
+            self.assertEqual((dat_r, err), (0x1234, 0))
+            _, err = yield from bus_access(dut.bus, 40)
+            self.assertEqual(err, 1)
+            dat_r, err = yield from bus_access(dut.bus, 1)
+            self.assertEqual((dat_r, err), (0x1234, 0))
+        run_simulation(dut, generator())
+
+    def test_native_link_down_error(self):
+        dut = DUTLink(connected=False, protocol="native")
+        def generator():
+            for _ in range(100):
+                yield
+            _, err = yield from bus_access(dut.bus, 0, timeout=100)
+            self.assertEqual(err, 1)
+        run_simulation(dut, generator())
 
     def test_link_down_error(self):
         # Without link, accesses must return an error instead of stalling the bus.

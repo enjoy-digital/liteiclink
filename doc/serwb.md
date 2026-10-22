@@ -77,8 +77,27 @@ CRC32 word to each packet. The receiver stores each packet, checks it, and forwa
 valid. A dropped write is lost and a dropped read times out on the SoC bus, but corrupted data never
 reaches the bus.
 
-A single 32-bit access costs 7 words on the link (2 packet + 2 Etherbone + 1 record header + 1
-address + 1 data). Writes are posted (acked once sent), reads are blocking round trips.
+With the default Etherbone protocol, a single 32-bit access costs 7 words on the link (2 packet + 2
+Etherbone + 1 record header + 1 address + 1 data). Writes are posted (acked once sent), reads are
+blocking round trips.
+
+### Native protocol (`protocol="native"`)
+
+Lighter MMAP protocol designed for the point-to-point link (`serwb/mmap.py`). It must be used on
+both sides, and it doesn't depend on LiteEth:
+
+| Packet          | Words                                                                  |
+|-----------------|------------------------------------------------------------------------|
+| Request         | cmd (`[0]` op write/read, `[7:4]` sel, `[15:8]` count-1), address, write data |
+| Read response   | status (`[0]` err), read data                                          |
+
+- Single write: 5 words (Etherbone: 7). Read round trip: 8 words (Etherbone: 14).
+- Consecutive incrementing writes (same byte enables) are coalesced in a single request of up to
+  `burst_depth` words. A pending request is sent after `coalescing_timeout` idle cycles, when full,
+  or before any other access (so ordering is kept).
+- Remote Wishbone errors are reported on reads (`err` on the SoC bus).
+- Smaller: about −16% LUTs / −47% LUTRAM on the SoC side and −24% LUTs / −42% FFs on the remote
+  side vs Etherbone (`bench/serwb/resources.py`).
 
 ## Parameters
 
@@ -90,6 +109,9 @@ address + 1 data). Writes are posted (acked once sent), reads are blocking round
 | `tx_buffer_depth`        | auto    | TX FIFO depth (default: one full packet, min 8).              |
 | `rx_buffer_depth`        | auto    | RX FIFO depth (default: one full packet, min 8, +16 with flow control). |
 | `depacketizer_timeout`   | 1e-3    | Incomplete packet timeout (seconds without incoming data).    |
+| `protocol`               | "etherbone" | `"etherbone"` or `"native"` (both sides).             |
+| `burst_depth`            | 4       | Native: max words per request (write coalescing, buffers).    |
+| `coalescing_timeout`     | 4       | Native: idle cycles before sending pending writes (0: none).  |
 | `with_crc`               | False   | Per-packet CRC32. Invalid packets are dropped (both sides).   |
 | `crc_max_words`          | auto    | Largest payload accepted with CRC (default: Etherbone packet, min 16). |
 
@@ -145,9 +167,9 @@ Limitations:
   `--read-stress`, `--alt-stress`, `--with-serio`, `--with-debug` for latency measurements).
 - Hardware: `bench/serwb/` board targets and `bench/serwb/test_serwb.py`.
 - Resources: `bench/serwb/resources.py` (Yosys `synth_xilinx` estimation of PHY + core configurations,
-  `--json`/`--compare` to track changes).
+  `--json`/`--compare` to track changes; Yosys/ABC results vary by a few LUTs between runs).
 
 ## Possible improvements
 
-- Burst/coalesced Etherbone records (multiple words per record) for higher throughput.
+- Native protocol: read bursts/prefetch (the remote side already supports multi-word reads).
 - Scrambling (`with_scrambling` in the datapath) is experimental and not exposed by the PHYs.
