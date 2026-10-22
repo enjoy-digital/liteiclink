@@ -6,6 +6,7 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
 import unittest
 import random
 
@@ -21,6 +22,10 @@ from litex.soc.interconnect import stream
 
 from liteiclink.serwb.core     import SERWBCore, SERIOCore
 from liteiclink.serwb.datapath import TXDatapath, RXDatapath, FlowControl
+
+# Slow tests (skipped with LITEICLINK_QUICK_TESTS=1, for quick local iterations) ------------------
+
+slow_test = unittest.skipIf(os.environ.get("LITEICLINK_QUICK_TESTS", "0") == "1", "Slow test (LITEICLINK_QUICK_TESTS=1).")
 
 # Loopback PHY -------------------------------------------------------------------------------------
 
@@ -95,10 +100,11 @@ class DatapathPHY(LiteXModule):
                 self.tx.sink.valid.eq(1),
             ]
 
-    def connect_to(self, other):
+    def connect_to(self, other, flip=0):
+        # flip: Optional bit errors injection mask (8-bit wire).
         return [
             other.rx.sink.valid.eq(self.tx.source.valid),
-            other.rx.sink.data.eq(self.tx.source.data),
+            other.rx.sink.data.eq(self.tx.source.data ^ flip),
         ]
 
 # Slow Wishbone Slave ------------------------------------------------------------------------------
@@ -144,6 +150,10 @@ class DUTLink(LiteXModule):
     """
     def __init__(self, connected=True, with_serio=False, serio_extra_port=False,
         phy="loopback", with_flow_control=False, sram_latency=0, error_above=None, **kwargs):
+        # Link state (link up when connected), and bit errors injection (datapath PHY, SoC to remote).
+        self.link_up = Signal(reset=1)
+        self.flip    = Signal(8)
+
         # PHYs.
         if phy == "loopback":
             self.master_phy = LoopbackPHY()
@@ -157,12 +167,12 @@ class DUTLink(LiteXModule):
             self.master_phy = DatapathPHY(with_flow_control)
             self.slave_phy  = DatapathPHY(with_flow_control)
             if connected:
-                self.comb += self.master_phy.connect_to(self.slave_phy)
+                self.comb += self.master_phy.connect_to(self.slave_phy, flip=self.flip)
                 self.comb += self.slave_phy.connect_to(self.master_phy)
         if connected:
             self.comb += [
-                self.master_phy.init.ready.eq(1),
-                self.slave_phy.init.ready.eq(1),
+                self.master_phy.init.ready.eq(self.link_up),
+                self.slave_phy.init.ready.eq(self.link_up),
             ]
 
         # Cores.
@@ -179,7 +189,7 @@ class DUTLink(LiteXModule):
             _sram_bus = wishbone.Interface()
             self.slow = SlowAck(sram_bus, _sram_bus, latency=sram_latency)
             sram_bus  = _sram_bus
-        self.sram = wishbone.SRAM(64, bus=sram_bus)
+        self.sram = wishbone.SRAM(128, bus=sram_bus) # 32 words.
 
         # SerIO.
         if with_serio:
@@ -294,6 +304,7 @@ class TestSERWBLink(unittest.TestCase):
                 self.assertEqual((dat_r, err), (0x1000 + i, 0))
         run_simulation(dut, generator())
 
+    @slow_test
     def test_serio(self):
         dut     = DUTLink(with_serio=True)
         results = []
@@ -331,6 +342,7 @@ class TestSERWBLink(unittest.TestCase):
         self.wishbone_test(n=2, phy="datapath")
         self.wishbone_test(n=2, phy="datapath", with_flow_control=True)
 
+    @slow_test
     def test_datapath_phy_crc(self):
         # CRC + flow control over real TX/RX datapaths.
         self.wishbone_test(n=2, phy="datapath", with_flow_control=True, with_crc=True)
@@ -351,6 +363,7 @@ class TestSERWBLink(unittest.TestCase):
         run_simulation(dut, generator())
         return results == [0x1000 + i for i in range(n)]
 
+    @slow_test
     def test_flow_control_write_stress(self):
         self.assertTrue(self.write_stress_test(with_flow_control=True))
         self.assertFalse(self.write_stress_test(with_flow_control=False))
@@ -415,6 +428,83 @@ class TestSERWBLink(unittest.TestCase):
             _, err = yield from bus_access(dut.bus, 0, timeout=100)
             self.assertEqual(err, 1)
         run_simulation(dut, generator())
+
+    def test_link_recovery(self):
+        # Link down during traffic: accesses return err, then link recovers when back up.
+        dut = DUTLink(protocol="native")
+        def generator():
+            _, err = yield from bus_access(dut.bus, 0, we=1, dat_w=0x1111)
+            self.assertEqual(err, 0)
+            # Let posted write reach remote side (writes in flight are lost on link down).
+            for _ in range(200):
+                yield
+            # Read in flight when link goes down.
+            yield dut.bus.adr.eq(0)
+            yield dut.bus.we.eq(0)
+            yield dut.bus.cyc.eq(1)
+            yield dut.bus.stb.eq(1)
+            for _ in range(10):
+                yield
+            yield dut.link_up.eq(0)
+            for _ in range(100):
+                if (yield dut.bus.err) or (yield dut.bus.ack):
+                    break
+                yield
+            self.assertEqual((yield dut.bus.err), 1)
+            yield dut.bus.cyc.eq(0)
+            yield dut.bus.stb.eq(0)
+            for _ in range(10):
+                yield
+            # Link back up.
+            yield dut.link_up.eq(1)
+            for _ in range(10):
+                yield
+            _, err = yield from bus_access(dut.bus, 1, we=1, dat_w=0x2222)
+            self.assertEqual(err, 0)
+            for i, v in [(0, 0x1111), (1, 0x2222)]:
+                dat_r, err = yield from bus_access(dut.bus, i)
+                self.assertEqual((dat_r, err), (v, 0))
+        run_simulation(dut, generator())
+
+    def bit_errors_test(self, with_crc, n=12, rate=0.03, seed=1):
+        # Random bit errors on the link (SoC to remote side), native protocol, writes only. Returns
+        # the remote SRAM content.
+        dut     = DUTLink(phy="datapath", protocol="native", with_crc=with_crc)
+        prng    = random.Random(seed)
+        results = []
+        flipping = [True]
+        @passive
+        def injector():
+            while True:
+                flip = 0
+                if flipping[0] and (prng.random() < rate):
+                    flip = 1 << prng.randrange(8)
+                yield dut.flip.eq(flip)
+                yield
+        def generator():
+            for i in range(n):
+                yield from bus_access(dut.bus, i, we=1, dat_w=0x1000 + i, timeout=2000)
+                for _ in range(prng.randrange(16)):
+                    yield
+            for _ in range(400):
+                yield
+            flipping[0] = False
+            for i in range(n):
+                results.append((yield dut.sram.mem[i]))
+        run_simulation(dut, [generator(), injector()])
+        return results
+
+    @slow_test
+    def test_bit_errors_crc(self):
+        # With CRC, corrupted requests are dropped: remote SRAM words are either written correctly
+        # or not written (0), never corrupted.
+        n       = 12
+        results = self.bit_errors_test(with_crc=True, n=n)
+        self.assertTrue(all(r in [0, 0x1000 + i] for i, r in enumerate(results)), [hex(r) for r in results])
+        self.assertGreater(sum(r == 0x1000 + i for i, r in enumerate(results)), 0)
+        # Without CRC, same errors corrupt remote SRAM (checks errors are effectively injected).
+        results = self.bit_errors_test(with_crc=False, n=n)
+        self.assertFalse(all(r in [0, 0x1000 + i] for i, r in enumerate(results)), [hex(r) for r in results])
 
     def test_link_down_error(self):
         # Without link, accesses must return an error instead of stalling the bus.
