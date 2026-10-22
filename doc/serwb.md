@@ -50,10 +50,25 @@ instead of stalling the bus.
 | `ready`, `error`                      | Link status.                                        |
 | `delay`, `delay_min(_found)`, `delay_max(_found)`, `phase` | Sampling window calibration results (high-speed PHYs). |
 | `shift`                               | Word alignment (bitslip) result.                    |
-| `prbs_start`, `prbs_cycles`, `prbs_errors` | PRBS link test.                                |
+| `prbs_start`, `prbs_cycles`, `prbs_errors` | Link test: errors counted over `prbs_cycles`.  |
+| `prbs_tx`, `prbs_rx` (`with_prbs`)    | Send PRBS31 instead of traffic / check received PRBS31. |
 | `invalid_errors`                      | Invalid 8b10b words received since link ready.      |
+| `link_drops`                          | Number of link losses (ready to not ready).         |
 
-With `with_crc=True`, the core also has a `crc_errors` CSR (packets dropped on CRC error).
+Without `prbs_rx`, the link test checks that idle words (zeroes when there's no traffic) are received
+as zeroes. That doesn't work with flow control, where idle words are K28.1 fill characters dropped by
+the receiver. With `SERWBPHY(with_prbs=True)` (about +160 LUTs), set `prbs_tx` on one side and
+`prbs_rx` on the other, then run `prbs_start`. While `prbs_rx` is set, received words aren't
+forwarded to the core, so random data can't be decoded as traffic.
+
+`SERWBPHY(mode="master", with_auto_retrain=True)` restarts link initialization when too many
+invalid 8b10b words are received while the link is ready (by default 16 within 2^16 cycles). Without
+it, a master stays ready after a link degradation until `control_reset` is written.
+
+The core also has:
+- `rx_overflows`: RX buffer overflows (received words lost, should stay at 0, use flow control
+  otherwise);
+- `crc_errors` (`with_crc=True`): packets dropped on CRC error.
 
 ## Protocol
 

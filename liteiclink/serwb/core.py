@@ -126,6 +126,21 @@ class SERWBCore(LiteXModule):
             rx_fifo.source.connect(depacketizer.sink),
         ]
 
+        # RX Overflows.
+        # -------------
+        # The link has no backpressure: received words are lost when the RX buffer is full (without
+        # PHY flow control). Count overflow events.
+        self.rx_overflows = CSRStatus(32, description="Number of RX overflows (received words lost).")
+        overflow   = Signal()
+        overflow_d = Signal()
+        self.comb += overflow.eq(rx_fifo.sink.valid & ~rx_fifo.sink.ready)
+        self.sync += [
+            overflow_d.eq(overflow),
+            If(overflow & ~overflow_d & (self.rx_overflows.status != (2**32 - 1)),
+                self.rx_overflows.status.eq(self.rx_overflows.status + 1)
+            )
+        ]
+
         # Flow Control.
         # -------------
         # Request remote to pause when RX buffer is almost full.

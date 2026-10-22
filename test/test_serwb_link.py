@@ -360,13 +360,16 @@ class TestSERWBLink(unittest.TestCase):
                 yield
             for i in range(n):
                 results.append((yield dut.sram.mem[i]))
+            self.rx_overflows = (yield dut.slave_core.rx_overflows.status)
         run_simulation(dut, generator())
         return results == [0x1000 + i for i in range(n)]
 
     @slow_test
     def test_flow_control_write_stress(self):
         self.assertTrue(self.write_stress_test(with_flow_control=True))
+        self.assertEqual(self.rx_overflows, 0)
         self.assertFalse(self.write_stress_test(with_flow_control=False))
+        self.assertGreater(self.rx_overflows, 0) # Lost words are reported.
 
     # Native protocol ------------------------------------------------------------------------------
 
