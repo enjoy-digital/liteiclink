@@ -24,10 +24,10 @@ setup(
     install_requires              = ["pyyaml", "litex", "liteeth"],
     extras_require                = {
         "develop": [
-          "meson"
-          "pexpect"
-          "setuptools"
-          "requests"
+          "meson",
+          "pexpect",
+          "setuptools",
+          "requests",
         ]
     },
     packages                      = find_packages(exclude=("test*", "sim*", "doc*", "examples*")),
