@@ -4,6 +4,8 @@
 # Copyright (c) 2017-2024 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import warnings
+
 from migen import *
 from migen.genlib.cdc import MultiReg
 
@@ -28,13 +30,21 @@ class SERWBCore(LiteXModule):
         depacketizer_timeout   = 1e-3,
         with_crc               = False,
         crc_max_words          = None,
-        protocol               = "etherbone",
+        protocol               = "native",
         burst_depth            = 4,
         coalescing_timeout     = 4,
     ):
-        # Protocol: "etherbone" (default) or "native" (lighter SerWB MMAP protocol with write
-        # coalescing up to burst_depth words, see serwb/mmap.py). Must match on both sides.
+        # Protocol: "native" (default, SerWB MMAP protocol with write coalescing up to burst_depth
+        # words, see serwb/mmap.py) or "etherbone" (deprecated, kept for compatibility with existing
+        # designs). Must match on both sides.
         assert protocol in ["etherbone", "native"]
+        if protocol == "etherbone":
+            warnings.warn(
+                "SerWB Etherbone protocol is deprecated and will be removed, please use "
+                "protocol=\"native\" (on both sides of the link).",
+                FutureWarning,
+                stacklevel=2,
+            )
 
         # Etherbone record buffering: LiteEth requires at least 2 data words (smaller values, accepted
         # but ignored before, are clamped).
@@ -93,7 +103,7 @@ class SERWBCore(LiteXModule):
         # Packetizer / Depacketizer.
         # --------------------------
         # With CRC (must be enabled on both sides), received packets are checked and dropped when
-        # invalid; crc_max_words is the largest payload accepted (default: Etherbone packet).
+        # invalid; crc_max_words is the largest payload accepted (default: one full packet).
         self.packetizer = packetizer = ResetInserter()(Packetizer(with_crc=with_crc))
         if with_crc:
             if crc_max_words is None:

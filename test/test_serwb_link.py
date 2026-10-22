@@ -9,6 +9,7 @@
 import os
 import unittest
 import random
+import warnings
 
 from migen import *
 
@@ -175,9 +176,11 @@ class DUTLink(LiteXModule):
                 self.slave_phy.init.ready.eq(self.link_up),
             ]
 
-        # Cores.
-        self.master_core = SERWBCore(self.master_phy, clk_freq=int(1e6), mode="slave",  **kwargs)
-        self.slave_core  = SERWBCore(self.slave_phy,  clk_freq=int(1e6), mode="master", **kwargs)
+        # Cores (Etherbone protocol deprecation warning ignored here, see test_etherbone_deprecated).
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            self.master_core = SERWBCore(self.master_phy, clk_freq=int(1e6), mode="slave",  **kwargs)
+            self.slave_core  = SERWBCore(self.slave_phy,  clk_freq=int(1e6), mode="master", **kwargs)
 
         # SRAM.
         sram_bus = self.slave_core.bus
@@ -282,14 +285,6 @@ class TestSERWBLink(unittest.TestCase):
     def test_wishbone_byte_enables(self):
         self.wishbone_test(with_sel=True)
 
-    def test_wishbone_etherbone_buffer_depth(self):
-        dut = self.wishbone_test(n=4, etherbone_buffer_depth=8)
-        # Etherbone record receiver must be sized from etherbone_buffer_depth (8 data words + base
-        # address -> 16 entries).
-        mems = [m for m in dut.master_core.etherbone.record.receiver.fifo._fragment.specials if isinstance(m, Memory)]
-        self.assertEqual([m.depth for m in mems], [16])
-        self.assertEqual(dut.master_core.tx_fifo.depth, 2 + 2 + 1 + 1 + 8)
-
     def test_wishbone_unknown_port(self):
         # SerIO packets sent to a port not present on the remote side must not disturb Wishbone.
         dut = DUTLink(serio_extra_port=True)
@@ -373,17 +368,10 @@ class TestSERWBLink(unittest.TestCase):
 
     # Native protocol ------------------------------------------------------------------------------
 
-    def test_native_wishbone(self):
-        self.wishbone_test(protocol="native", with_sel=True)
-
-    def test_native_datapath_phy(self):
-        # Real TX/RX datapaths with flow control + CRC.
-        self.wishbone_test(n=2, protocol="native", phy="datapath", with_flow_control=True, with_crc=True)
-
-    def test_native_write_coalescing(self):
+    def test_write_coalescing(self):
         # Back-to-back consecutive writes must be coalesced in burst_depth requests, and a read must
         # see previous (pending) writes.
-        dut      = DUTLink(protocol="native", burst_depth=4)
+        dut      = DUTLink(burst_depth=4)
         requests = []
         @passive
         def monitor():
@@ -406,13 +394,9 @@ class TestSERWBLink(unittest.TestCase):
         # 2 write requests (2x4 words) + 4 read requests.
         self.assertEqual(len(requests), 2 + 4)
 
-    def test_native_flow_control_write_stress(self):
-        # Coalesced writes (bursts) to a slow remote slave with flow control.
-        self.assertTrue(self.write_stress_test(protocol="native", with_flow_control=True))
-
-    def test_native_remote_error(self):
+    def test_remote_error(self):
         # Remote Wishbone errors are reported on reads (Etherbone does not report them).
-        dut = DUTLink(protocol="native", error_above=32)
+        dut = DUTLink(error_above=32)
         def generator():
             _, err = yield from bus_access(dut.bus, 1, we=1, dat_w=0x1234)
             dat_r, err = yield from bus_access(dut.bus, 1)
@@ -423,18 +407,9 @@ class TestSERWBLink(unittest.TestCase):
             self.assertEqual((dat_r, err), (0x1234, 0))
         run_simulation(dut, generator())
 
-    def test_native_link_down_error(self):
-        dut = DUTLink(connected=False, protocol="native")
-        def generator():
-            for _ in range(100):
-                yield
-            _, err = yield from bus_access(dut.bus, 0, timeout=100)
-            self.assertEqual(err, 1)
-        run_simulation(dut, generator())
-
     def test_link_recovery(self):
         # Link down during traffic: accesses return err, then link recovers when back up.
-        dut = DUTLink(protocol="native")
+        dut = DUTLink()
         def generator():
             _, err = yield from bus_access(dut.bus, 0, we=1, dat_w=0x1111)
             self.assertEqual(err, 0)
@@ -470,9 +445,9 @@ class TestSERWBLink(unittest.TestCase):
         run_simulation(dut, generator())
 
     def bit_errors_test(self, with_crc, n=12, rate=0.03, seed=1):
-        # Random bit errors on the link (SoC to remote side), native protocol, writes only. Returns
-        # the remote SRAM content.
-        dut     = DUTLink(phy="datapath", protocol="native", with_crc=with_crc)
+        # Random bit errors on the link (SoC to remote side), writes only. Returns the remote SRAM
+        # content.
+        dut     = DUTLink(phy="datapath", with_crc=with_crc)
         prng    = random.Random(seed)
         results = []
         flipping = [True]
@@ -517,6 +492,44 @@ class TestSERWBLink(unittest.TestCase):
                 yield
             _, err = yield from bus_access(dut.bus, 0, we=1, dat_w=0x12345678, timeout=100)
             self.assertEqual(err, 1)
+            _, err = yield from bus_access(dut.bus, 0, timeout=100)
+            self.assertEqual(err, 1)
+        run_simulation(dut, generator())
+
+    # Etherbone protocol (deprecated) --------------------------------------------------------------
+
+    def test_etherbone_deprecated(self):
+        with self.assertWarns(FutureWarning):
+            SERWBCore(LoopbackPHY(), clk_freq=int(1e6), mode="slave", protocol="etherbone")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            SERWBCore(LoopbackPHY(), clk_freq=int(1e6), mode="slave")
+
+    def test_etherbone_wishbone(self):
+        self.wishbone_test(protocol="etherbone", with_sel=True)
+
+    def test_etherbone_buffer_depth(self):
+        dut = self.wishbone_test(n=4, protocol="etherbone", etherbone_buffer_depth=8)
+        # Etherbone record receiver must be sized from etherbone_buffer_depth (8 data words + base
+        # address -> 16 entries).
+        mems = [m for m in dut.master_core.etherbone.record.receiver.fifo._fragment.specials if isinstance(m, Memory)]
+        self.assertEqual([m.depth for m in mems], [16])
+        self.assertEqual(dut.master_core.tx_fifo.depth, 2 + 2 + 1 + 1 + 8)
+
+    @slow_test
+    def test_etherbone_datapath_phy_crc(self):
+        self.wishbone_test(n=2, protocol="etherbone", phy="datapath", with_flow_control=True, with_crc=True)
+
+    @slow_test
+    def test_etherbone_flow_control_write_stress(self):
+        self.assertTrue(self.write_stress_test(protocol="etherbone", with_flow_control=True))
+        self.assertFalse(self.write_stress_test(protocol="etherbone", with_flow_control=False))
+
+    def test_etherbone_link_down_error(self):
+        dut = DUTLink(connected=False, protocol="etherbone")
+        def generator():
+            for _ in range(100):
+                yield
             _, err = yield from bus_access(dut.bus, 0, timeout=100)
             self.assertEqual(err, 1)
         run_simulation(dut, generator())

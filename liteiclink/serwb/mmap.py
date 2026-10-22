@@ -7,8 +7,8 @@
 """
 SerWB native MMAP protocol.
 
-Lightweight alternative to Etherbone (SERWBCore(protocol="native"), must be used on both sides of
-the link), designed for the point-to-point SerWB link:
+Default SerWB protocol (SERWBCore(protocol="native"), must be used on both sides of the link),
+lightweight alternative to Etherbone designed for the point-to-point SerWB link:
 
 Requests (Slave -> Master side):
 - Word 0 (cmd)  : [0] op (0: write, 1: read), [7:4] byte enables (sel), [15:8] count - 1.

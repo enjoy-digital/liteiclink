@@ -22,12 +22,12 @@ import subprocess
 SIM = os.path.join(os.path.dirname(__file__), "..", "bench", "serwb", "sim.py")
 
 CONFIGS = {
-    "etherbone"             : [],
-    "etherbone_fc_crc"      : ["--with-flow-control", "--with-crc"],
-    "etherbone_fc_slow"     : ["--with-flow-control", "--sram-latency", "64"],
-    "native"                : ["--protocol", "native"],
-    "native_fc_crc"         : ["--protocol", "native", "--with-flow-control", "--with-crc"],
-    "native_slow"           : ["--protocol", "native", "--sram-latency", "64"],
+    "native"                : [],
+    "native_fc_crc"         : ["--with-flow-control", "--with-crc"],
+    "native_slow"           : ["--sram-latency", "64"],
+    "etherbone"             : ["--protocol", "etherbone"],
+    "etherbone_fc_crc"      : ["--protocol", "etherbone", "--with-flow-control", "--with-crc"],
+    "etherbone_fc_slow"     : ["--protocol", "etherbone", "--with-flow-control", "--sram-latency", "64"],
 }
 
 @unittest.skipUnless(shutil.which("verilator"), "Verilator not installed.")

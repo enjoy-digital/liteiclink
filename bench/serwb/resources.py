@@ -51,8 +51,8 @@ OPTIONS = {
     "default"      : ({},                          {}),
     "flow_control" : ({"with_flow_control": True}, {}),
     "crc"          : ({},                          {"with_crc": True}),
-    "native"       : ({},                          {"protocol": "native"}),
-    "native_fc"    : ({"with_flow_control": True}, {"protocol": "native"}),
+    "etherbone"    : ({},                          {"protocol": "etherbone"}),
+    "etherbone_fc" : ({"with_flow_control": True}, {"protocol": "etherbone"}),
     "prbs"         : ({"with_prbs": True},         {}),
 }
 
