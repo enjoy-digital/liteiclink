@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 """
-Etherbone
+Etherbone (deprecated, SERWBCore(protocol="etherbone"), replaced by the native protocol of mmap.py).
 
 CERN's Etherbone protocol is initially used to run a Wishbone bus over an
 ethernet network. This re-implementation is meant to be run over serdes

@@ -237,7 +237,6 @@ class SerWBSoC(SoCCore):
             phy      = self.serwb_master_phy,
             clk_freq = self.clk_freq,
             mode     = "slave",
-            etherbone_buffer_depth = 4,
             tx_buffer_depth        = 8,
             rx_buffer_depth        = 8,
         )
@@ -248,7 +247,6 @@ class SerWBSoC(SoCCore):
             phy      = self.serwb_slave_phy,
             clk_freq = self.clk_freq,
             mode     = "master",
-            etherbone_buffer_depth = 4,
             tx_buffer_depth        = 8,
             rx_buffer_depth        = 8,
 
@@ -451,7 +449,7 @@ class SerWBTestSoC(SoCMini):
     SRAM, reads it back and checks it. Displays "SERWB TEST: PASS" or "SERWB TEST: FAIL" and ends
     the simulation.
     """
-    def __init__(self, n=32, protocol="etherbone", with_flow_control=False, with_crc=False, sram_latency=0, timeout=400000):
+    def __init__(self, n=32, protocol="native", with_flow_control=False, with_crc=False, sram_latency=0, timeout=400000):
         platform     = Platform()
         sys_clk_freq = int(1e6)
 
@@ -558,7 +556,7 @@ def main():
     parser = argparse.ArgumentParser(description="SerWB LiteX/Verilator Simulation.")
     parser.add_argument("--min",          action="store_true", help="Run Minimal simulation (SerSBMinSoC).")
     parser.add_argument("--test",         action="store_true", help="Run self-checking test (SerWBTestSoC).")
-    parser.add_argument("--protocol",     default="etherbone", help="Test: SerWB protocol (etherbone or native).")
+    parser.add_argument("--protocol",     default="native",    help="Test: SerWB protocol (native or etherbone (deprecated)).")
     parser.add_argument("--with-flow-control", action="store_true", help="Test: Enable PHY flow control.")
     parser.add_argument("--with-crc",     action="store_true", help="Test: Enable CRC.")
     parser.add_argument("--sram-latency", default=0, type=int, help="Test: Remote SRAM ack latency (cycles).")
