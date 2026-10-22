@@ -13,7 +13,7 @@ from migen import *
 from litex.gen.sim import *
 
 from liteiclink.serwb import scrambler
-from liteiclink.serwb.phy import _SerdesMasterInit, _SerdesSlaveInit
+from liteiclink.serwb.phy import _SerdesInit
 
 # Serdes Model -------------------------------------------------------------------------------------
 
@@ -95,14 +95,14 @@ class SerdesModel(Module):
 class DUTMaster(Module):
     def __init__(self, taps=32):
         self.submodules.serdes = SerdesModel(taps, mode="master")
-        self.submodules.init   = _SerdesMasterInit(self.serdes, taps, timeout=1)
+        self.submodules.init   = _SerdesInit(self.serdes, taps, timeout=1, mode="master")
 
 # DUT Slave ----------------------------------------------------------------------------------------
 
 class DUTSlave(Module):
     def __init__(self, taps=32):
         self.submodules.serdes = SerdesModel(taps, mode="slave")
-        self.submodules.init   = _SerdesSlaveInit(self.serdes, taps, timeout=1)
+        self.submodules.init   = _SerdesInit(self.serdes, taps, timeout=1, mode="slave")
 
 # TestSERWBInit ------------------------------------------------------------------------------------
 

@@ -73,7 +73,11 @@ class DatapathPHY(LiteXModule):
 
         self.comb += self.tx.source.ready.eq(1)
         if with_flow_control:
-            self.flow_control = FlowControl(self.tx, self.rx, self.tx.sink, self.rx.source, self.init.ready)
+            serdes = Module() # FlowControl expects SerDes-like tx/rx with datapath/endpoints.
+            serdes.tx, serdes.rx = Module(), Module()
+            serdes.tx.datapath, serdes.tx.sink   = self.tx, self.tx.sink
+            serdes.rx.datapath, serdes.rx.source = self.rx, self.rx.source
+            self.flow_control = FlowControl(serdes, self.init.ready)
             self.pause = self.flow_control.pause
             self.comb += [
                 sink.connect(self.flow_control.sink),

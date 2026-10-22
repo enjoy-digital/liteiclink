@@ -9,10 +9,13 @@ from migen import *
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
-from litex.soc.interconnect        import stream
-from litex.soc.interconnect.packet import HeaderField, Header
+from litex.soc.interconnect import stream
 
 from liteeth.mac.crc import LiteEthMACCRCEngine
+
+# Constants ----------------------------------------------------------------------------------------
+
+PREAMBLE = 0x5aa55aa5
 
 # Layouts ------------------------------------------------------------------------------------------
 
@@ -81,7 +84,7 @@ class Packetizer(LiteXModule):
         fsm.act("PREAMBLE",
             If(sink.valid,
                 source.valid.eq(1),
-                source.data.eq(0x5aa55aa5),
+                source.data.eq(PREAMBLE),
                 If(source.ready,
                     NextState("PORT-LENGTH")
                 )
@@ -148,7 +151,7 @@ class Depacketizer(LiteXModule):
         fsm.act("PREAMBLE",
             sink.ready.eq(1),
             If(sink.valid &
-              (sink.data == 0x5aa55aa5),
+              (sink.data == PREAMBLE),
                 NextState("PORT-LENGTH")
             )
         )
@@ -230,7 +233,7 @@ class CRCDepacketizer(LiteXModule):
             sink.ready.eq(1),
             crc.reset.eq(1),
             If(sink.valid &
-              (sink.data == 0x5aa55aa5),
+              (sink.data == PREAMBLE),
                 NextState("PORT-LENGTH")
             )
         )

@@ -5,7 +5,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
-from migen.genlib.io import *
 
 from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
@@ -251,8 +250,9 @@ class FlowControl(LiteXModule):
     - Received XOFF/XON characters pause/resume local TX data: while paused or without data to
       send, K28.1 fill characters are transmitted (and dropped by the remote RX) instead of zeros.
     """
-    def __init__(self, tx, rx, tx_sink, rx_source, ready, refresh=1024):
-        # tx/rx: TX/RXDatapath (control), tx_sink/rx_source: SerDes data endpoints.
+    def __init__(self, serdes, ready, refresh=1024):
+        # serdes: SerDes with tx/rx endpoints (sink/source) and datapaths (tx/rx.datapath).
+        tx, rx, tx_sink, rx_source = serdes.tx.datapath, serdes.rx.datapath, serdes.tx.sink, serdes.rx.source
         self.pause  = pause  = Signal() # Input: request remote to pause.
         self.paused = paused = Signal() # Output: paused by remote.
         self.sink   = sink   = stream.Endpoint([("data", 32)])

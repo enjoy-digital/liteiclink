@@ -86,7 +86,7 @@ address + 1 data). Writes are posted (acked once sent), reads are blocking round
 
 | Parameter                | Default | Description                                                   |
 |--------------------------|---------|---------------------------------------------------------------|
-| `etherbone_buffer_depth` | 4       | Etherbone record buffering (data words).                      |
+| `etherbone_buffer_depth` | 4       | Etherbone record buffering (data words, min 2).               |
 | `tx_buffer_depth`        | auto    | TX FIFO depth (default: one full packet, min 8).              |
 | `rx_buffer_depth`        | auto    | RX FIFO depth (default: one full packet, min 8, +16 with flow control). |
 | `depacketizer_timeout`   | 1e-3    | Incomplete packet timeout (seconds without incoming data).    |

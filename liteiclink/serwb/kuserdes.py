@@ -7,12 +7,11 @@
 from migen import *
 
 from litex.gen import *
-from litex.gen.genlib.misc import BitSlip, WaitTimer
+from litex.gen.genlib.misc import BitSlip
 
 from litex.build.io import *
 
-from litex.soc.interconnect     import stream
-from litex.soc.cores.code_8b10b import Encoder, Decoder
+from litex.soc.interconnect import stream
 
 from liteiclink.serwb.datapath import TXDatapath, RXDatapath
 
@@ -108,7 +107,7 @@ class _KUSerdesTX(LiteXModule):
 # KU SerDes RX -------------------------------------------------------------------------------------
 
 class _KUSerdesRX(LiteXModule):
-    def __init__(self, pads, usp=False, bitslip=False):
+    def __init__(self, pads, usp=False):
         # Control.
         self.delay_rst = delay_rst = Signal()
         self.delay_inc = delay_inc = Signal()
@@ -171,19 +170,17 @@ class _KUSerdesRX(LiteXModule):
         # ---------
         self.datapath = datapath = RXDatapath(8)
 
-        self.submodules.bitslip = bitslip = BitSlip(8)
+        # Bit-level alignment with BitSlip, word-level alignment (every 8 shifts) in datapath.
+        self.bitslip = bitslip = BitSlip(8)
         self.sync += If(shift_inc, bitslip.value.eq(bitslip.value + 1))
 
         _shift = Signal(3)
         self.sync += If(self.shift_inc, _shift.eq(_shift + 1))
 
-        if bitslip:
-            self.comb += [
-                bitslip.i.eq(data_raw),
-                data.eq(bitslip.o),
-            ]
-        else:
-            self.comb += data.eq(data_raw),
+        self.comb += [
+            bitslip.i.eq(data_raw),
+            data.eq(bitslip.o),
+        ]
 
         self.comb += [
             datapath.sink.valid.eq(1),

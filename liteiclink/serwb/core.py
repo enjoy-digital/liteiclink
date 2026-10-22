@@ -28,6 +28,10 @@ class SERWBCore(LiteXModule):
         with_crc               = False,
         crc_max_words          = None,
     ):
+        # Etherbone record buffering: LiteEth requires at least 2 data words (smaller values, accepted
+        # but ignored before, are clamped).
+        etherbone_buffer_depth = max(2, etherbone_buffer_depth)
+
         # Default buffering: at least one full Etherbone packet (SerWB header + Etherbone header +
         # record header + base address + data words).
         packet_max_words = 2 + 2 + 1 + 1 + etherbone_buffer_depth

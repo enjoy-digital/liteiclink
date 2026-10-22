@@ -14,7 +14,7 @@ from litex.gen import *
 from litex.gen.genlib.misc import WaitTimer
 
 from litex.build.generic_platform import *
-from litex_boards.platforms import efinix_titanium_ti60_f225_dev_kit
+from litex_boards.platforms import efinix_ti60_f225_dev_kit
 
 from litex.soc.cores.clock import TITANIUMPLL
 
@@ -68,7 +68,7 @@ class _CRG(LiteXModule):
         # Clk/Rst.
         # --------
         clk25 = platform.request("clk25")
-        rst_n = platform.request("user_btn", 0)
+        rst_n = platform.request("user_btn_n", 0)
 
         # PLL.
         # ----
@@ -210,12 +210,12 @@ class SerWBTestSoC(SoCMini):
 
 def main():
     from litex.build.parser import LiteXArgumentParser
-    parser = LiteXArgumentParser(platform=efinix_titanium_ti60_f225_dev_kit.Platform, description="LiteICLink SerWB bench on Efinix Titanium Ti60 F225 Dev Kit.")
+    parser = LiteXArgumentParser(platform=efinix_ti60_f225_dev_kit.Platform, description="LiteICLink SerWB bench on Efinix Titanium Ti60 F225 Dev Kit.")
     parser.add_target_argument("--flash",  action="store_true", help="Flash bitstream.")
     parser.add_argument("--with-analyzer", action="store_true", help="Add LiteScope Analyzer")
     args = parser.parse_args()
 
-    platform = efinix_titanium_ti60_f225_dev_kit.Platform()
+    platform = efinix_ti60_f225_dev_kit.Platform()
     platform.add_extension(serwb_io)
 
     soc     = SerWBTestSoC(platform, with_analyzer=args.with_analyzer)

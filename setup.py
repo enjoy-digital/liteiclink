@@ -21,7 +21,7 @@ setup(
     test_suite                    = "test",
     license                       = "BSD",
     python_requires               = "~=3.7",
-    install_requires              = ["pyyaml", "litex"],
+    install_requires              = ["pyyaml", "litex", "liteeth"],
     extras_require                = {
         "develop": [
           "meson"
