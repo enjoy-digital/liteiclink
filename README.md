@@ -36,9 +36,9 @@ SerWB (see [doc/serwb.md](doc/serwb.md)):
   - 8B/10B, integrated gearbox.
   - Up to 1.25Gbps linerate / 32 bits @ 31.25Mhz user interface.
   - Automatic sampling window adjustement at startup, PRBS link test.
-  - Encapsulated Etherbone protocol with posted writes.
+  - Lightweight MMAP protocol with posted writes, write coalescing and remote error reporting (Etherbone protocol deprecated).
   - Multi-port packet layer (SerIO for slow I/Os, user ports).
-  - Optional link level flow control (XON/XOFF) and per-packet CRC32.
+  - Optional link level flow control (XON/XOFF) and per-packet CRC16.
   - AXI-Lite/AXI SoCs supported through LiteX bridges.
 
 SerDes:

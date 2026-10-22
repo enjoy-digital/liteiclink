@@ -6,8 +6,10 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import os
 import unittest
 import random
+import warnings
 
 from migen import *
 
@@ -21,6 +23,10 @@ from litex.soc.interconnect import stream
 
 from liteiclink.serwb.core     import SERWBCore, SERIOCore
 from liteiclink.serwb.datapath import TXDatapath, RXDatapath, FlowControl
+
+# Slow tests (skipped with LITEICLINK_QUICK_TESTS=1, for quick local iterations) ------------------
+
+slow_test = unittest.skipIf(os.environ.get("LITEICLINK_QUICK_TESTS", "0") == "1", "Slow test (LITEICLINK_QUICK_TESTS=1).")
 
 # Loopback PHY -------------------------------------------------------------------------------------
 
@@ -95,10 +101,11 @@ class DatapathPHY(LiteXModule):
                 self.tx.sink.valid.eq(1),
             ]
 
-    def connect_to(self, other):
+    def connect_to(self, other, flip=0):
+        # flip: Optional bit errors injection mask (8-bit wire).
         return [
             other.rx.sink.valid.eq(self.tx.source.valid),
-            other.rx.sink.data.eq(self.tx.source.data),
+            other.rx.sink.data.eq(self.tx.source.data ^ flip),
         ]
 
 # Slow Wishbone Slave ------------------------------------------------------------------------------
@@ -120,6 +127,21 @@ class SlowAck(LiteXModule):
             )
         ]
 
+# Error Wishbone Slave -----------------------------------------------------------------------------
+
+class ErrorAbove(LiteXModule):
+    """Returns Wishbone errors for accesses at/above `adr` (forwards others)."""
+    def __init__(self, master, slave, adr=32):
+        error = Signal()
+        self.comb += [
+            error.eq(master.adr >= adr),
+            master.connect(slave, omit={"stb", "cyc", "ack", "err"}),
+            slave.cyc.eq(master.cyc & ~error),
+            slave.stb.eq(master.stb & ~error),
+            master.ack.eq(slave.ack),
+            master.err.eq(master.cyc & master.stb & error),
+        ]
+
 # DUT ----------------------------------------------------------------------------------------------
 
 class DUTLink(LiteXModule):
@@ -128,7 +150,11 @@ class DUTLink(LiteXModule):
     bus -> SERWBCore("slave") -> PHY <-> PHY -> SERWBCore("master") -> SRAM
     """
     def __init__(self, connected=True, with_serio=False, serio_extra_port=False,
-        phy="loopback", with_flow_control=False, sram_latency=0, **kwargs):
+        phy="loopback", with_flow_control=False, sram_latency=0, error_above=None, remote_protocol=None, **kwargs):
+        # Link state (link up when connected), and bit errors injection (datapath PHY, SoC to remote).
+        self.link_up = Signal(reset=1)
+        self.flip    = Signal(8)
+
         # PHYs.
         if phy == "loopback":
             self.master_phy = LoopbackPHY()
@@ -142,25 +168,35 @@ class DUTLink(LiteXModule):
             self.master_phy = DatapathPHY(with_flow_control)
             self.slave_phy  = DatapathPHY(with_flow_control)
             if connected:
-                self.comb += self.master_phy.connect_to(self.slave_phy)
+                self.comb += self.master_phy.connect_to(self.slave_phy, flip=self.flip)
                 self.comb += self.slave_phy.connect_to(self.master_phy)
         if connected:
             self.comb += [
-                self.master_phy.init.ready.eq(1),
-                self.slave_phy.init.ready.eq(1),
+                self.master_phy.init.ready.eq(self.link_up),
+                self.slave_phy.init.ready.eq(self.link_up),
             ]
 
-        # Cores.
-        self.master_core = SERWBCore(self.master_phy, clk_freq=int(1e6), mode="slave",  **kwargs)
-        self.slave_core  = SERWBCore(self.slave_phy,  clk_freq=int(1e6), mode="master", **kwargs)
+        # Cores (Etherbone protocol deprecation warning ignored here, see test_etherbone_deprecated).
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            self.master_core = SERWBCore(self.master_phy, clk_freq=int(1e6), mode="slave",  **kwargs)
+            # Remote side protocol (protocol mismatch tests).
+            remote_kwargs = dict(kwargs)
+            if remote_protocol is not None:
+                remote_kwargs["protocol"] = remote_protocol
+            self.slave_core  = SERWBCore(self.slave_phy,  clk_freq=int(1e6), mode="master", **remote_kwargs)
 
         # SRAM.
+        sram_bus = self.slave_core.bus
+        if error_above is not None:
+            _sram_bus  = wishbone.Interface()
+            self.error = ErrorAbove(sram_bus, _sram_bus, adr=error_above)
+            sram_bus   = _sram_bus
         if sram_latency:
-            sram_bus  = wishbone.Interface()
-            self.slow = SlowAck(self.slave_core.bus, sram_bus, latency=sram_latency)
-        else:
-            sram_bus  = self.slave_core.bus
-        self.sram = wishbone.SRAM(64, bus=sram_bus)
+            _sram_bus = wishbone.Interface()
+            self.slow = SlowAck(sram_bus, _sram_bus, latency=sram_latency)
+            sram_bus  = _sram_bus
+        self.sram = wishbone.SRAM(128, bus=sram_bus) # 32 words.
 
         # SerIO.
         if with_serio:
@@ -253,14 +289,6 @@ class TestSERWBLink(unittest.TestCase):
     def test_wishbone_byte_enables(self):
         self.wishbone_test(with_sel=True)
 
-    def test_wishbone_etherbone_buffer_depth(self):
-        dut = self.wishbone_test(n=4, etherbone_buffer_depth=8)
-        # Etherbone record receiver must be sized from etherbone_buffer_depth (8 data words + base
-        # address -> 16 entries).
-        mems = [m for m in dut.master_core.etherbone.record.receiver.fifo._fragment.specials if isinstance(m, Memory)]
-        self.assertEqual([m.depth for m in mems], [16])
-        self.assertEqual(dut.master_core.tx_fifo.depth, 2 + 2 + 1 + 1 + 8)
-
     def test_wishbone_unknown_port(self):
         # SerIO packets sent to a port not present on the remote side must not disturb Wishbone.
         dut = DUTLink(serio_extra_port=True)
@@ -275,6 +303,7 @@ class TestSERWBLink(unittest.TestCase):
                 self.assertEqual((dat_r, err), (0x1000 + i, 0))
         run_simulation(dut, generator())
 
+    @slow_test
     def test_serio(self):
         dut     = DUTLink(with_serio=True)
         results = []
@@ -312,6 +341,7 @@ class TestSERWBLink(unittest.TestCase):
         self.wishbone_test(n=2, phy="datapath")
         self.wishbone_test(n=2, phy="datapath", with_flow_control=True)
 
+    @slow_test
     def test_datapath_phy_crc(self):
         # CRC + flow control over real TX/RX datapaths.
         self.wishbone_test(n=2, phy="datapath", with_flow_control=True, with_crc=True)
@@ -329,12 +359,134 @@ class TestSERWBLink(unittest.TestCase):
                 yield
             for i in range(n):
                 results.append((yield dut.sram.mem[i]))
+            self.rx_overflows = (yield dut.slave_core.rx_overflows.status)
         run_simulation(dut, generator())
         return results == [0x1000 + i for i in range(n)]
 
+    @slow_test
     def test_flow_control_write_stress(self):
         self.assertTrue(self.write_stress_test(with_flow_control=True))
+        self.assertEqual(self.rx_overflows, 0)
         self.assertFalse(self.write_stress_test(with_flow_control=False))
+        self.assertGreater(self.rx_overflows, 0) # Lost words are reported.
+
+    # Native protocol ------------------------------------------------------------------------------
+
+    def test_write_coalescing(self):
+        # Back-to-back consecutive writes must be coalesced in burst_depth requests, and a read must
+        # see previous (pending) writes.
+        dut      = DUTLink(burst_depth=4)
+        requests = []
+        @passive
+        def monitor():
+            source = dut.master_core.mmap.source
+            while True:
+                if (yield source.valid) and (yield source.ready) and (yield source.last):
+                    requests.append(1)
+                yield
+        def generator():
+            for i in range(8):
+                _, err = yield from bus_access(dut.bus, i, we=1, dat_w=0x100 + i)
+                self.assertEqual(err, 0)
+            # Read right after writes: pending writes are sent first.
+            dat_r, err = yield from bus_access(dut.bus, 7)
+            self.assertEqual((dat_r, err), (0x107, 0))
+            for i in [0, 3, 4]:
+                dat_r, err = yield from bus_access(dut.bus, i)
+                self.assertEqual((dat_r, err), (0x100 + i, 0))
+        run_simulation(dut, [generator(), monitor()])
+        # 2 write requests (2x4 words) + 4 read requests.
+        self.assertEqual(len(requests), 2 + 4)
+
+    def test_remote_error(self):
+        # Remote Wishbone errors are reported on reads (Etherbone does not report them).
+        dut = DUTLink(error_above=32)
+        def generator():
+            _, err = yield from bus_access(dut.bus, 1, we=1, dat_w=0x1234)
+            dat_r, err = yield from bus_access(dut.bus, 1)
+            self.assertEqual((dat_r, err), (0x1234, 0))
+            _, err = yield from bus_access(dut.bus, 40)
+            self.assertEqual(err, 1)
+            dat_r, err = yield from bus_access(dut.bus, 1)
+            self.assertEqual((dat_r, err), (0x1234, 0))
+        run_simulation(dut, generator())
+
+    def test_link_recovery(self):
+        # Link down during traffic: accesses return err, then link recovers when back up.
+        dut = DUTLink()
+        def generator():
+            _, err = yield from bus_access(dut.bus, 0, we=1, dat_w=0x1111)
+            self.assertEqual(err, 0)
+            # Let posted write reach remote side (writes in flight are lost on link down).
+            for _ in range(200):
+                yield
+            # Read in flight when link goes down.
+            yield dut.bus.adr.eq(0)
+            yield dut.bus.we.eq(0)
+            yield dut.bus.cyc.eq(1)
+            yield dut.bus.stb.eq(1)
+            for _ in range(10):
+                yield
+            yield dut.link_up.eq(0)
+            for _ in range(100):
+                if (yield dut.bus.err) or (yield dut.bus.ack):
+                    break
+                yield
+            self.assertEqual((yield dut.bus.err), 1)
+            yield dut.bus.cyc.eq(0)
+            yield dut.bus.stb.eq(0)
+            for _ in range(10):
+                yield
+            # Link back up.
+            yield dut.link_up.eq(1)
+            for _ in range(10):
+                yield
+            _, err = yield from bus_access(dut.bus, 1, we=1, dat_w=0x2222)
+            self.assertEqual(err, 0)
+            for i, v in [(0, 0x1111), (1, 0x2222)]:
+                dat_r, err = yield from bus_access(dut.bus, i)
+                self.assertEqual((dat_r, err), (v, 0))
+        run_simulation(dut, generator())
+
+    def bit_errors_test(self, with_crc, n=12, rate=0.03, seed=1):
+        # Random bit errors on the link (SoC to remote side), writes only. Returns the remote SRAM
+        # content.
+        dut     = DUTLink(phy="datapath", with_crc=with_crc)
+        prng    = random.Random(seed)
+        results = []
+        flipping = [True]
+        @passive
+        def injector():
+            while True:
+                flip = 0
+                if flipping[0] and (prng.random() < rate):
+                    flip = 1 << prng.randrange(8)
+                yield dut.flip.eq(flip)
+                yield
+        def generator():
+            for i in range(n):
+                yield from bus_access(dut.bus, i, we=1, dat_w=0x1000 + i, timeout=2000)
+                for _ in range(prng.randrange(16)):
+                    yield
+            for _ in range(400):
+                yield
+            flipping[0] = False
+            for i in range(n):
+                results.append((yield dut.sram.mem[i]))
+        run_simulation(dut, [generator(), injector()])
+        return results
+
+    @slow_test
+    def test_bit_errors_crc(self):
+        # With CRC, corrupted requests are dropped: remote SRAM words are either written correctly
+        # or not written (0), never corrupted.
+        n       = 12
+        results = self.bit_errors_test(with_crc=True, n=n)
+        self.assertTrue(all(r in [0, 0x1000 + i] for i, r in enumerate(results)), [hex(r) for r in results])
+        self.assertGreater(sum(r == 0x1000 + i for i, r in enumerate(results)), 0)
+        # Without CRC, same errors corrupt remote SRAM (checks errors are effectively injected).
+        results = self.bit_errors_test(with_crc=False, n=n)
+        self.assertFalse(all(r in [0, 0x1000 + i] for i, r in enumerate(results)), [hex(r) for r in results])
 
     def test_link_down_error(self):
         # Without link, accesses must return an error instead of stalling the bus.
@@ -344,6 +496,83 @@ class TestSERWBLink(unittest.TestCase):
                 yield
             _, err = yield from bus_access(dut.bus, 0, we=1, dat_w=0x12345678, timeout=100)
             self.assertEqual(err, 1)
+            _, err = yield from bus_access(dut.bus, 0, timeout=100)
+            self.assertEqual(err, 1)
+        run_simulation(dut, generator())
+
+    # Etherbone protocol (deprecated) --------------------------------------------------------------
+
+    def test_etherbone_deprecated(self):
+        with self.assertWarns(FutureWarning):
+            SERWBCore(LoopbackPHY(), clk_freq=int(1e6), mode="slave", protocol="etherbone")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            SERWBCore(LoopbackPHY(), clk_freq=int(1e6), mode="slave")
+
+    def test_etherbone_wishbone(self):
+        self.wishbone_test(protocol="etherbone", with_sel=True)
+
+    def test_etherbone_buffer_depth(self):
+        dut = self.wishbone_test(n=4, protocol="etherbone", etherbone_buffer_depth=8)
+        # Etherbone record receiver must be sized from etherbone_buffer_depth (8 data words + base
+        # address -> 16 entries).
+        mems = [m for m in dut.master_core.etherbone.record.receiver.fifo._fragment.specials if isinstance(m, Memory)]
+        self.assertEqual([m.depth for m in mems], [16])
+        self.assertEqual(dut.master_core.tx_fifo.depth, 2 + 2 + 1 + 1 + 8)
+
+    @slow_test
+    def test_etherbone_datapath_phy_crc(self):
+        self.wishbone_test(n=2, protocol="etherbone", phy="datapath", with_flow_control=True, with_crc=True)
+
+    @slow_test
+    def test_etherbone_flow_control_write_stress(self):
+        self.assertTrue(self.write_stress_test(protocol="etherbone", with_flow_control=True))
+        self.assertFalse(self.write_stress_test(protocol="etherbone", with_flow_control=False))
+
+    def protocol_mismatch_test(self, protocol, remote_protocol):
+        # Sides built with different protocols: requests must be dropped (no access on the remote
+        # bus), reads must not return data.
+        dut      = DUTLink(protocol=protocol, remote_protocol=remote_protocol)
+        results  = {}
+        accesses = []
+        @passive
+        def monitor():
+            bus = dut.slave_core.bus
+            while True:
+                if (yield bus.cyc) and (yield bus.stb) and ((yield bus.ack) or (yield bus.err)):
+                    accesses.append(((yield bus.we), (yield bus.adr)))
+                yield
+        def generator():
+            for i in range(4):
+                yield from bus_access(dut.bus, i, we=1, dat_w=0x1000 + i, timeout=200)
+            try:
+                dat_r, err = yield from bus_access(dut.bus, 0, timeout=200)
+                results["read"] = (dat_r, err)
+            except TimeoutError:
+                results["read"] = "timeout"
+            for _ in range(200):
+                yield
+            results["sram"] = []
+            for i in range(4):
+                results["sram"].append((yield dut.sram.mem[i]))
+        run_simulation(dut, [generator(), monitor()])
+        self.assertEqual(accesses, [])
+        self.assertEqual(results["sram"], [0]*4)
+        self.assertNotEqual(results["read"], (0x1000, 0))
+
+    def test_protocol_mismatch_native_remote(self):
+        # SoC side Etherbone, remote side native: Etherbone packets dropped (invalid magic).
+        self.protocol_mismatch_test(protocol="etherbone", remote_protocol="native")
+
+    def test_protocol_mismatch_etherbone_remote(self):
+        # SoC side native, remote side Etherbone: native packets dropped (Etherbone magic check).
+        self.protocol_mismatch_test(protocol="native", remote_protocol="etherbone")
+
+    def test_etherbone_link_down_error(self):
+        dut = DUTLink(connected=False, protocol="etherbone")
+        def generator():
+            for _ in range(100):
+                yield
             _, err = yield from bus_access(dut.bus, 0, timeout=100)
             self.assertEqual(err, 1)
         run_simulation(dut, generator())

@@ -74,7 +74,6 @@ class SerWBDemoSoC(SoCMini):
         # Core.
         # -----
         self.serwb_slave_core = SERWBCore(self.serwb_slave_phy, self.clk_freq, mode="master",
-            etherbone_buffer_depth = 1,
             tx_buffer_depth        = 8,
             rx_buffer_depth        = 8,
         )

@@ -30,24 +30,28 @@ def phy_description(dw):
 
 # CRC ----------------------------------------------------------------------------------------------
 
-class _CRC32(LiteXModule):
-    """CRC32 over 32-bit words (reset to 0xffffffff on `reset`, updated on `update`)."""
+class _CRC16(LiteXModule):
+    """CRC-16 (CCITT) over 32-bit words (reset to 0xffff on `reset`, updated on `update`).
+
+    SerWB packets are short (a few words): CRC-16 detects all 1/2/3-bit errors and bursts up to
+    16-bit on them, at about half the logic of a CRC-32.
+    """
     def __init__(self):
         self.reset  = Signal()
         self.update = Signal()
         self.data   = Signal(32)
-        self.value  = Signal(32, reset=2**32-1)
+        self.value  = Signal(16, reset=2**16-1)
 
         # # #
 
-        self.engine = engine = LiteEthMACCRCEngine(data_width=32, width=32, polynom=0x04c11db7)
+        self.engine = engine = LiteEthMACCRCEngine(data_width=32, width=16, polynom=0x1021)
         self.comb += [
             engine.data.eq(self.data),
             engine.crc_prev.eq(self.value),
         ]
         self.sync += [
             If(self.reset,
-                self.value.eq(2**32-1)
+                self.value.eq(2**16-1)
             ).Elif(self.update,
                 self.value.eq(engine.crc_next)
             )
@@ -67,12 +71,12 @@ class Packetizer(LiteXModule):
         # - Port     : 1 byte.
         # - Length   : 2 bytes.
         # - Payload  : length bytes.
-        # - CRC32    : 4 bytes (optional, over Port/Length and Payload).
+        # - CRC16    : 4 bytes (optional, zero-extended, over Port/Length and Payload).
 
         # CRC.
         # ----
         if with_crc:
-            self.crc = crc = _CRC32()
+            self.crc = crc = _CRC16()
             self.comb += [
                 crc.data.eq(source.data),
                 crc.update.eq(source.valid & source.ready),
@@ -191,7 +195,7 @@ class Depacketizer(LiteXModule):
 # CRC Depacketizer ---------------------------------------------------------------------------------
 
 class CRCDepacketizer(LiteXModule):
-    """Depacketizer for packets with CRC32 (see Packetizer(with_crc=True)).
+    """Depacketizer for packets with CRC16 (see Packetizer(with_crc=True)).
 
     Packets are stored (with backpressure, so compatible with link flow control), checked and only
     forwarded when the CRC is valid. Packets with invalid CRC, payload larger than `max_words` or
@@ -218,7 +222,7 @@ class CRCDepacketizer(LiteXModule):
 
         # CRC.
         # ----
-        self.crc = crc = _CRC32()
+        self.crc = crc = _CRC16()
         self.comb += crc.data.eq(sink.data)
 
         # Timer.

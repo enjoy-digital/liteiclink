@@ -110,11 +110,11 @@ class DUTCore(LiteXModule):
         ]
 
         # Add wishbone sram to wishbone master
-        sram = SRAM(1024, bus=serwb_master.etherbone.wishbone.bus)
+        sram = SRAM(1024, bus=serwb_master.bus)
         self.submodules += sram
 
         # Expose wishbone slave
-        self.wishbone = serwb_slave.etherbone.wishbone.bus
+        self.wishbone = serwb_slave.bus
 
 # Test SERWB Core ----------------------------------------------------------------------------------
 

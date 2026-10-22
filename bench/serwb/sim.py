@@ -237,7 +237,6 @@ class SerWBSoC(SoCCore):
             phy      = self.serwb_master_phy,
             clk_freq = self.clk_freq,
             mode     = "slave",
-            etherbone_buffer_depth = 4,
             tx_buffer_depth        = 8,
             rx_buffer_depth        = 8,
         )
@@ -248,7 +247,6 @@ class SerWBSoC(SoCCore):
             phy      = self.serwb_slave_phy,
             clk_freq = self.clk_freq,
             mode     = "master",
-            etherbone_buffer_depth = 4,
             tx_buffer_depth        = 8,
             rx_buffer_depth        = 8,
 
@@ -442,11 +440,127 @@ class SerWBSoC(SoCCore):
             )
             self.sync += If(alt_bus.stb & alt_bus.cyc & alt_bus.ack, Display("Read %d", read_count))
 
+# SerWBTestSoC -------------------------------------------------------------------------------------
+
+class SerWBTestSoC(SoCMini):
+    """Self-checking SerWB simulation (no CPU/Etherbone, used by test/test_serwb_sim.py).
+
+    A hardware Wishbone master writes a pattern through SerWB (generic PHY, bit-level) to a remote
+    SRAM, reads it back and checks it. Displays "SERWB TEST: PASS" or "SERWB TEST: FAIL" and ends
+    the simulation.
+    """
+    def __init__(self, n=32, protocol="native", with_flow_control=False, with_crc=False, sram_latency=0, timeout=400000):
+        platform     = Platform()
+        sys_clk_freq = int(1e6)
+
+        # SoCMini ----------------------------------------------------------------------------------
+        SoCMini.__init__(self, platform, clk_freq=sys_clk_freq)
+
+        # CRG --------------------------------------------------------------------------------------
+        self.crg = CRG(platform.request("sys_clk"))
+
+        # SerWB ------------------------------------------------------------------------------------
+        serwb_master_pads = Record([("tx", 1), ("rx", 1)])
+        serwb_slave_pads  = Record([("tx", 1), ("rx", 1)])
+        self.comb += serwb_slave_pads.rx.eq(serwb_master_pads.tx)
+        self.comb += serwb_master_pads.rx.eq(serwb_slave_pads.tx)
+        phy_kwargs  = dict(device=platform.device, init_timeout=128, with_flow_control=with_flow_control)
+        core_kwargs = dict(clk_freq=sys_clk_freq, protocol=protocol, with_crc=with_crc)
+        self.serwb_master_phy  = SERWBPHY(pads=serwb_master_pads, mode="master", **phy_kwargs)
+        self.serwb_slave_phy   = SERWBPHY(pads=serwb_slave_pads,  mode="slave",  **phy_kwargs)
+        self.serwb_master_core = SERWBCore(phy=self.serwb_master_phy, mode="slave",  **core_kwargs)
+        self.serwb_slave_core  = SERWBCore(phy=self.serwb_slave_phy,  mode="master", **core_kwargs)
+
+        # Remote SRAM (with optional ack latency).
+        self.serwb_sram = wishbone.SRAM(4*n)
+        if sram_latency:
+            count = Signal(max=sram_latency + 1)
+            bus   = self.serwb_slave_core.bus
+            self.comb += [
+                bus.connect(self.serwb_sram.bus, omit={"stb", "ack"}),
+                self.serwb_sram.bus.stb.eq(bus.stb & (count == sram_latency)),
+                bus.ack.eq(self.serwb_sram.bus.ack),
+            ]
+            self.sync += If(~(bus.cyc & bus.stb) | bus.ack, count.eq(0)).Elif(count != sram_latency, count.eq(count + 1))
+        else:
+            self.comb += self.serwb_slave_core.bus.connect(self.serwb_sram.bus)
+
+        # Test -------------------------------------------------------------------------------------
+        bus    = self.serwb_master_core.bus
+        index  = Signal(max=n + 1)
+        errors = Signal(32)
+        cycles = Signal(32)
+        self.sync += cycles.eq(cycles + 1)
+        pattern = Signal(32)
+        self.comb += pattern.eq(Cat(index, Constant(0xa5, 8), ~index)[:32])
+        ready = Signal()
+        self.comb += ready.eq(self.serwb_master_phy.init.ready & self.serwb_slave_phy.init.ready)
+
+        self.test_fsm = fsm = FSM(reset_state="WAIT-LINK")
+        fsm.act("WAIT-LINK",
+            If(ready,
+                NextValue(index, 0),
+                NextState("WRITE")
+            )
+        )
+        fsm.act("WRITE",
+            bus.stb.eq(1),
+            bus.cyc.eq(1),
+            bus.we.eq(1),
+            bus.adr.eq(index),
+            bus.sel.eq(0b1111),
+            bus.dat_w.eq(pattern),
+            If(bus.ack | bus.err,
+                If(bus.err, NextValue(errors, errors + 1)),
+                NextValue(index, index + 1),
+                If(index == (n - 1),
+                    NextValue(index, 0),
+                    NextState("READ")
+                )
+            )
+        )
+        fsm.act("READ",
+            bus.stb.eq(1),
+            bus.cyc.eq(1),
+            bus.adr.eq(index),
+            bus.sel.eq(0b1111),
+            If(bus.ack | bus.err,
+                If(bus.err | (bus.dat_r != pattern),
+                    NextValue(errors, errors + 1)
+                ),
+                NextValue(index, index + 1),
+                If(index == (n - 1),
+                    NextState("END")
+                )
+            )
+        )
+        fsm.act("END")
+        self.sync += [
+            If(fsm.ongoing("END"),
+                If(errors == 0,
+                    Display("SERWB TEST: PASS (%d cycles)", cycles)
+                ).Else(
+                    Display("SERWB TEST: FAIL (%d errors)", errors)
+                ),
+                Finish()
+            ),
+            If(cycles == timeout,
+                Display("SERWB TEST: FAIL (timeout, link ready: %d)", ready),
+                Finish()
+            )
+        ]
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="SerWB LiteX/Verilator Simulation.")
     parser.add_argument("--min",          action="store_true", help="Run Minimal simulation (SerSBMinSoC).")
+    parser.add_argument("--test",         action="store_true", help="Run self-checking test (SerWBTestSoC).")
+    parser.add_argument("--protocol",     default="native",    help="Test: SerWB protocol (native or etherbone (deprecated)).")
+    parser.add_argument("--with-flow-control", action="store_true", help="Test: Enable PHY flow control.")
+    parser.add_argument("--with-crc",     action="store_true", help="Test: Enable CRC.")
+    parser.add_argument("--sram-latency", default=0, type=int, help="Test: Remote SRAM ack latency (cycles).")
+    parser.add_argument("--output-dir",   default=None,        help="Build directory.")
     parser.add_argument("--with-serio",   action="store_true", help="Enable SerIO.")
     parser.add_argument("--with-debug",   action="store_true", help="Enable Debug traces.")
     parser.add_argument("--write-stress", action="store_true", help="Enable Write Stress.")
@@ -460,18 +574,28 @@ def main():
 
     sim_config = SimConfig()
     sim_config.add_clocker("sys_clk", freq_hz=1e6)
-    if not args.min:
+    if not (args.min or args.test):
         sim_config.add_module("serial2console", "serial")
         sim_config.add_module("ethernet", "eth", args={"interface": "tap0", "ip": "192.168.1.100"})
 
-    soc     = SerWBMinSoC() if args.min else SerWBSoC(
-        with_serio   = args.with_serio,
-        with_debug   = args.with_debug,
-        write_stress = args.write_stress,
-        read_stress  = args.read_stress,
-        alt_stress   = args.alt_stress,
-    )
-    builder = Builder(soc, csr_csv="csr.csv")
+    if args.test:
+        soc = SerWBTestSoC(
+            protocol          = args.protocol,
+            with_flow_control = args.with_flow_control,
+            with_crc          = args.with_crc,
+            sram_latency      = args.sram_latency,
+        )
+    elif args.min:
+        soc = SerWBMinSoC()
+    else:
+        soc = SerWBSoC(
+            with_serio   = args.with_serio,
+            with_debug   = args.with_debug,
+            write_stress = args.write_stress,
+            read_stress  = args.read_stress,
+            alt_stress   = args.alt_stress,
+        )
+    builder = Builder(soc, output_dir=args.output_dir, csr_csv=None if args.test else "csr.csv")
     builder.build(sim_config=sim_config,
         trace       = args.trace,
         trace_start = int(args.trace_start),

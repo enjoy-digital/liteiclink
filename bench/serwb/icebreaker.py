@@ -116,7 +116,6 @@ class SerWBTestSoC(SoCMini):
             phy                    = self.serwb_master_phy,
             clk_freq               = self.clk_freq,
             mode                   = "slave",
-            etherbone_buffer_depth = 1,
             tx_buffer_depth        = 0,
             rx_buffer_depth        = 0,
         )
@@ -127,7 +126,6 @@ class SerWBTestSoC(SoCMini):
             phy                    = self.serwb_slave_phy,
             clk_freq               = self.clk_freq,
             mode                   = "master",
-            etherbone_buffer_depth = 1,
             tx_buffer_depth        = 0,
             rx_buffer_depth        = 0,
         )
