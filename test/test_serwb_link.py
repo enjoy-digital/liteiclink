@@ -150,7 +150,7 @@ class DUTLink(LiteXModule):
     bus -> SERWBCore("slave") -> PHY <-> PHY -> SERWBCore("master") -> SRAM
     """
     def __init__(self, connected=True, with_serio=False, serio_extra_port=False,
-        phy="loopback", with_flow_control=False, sram_latency=0, error_above=None, **kwargs):
+        phy="loopback", with_flow_control=False, sram_latency=0, error_above=None, remote_protocol=None, **kwargs):
         # Link state (link up when connected), and bit errors injection (datapath PHY, SoC to remote).
         self.link_up = Signal(reset=1)
         self.flip    = Signal(8)
@@ -180,7 +180,11 @@ class DUTLink(LiteXModule):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", FutureWarning)
             self.master_core = SERWBCore(self.master_phy, clk_freq=int(1e6), mode="slave",  **kwargs)
-            self.slave_core  = SERWBCore(self.slave_phy,  clk_freq=int(1e6), mode="master", **kwargs)
+            # Remote side protocol (protocol mismatch tests).
+            remote_kwargs = dict(kwargs)
+            if remote_protocol is not None:
+                remote_kwargs["protocol"] = remote_protocol
+            self.slave_core  = SERWBCore(self.slave_phy,  clk_freq=int(1e6), mode="master", **remote_kwargs)
 
         # SRAM.
         sram_bus = self.slave_core.bus
@@ -524,6 +528,45 @@ class TestSERWBLink(unittest.TestCase):
     def test_etherbone_flow_control_write_stress(self):
         self.assertTrue(self.write_stress_test(protocol="etherbone", with_flow_control=True))
         self.assertFalse(self.write_stress_test(protocol="etherbone", with_flow_control=False))
+
+    def protocol_mismatch_test(self, protocol, remote_protocol):
+        # Sides built with different protocols: requests must be dropped (no access on the remote
+        # bus), reads must not return data.
+        dut      = DUTLink(protocol=protocol, remote_protocol=remote_protocol)
+        results  = {}
+        accesses = []
+        @passive
+        def monitor():
+            bus = dut.slave_core.bus
+            while True:
+                if (yield bus.cyc) and (yield bus.stb) and ((yield bus.ack) or (yield bus.err)):
+                    accesses.append(((yield bus.we), (yield bus.adr)))
+                yield
+        def generator():
+            for i in range(4):
+                yield from bus_access(dut.bus, i, we=1, dat_w=0x1000 + i, timeout=200)
+            try:
+                dat_r, err = yield from bus_access(dut.bus, 0, timeout=200)
+                results["read"] = (dat_r, err)
+            except TimeoutError:
+                results["read"] = "timeout"
+            for _ in range(200):
+                yield
+            results["sram"] = []
+            for i in range(4):
+                results["sram"].append((yield dut.sram.mem[i]))
+        run_simulation(dut, [generator(), monitor()])
+        self.assertEqual(accesses, [])
+        self.assertEqual(results["sram"], [0]*4)
+        self.assertNotEqual(results["read"], (0x1000, 0))
+
+    def test_protocol_mismatch_native_remote(self):
+        # SoC side Etherbone, remote side native: Etherbone packets dropped (invalid magic).
+        self.protocol_mismatch_test(protocol="etherbone", remote_protocol="native")
+
+    def test_protocol_mismatch_etherbone_remote(self):
+        # SoC side native, remote side Etherbone: native packets dropped (Etherbone magic check).
+        self.protocol_mismatch_test(protocol="native", remote_protocol="etherbone")
 
     def test_etherbone_link_down_error(self):
         dut = DUTLink(connected=False, protocol="etherbone")

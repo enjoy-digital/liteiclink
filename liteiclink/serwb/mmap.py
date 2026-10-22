@@ -11,18 +11,23 @@ Default SerWB protocol (SERWBCore(protocol="native"), must be used on both sides
 lightweight alternative to Etherbone designed for the point-to-point SerWB link:
 
 Requests (Slave -> Master side):
-- Word 0 (cmd)  : [0] op (0: write, 1: read), [7:4] byte enables (sel), [15:8] count - 1.
+- Word 0 (cmd)  : [0] op (0: write, 1: read), [7:4] byte enables (sel), [15:8] count - 1,
+                  [31:16] magic.
 - Word 1 (addr) : Word address of the first access (incrementing for next accesses).
 - Words 2..     : Write data (count words, write requests only).
 
 Read Responses (Master -> Slave side):
-- Word 0 (status) : [0] err (Wishbone error on one of the accesses).
+- Word 0 (status) : [0] err (Wishbone error on one of the accesses), [31:16] magic.
 - Words 1..       : Read data (count words).
 
 A single 32-bit write takes 5 words on the link (vs 7 with Etherbone) and a read round trip 8 words
 (vs 14). Writes are posted, and consecutive incrementing writes (same byte enables) are coalesced in
 a single request (up to `burst_depth` words). Requests/responses are fully buffered before being
 sent (no bubbles inside packets). Remote Wishbone errors are reported on reads.
+
+The magic identifies the protocol: requests with an invalid magic (for example Etherbone packets
+from a remote side built with protocol="etherbone") are dropped instead of being executed, and read
+responses with an invalid magic return an error on the bus.
 """
 
 from migen import *
@@ -37,6 +42,7 @@ from liteiclink.serwb.packet import packet_description
 
 # Constants ----------------------------------------------------------------------------------------
 
+MMAP_MAGIC    = 0x5357 # "SW" (Etherbone magic is 0x4e6f).
 MMAP_OP_WRITE = 0
 MMAP_OP_READ  = 1
 
@@ -138,6 +144,7 @@ class SERWBMMAPSlave(LiteXModule):
             source.data[0].eq(op),
             source.data[4:8].eq(sel),
             source.data[8:16].eq(count - 1),
+            source.data[16:32].eq(MMAP_MAGIC),
             If(source.ready,
                 NextState("SEND-ADDR")
             )
@@ -171,8 +178,8 @@ class SERWBMMAPSlave(LiteXModule):
         fsm.act("RECEIVE-STATUS",
             sink.ready.eq(1),
             If(sink.valid,
-                # Truncated response (no data): error.
-                NextValue(err, sink.data[0] | sink.last),
+                # Truncated response (no data) or invalid magic: error.
+                NextValue(err, sink.data[0] | sink.last | (sink.data[16:32] != MMAP_MAGIC)),
                 If(sink.last,
                     NextState("ACK")
                 ).Else(
@@ -201,13 +208,15 @@ class SERWBMMAPSlave(LiteXModule):
 class SERWBMMAPMaster(LiteXModule):
     """Wishbone Master (remote side): executes requests, sends read responses.
 
-    Read requests larger than ``burst_depth`` (read response buffer) are dropped.
+    Read requests larger than ``burst_depth`` (read response buffer) and requests with an invalid
+    magic are dropped (``drop`` pulse).
     """
     def __init__(self, burst_depth=4):
         assert 1 <= burst_depth <= 256
         self.bus    = bus    = wishbone.Interface(data_width=32, adr_width=30)
         self.sink   = sink   = stream.Endpoint(packet_description(32))
         self.source = source = stream.Endpoint(packet_description(32))
+        self.drop   = Signal()
 
         # # #
 
@@ -229,13 +238,20 @@ class SERWBMMAPMaster(LiteXModule):
         self.fsm = fsm = FSM(reset_state="RECEIVE-CMD")
         fsm.act("RECEIVE-CMD",
             sink.ready.eq(1),
-            If(sink.valid & ~sink.last,
-                NextValue(op,    sink.data[0]),
-                NextValue(sel,   sink.data[4:8]),
-                NextValue(count, sink.data[8:16] + 1),
-                NextValue(index, 0),
-                NextValue(err,   0),
-                NextState("RECEIVE-ADDR")
+            If(sink.valid,
+                If(sink.data[16:32] != MMAP_MAGIC,
+                    self.drop.eq(1),
+                    If(~sink.last,
+                        NextState("DRAIN") # Invalid magic (other protocol).
+                    )
+                ).Elif(~sink.last,
+                    NextValue(op,    sink.data[0]),
+                    NextValue(sel,   sink.data[4:8]),
+                    NextValue(count, sink.data[8:16] + 1),
+                    NextValue(index, 0),
+                    NextValue(err,   0),
+                    NextState("RECEIVE-ADDR")
+                )
             )
         )
         fsm.act("RECEIVE-ADDR",
@@ -304,7 +320,8 @@ class SERWBMMAPMaster(LiteXModule):
         ]
         fsm.act("SEND-STATUS",
             source.valid.eq(1),
-            source.data.eq(err),
+            source.data[0].eq(err),
+            source.data[16:32].eq(MMAP_MAGIC),
             If(source.ready,
                 NextState("SEND-DATA")
             )

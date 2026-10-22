@@ -99,8 +99,8 @@ MMAP protocol designed for the point-to-point link (`serwb/mmap.py`), used on bo
 
 | Packet          | Words                                                                  |
 |-----------------|------------------------------------------------------------------------|
-| Request         | cmd (`[0]` op write/read, `[7:4]` sel, `[15:8]` count-1), address, write data |
-| Read response   | status (`[0]` err), read data                                          |
+| Request         | cmd (`[0]` op write/read, `[7:4]` sel, `[15:8]` count-1, `[31:16]` magic), address, write data |
+| Read response   | status (`[0]` err, `[31:16]` magic), read data                         |
 
 - Writes are posted (acked once accepted), reads are blocking round trips.
 - Single write: 5 words (Etherbone: 7). Read round trip: 8 words (Etherbone: 14).
@@ -108,6 +108,8 @@ MMAP protocol designed for the point-to-point link (`serwb/mmap.py`), used on bo
   `burst_depth` words. A pending request is sent after `coalescing_timeout` idle cycles, when full,
   or before any other access (so ordering is kept).
 - Remote Wishbone errors are reported on reads (`err` on the SoC bus).
+- Protocol magic (`0x5357`) in requests/responses: when the two sides are built with different
+  protocols (native/Etherbone), requests are dropped instead of being executed on the remote bus.
 - Smaller: about −16% LUTs / −47% LUTRAM on the SoC side and −24% LUTs / −42% FFs on the remote
   side vs Etherbone (`bench/serwb/resources.py`).
 
