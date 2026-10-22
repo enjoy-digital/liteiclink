@@ -21,19 +21,19 @@ from liteiclink.serwb.packet import Packetizer, Depacketizer, CRCDepacketizer, p
 # DUT ----------------------------------------------------------------------------------------------
 
 class DUTPacket(LiteXModule):
-    def __init__(self, timeout=1e-3, with_crc=False, corrupt_word=None):
+    def __init__(self, timeout=1e-3, with_crc=False, corrupt_word=None, corrupt_mask=1):
         self.packetizer = Packetizer(with_crc=with_crc)
         if with_crc:
             self.depacketizer = CRCDepacketizer(clk_freq=int(1e6), timeout=timeout, max_words=16)
         else:
             self.depacketizer = Depacketizer(clk_freq=int(1e6), timeout=timeout)
         self.comb += self.packetizer.source.connect(self.depacketizer.sink)
-        # Optional corruption of the Nth word transmitted (bit 0 flipped).
+        # Optional corruption of the Nth word transmitted (corrupt_mask bits flipped).
         if corrupt_word is not None:
             count = Signal(16)
             self.sync += If(self.packetizer.source.valid & self.packetizer.source.ready, count.eq(count + 1))
             self.comb += If(count == corrupt_word,
-                self.depacketizer.sink.data.eq(self.packetizer.source.data ^ 1)
+                self.depacketizer.sink.data.eq(self.packetizer.source.data ^ corrupt_mask)
             )
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -133,6 +133,12 @@ class TestSERWBPacket(unittest.TestCase):
         # Packet 1 (words 7..13: preamble, header, 4 data, crc) has a corrupted data word.
         packets = [(1, [0x100 + i for i in range(4)]) for _ in range(3)]
         results, crc_errors = self.crc_loopback_test(packets, expected=2, corrupt_word=7 + 3)
+        self.assertEqual((results, crc_errors), ([packets[0], packets[2]], 1))
+
+    def test_crc_corrupted_crc_upper_bits_dropped(self):
+        # CRC16 is zero-extended: upper bits of the CRC word (word 13) must also be checked.
+        packets = [(1, [0x100 + i for i in range(4)]) for _ in range(3)]
+        results, crc_errors = self.crc_loopback_test(packets, expected=2, corrupt_word=7 + 6, corrupt_mask=1 << 31)
         self.assertEqual((results, crc_errors), ([packets[0], packets[2]], 1))
 
     def test_crc_oversized_packet_dropped(self):
