@@ -38,7 +38,7 @@ SerWB (see [doc/serwb.md](doc/serwb.md)):
   - Automatic sampling window adjustement at startup, PRBS link test.
   - Encapsulated Etherbone protocol with posted writes, or lighter native protocol with write coalescing.
   - Multi-port packet layer (SerIO for slow I/Os, user ports).
-  - Optional link level flow control (XON/XOFF) and per-packet CRC32.
+  - Optional link level flow control (XON/XOFF) and per-packet CRC16.
   - AXI-Lite/AXI SoCs supported through LiteX bridges.
 
 SerDes:

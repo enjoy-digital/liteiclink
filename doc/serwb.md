@@ -79,7 +79,7 @@ Packet layer (32-bit words):
 | 0    | Preamble `0x5aa55aa5`                              |
 | 1    | `[7:0]` port, `[23:8]` length (bytes)              |
 | 2..  | Payload (`length/4` words)                         |
-| last | CRC32 over header + payload (only with `with_crc=True`) |
+| last | CRC16 (zero-extended) over header + payload (only with `with_crc=True`) |
 
 Port 0 carries Etherbone (one record per packet, 32-bit address/data, no probing/address spaces).
 Other ports can be used by user endpoints (`core.add_downstream_endpoint`/`add_upstream_endpoint`),
@@ -88,8 +88,9 @@ registered on the receiving side are dropped. Incomplete packets are dropped aft
 `depacketizer_timeout` (default 1ms without incoming data).
 
 Without CRC, bit errors on the link corrupt accesses silently. `with_crc=True` (on both sides) adds a
-CRC32 word to each packet. The receiver stores each packet, checks it, and forwards it only when
-valid. A dropped write is lost and a dropped read times out on the SoC bus, but corrupted data never
+CRC-16 (CCITT) word, zero-extended to 32-bit, to each packet. SerWB packets are short (a few words),
+so CRC-16 detects all 1/2/3-bit errors and bursts up to 16-bit on them, at about half the logic of a
+CRC-32. The receiver stores each packet, checks it, and forwards it only when valid. A dropped write is lost and a dropped read times out on the SoC bus, but corrupted data never
 reaches the bus.
 
 With the default Etherbone protocol, a single 32-bit access costs 7 words on the link (2 packet + 2
@@ -127,7 +128,7 @@ both sides, and it doesn't depend on LiteEth:
 | `protocol`               | "etherbone" | `"etherbone"` or `"native"` (both sides).             |
 | `burst_depth`            | 4       | Native: max words per request (write coalescing, buffers).    |
 | `coalescing_timeout`     | 4       | Native: idle cycles before sending pending writes (0: none).  |
-| `with_crc`               | False   | Per-packet CRC32. Invalid packets are dropped (both sides).   |
+| `with_crc`               | False   | Per-packet CRC16. Invalid packets are dropped (both sides).   |
 | `crc_max_words`          | auto    | Largest payload accepted with CRC (default: Etherbone packet, min 16). |
 
 `SERWBPHY(..., with_flow_control=False)`: optional link level flow control. It must be enabled on
