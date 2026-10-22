@@ -41,12 +41,12 @@ SerWB (see [doc/serwb.md](doc/serwb.md)):
   - Optional link level flow control (XON/XOFF) and per-packet CRC32.
   - AXI-Lite/AXI SoCs supported through LiteX bridges.
 
-SerDes:
-  - Artix7 GTP support.
-  - Kintex7 GTX support.
-  - Ultrascale GTH support.
-  - Ultrascale+ GTY support.
-  - Lattice ECP5 support.
+SerDes (see [doc/serdes.md](doc/serdes.md)):
+  - Xilinx 7-Series GTP/GTX/GTH, UltraScale GTH, UltraScale+ GTH/GTY and Lattice ECP5 support.
+  - Automatic PLL configuration (CPLL/QPLL) from reference clock and linerate.
+  - Vendor reset/init sequences, TX/RX buffer bypass (fixed latency) or buffers.
+  - 8b10b encoding/decoding, 20/40-bit (80-bit on GTY) data widths.
+  - PRBS7/15/31 generator/checker, loopbacks, polarity and TX driver controls through CSRs.
 
 [> FPGA Proven
 ---------------
