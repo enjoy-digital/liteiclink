@@ -100,7 +100,8 @@ def prbs_test(csr_csv="csr.csv", port=1234,
     mode        = "prbs7",
     square_wave = False,
     loopback    = False,
-    duration    = 60
+    duration    = 60,
+    linerate    = 5e9,
 ):
     wb = RemoteClient(csr_csv=csr_csv, port=port)
     wb.open()
@@ -139,7 +140,7 @@ def prbs_test(csr_csv="csr.csv", port=1234,
             print("Errors: {:10d} / Duration: {:5.2f}s / BER: {:1.3e} ".format(
                 errors - errors_last,
                 duration_current,
-                errors_total/(duration_current*5e9)))
+                errors_total/(duration_current*linerate)))
             first       = False
             errors_last = errors
     except KeyboardInterrupt:
@@ -159,7 +160,8 @@ def main():
     parser.add_argument("--serdes",      default="0",         help="Serdes")
     parser.add_argument("--mode",        default="prbs7",     help="PRBS mode: prbs7 (default), prbs15 or prbs31")
     parser.add_argument("--square-wave", action="store_true", help="Generate Square-wave on TX")
-    parser.add_argument("--duration",    default="60",        help="Test duration (default=10)")
+    parser.add_argument("--duration",    default="60",        help="Test duration in seconds (default=60)")
+    parser.add_argument("--linerate",    default="5e9",       help="Linerate, for BER computation (default=5e9)")
     parser.add_argument("--loopback",    action="store_true", help="Enable internal loopback")
     args = parser.parse_args()
 
@@ -171,6 +173,7 @@ def main():
         square_wave = args.square_wave,
         loopback    = args.loopback,
         duration    = int(args.duration, 0),
+        linerate    = float(args.linerate),
     )
 
 if __name__ == "__main__":
