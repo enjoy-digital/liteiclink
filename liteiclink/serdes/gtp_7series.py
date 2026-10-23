@@ -1029,8 +1029,12 @@ class GTP(LiteXModule):
             self.rx_prbs.pause.eq(rx_prbs_pause),
             rx_prbs_errors.eq(self.rx_prbs.errors),
         ]
+        # Register the RX data before the 8b/10b decoders (timing: GTPE2 RXDATA clock-to-out + decoders
+        # logic in a single RX clock cycle missed timing at 250MHz).
+        rxdata_r = Signal(data_width)
+        self.sync.rx += rxdata_r.eq(rxdata)
         for i in range(nwords):
-            self.comb += self.decoders[i].input.eq(rxdata[10*i:10*(i+1)])
+            self.comb += self.decoders[i].input.eq(rxdata_r[10*i:10*(i+1)])
         self.sync.rx += self.rx_prbs.i.eq(rxdata)
 
         # Clock Aligner ----------------------------------------------------------------------------

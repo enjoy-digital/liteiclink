@@ -197,8 +197,18 @@ class GTPRXInit(LiteXModule):
 
         # # #
 
-        drpvalue = Signal(16)
-        drpmask  = Signal()
+        # RX PMA reset workaround (UG482): RX_DATA_WIDTH bit (DRP 0x011, bit 11) cleared during the RX
+        # PMA reset, then restored. The original value is only captured once: a restart (or watchdog
+        # reset) of the FSM between the modification and the restoration would otherwise capture and
+        # "restore" the modified value (RX left in 16-bit mode, RXOUTCLK at linerate/16).
+        drpvalue       = Signal(16)
+        drpvalue_valid = Signal()
+        drpcapture     = Signal()
+        drpmask        = Signal()
+        self.sync += If(drpcapture & ~drpvalue_valid,
+            drpvalue.eq(self.drp.do),
+            drpvalue_valid.eq(1),
+        )
         self.comb += [
             self.drp.clk.eq(ClockSignal()),
             self.drp.addr.eq(0x011),
@@ -264,7 +274,7 @@ class GTPRXInit(LiteXModule):
         fsm.act("DRP_READ_WAIT",
             gtrxreset.eq(1),
             If(self.drp.rdy,
-                NextValue(drpvalue, self.drp.do),
+                drpcapture.eq(1),
                 NextState("DRP_MOD_ISSUE")
             )
         )

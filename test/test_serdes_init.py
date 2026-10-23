@@ -212,5 +212,27 @@ class TestSerDesInit(unittest.TestCase):
         self.assertIsNotNone(results["done"])
         self.assertEqual(model.drp_writes, [0xffff & 0xf7ff, 0xffff])
 
+    def test_gtp_rx_drp_restart_before_restore(self):
+        # GTP RX init restarted between the DRP modification and the restoration (ex: restart during
+        # the PMA reset): the original DRP 0x011 value is restored by the next init (and not the
+        # modified one, captured again by the next init).
+        cls, kind, watchdog = INITS["gtp_rx"]
+        init    = cls(SYS_CLK_FREQ, buffer_enable=True)
+        model   = TransceiverModel(init, kind)
+        results = {}
+        def generator():
+            while len(model.drp_writes) < 1:
+                yield
+            yield init.restart.eq(1)
+            yield
+            yield init.restart.eq(0)
+            results["done"] = yield from wait_done(init, 4000)
+            for _ in range(8):
+                yield
+        run_simulation(init, [generator(), model.generator()])
+        self.assertIsNotNone(results["done"])
+        self.assertEqual(model.drp_writes[0], 0xffff & 0xf7ff)
+        self.assertEqual(model.drp_writes[-1], 0xffff)
+
 if __name__ == "__main__":
     unittest.main()
