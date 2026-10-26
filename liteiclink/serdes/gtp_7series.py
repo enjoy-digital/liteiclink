@@ -25,7 +25,7 @@ from liteiclink.serdes.clock_aligner    import BruteforceClockAligner
 # GTP Quad PLL -------------------------------------------------------------------------------------
 
 class GTPQuadPLL(LiteXModule):
-    def __init__(self, refclk, refclk_freq, linerate, channel=0, shared=False):
+    def __init__(self, refclk, refclk_freq, linerate, channel=0, shared=False, refclk_from_fabric=False):
         assert channel in [0, 1]
         self.channel = channel
         self.clk     = Signal()
@@ -42,7 +42,9 @@ class GTPQuadPLL(LiteXModule):
         if not shared:
             gtpe2_common_params = dict(
                 # Common.
-                i_GTREFCLK0    = refclk,
+                i_GTREFCLK0    = 0 if refclk_from_fabric else refclk,
+                i_GTGREFCLK0   = refclk if (refclk_from_fabric and channel == 0) else 0,
+                i_GTGREFCLK1   = refclk if (refclk_from_fabric and channel == 1) else 0,
                 i_BGBYPASSB    = 1,
                 i_BGMONITORENB = 1,
                 i_BGPDB        = 1,
@@ -66,7 +68,7 @@ class GTPQuadPLL(LiteXModule):
                     p_PLL0_REFCLK_DIV = config["m"],
                     i_PLL0LOCKEN      = 1,
                     i_PLL0PD          = 0,
-                    i_PLL0REFCLKSEL   = 0b001,
+                    i_PLL0REFCLKSEL   = 0b111 if refclk_from_fabric else 0b001,
                     i_PLL0RESET       = self.reset,
                     o_PLL0LOCK        = self.lock,
                     o_PLL0OUTCLK      = self.clk,
@@ -86,7 +88,7 @@ class GTPQuadPLL(LiteXModule):
                     p_PLL1_REFCLK_DIV = config["m"],
                     i_PLL1LOCKEN      = 1,
                     i_PLL1PD          = 0,
-                    i_PLL1REFCLKSEL   = 0b001,
+                    i_PLL1REFCLKSEL   = 0b111 if refclk_from_fabric else 0b001,
                     i_PLL1RESET       = self.reset,
                     o_PLL1LOCK        = self.lock,
                     o_PLL1OUTCLK      = self.clk,
