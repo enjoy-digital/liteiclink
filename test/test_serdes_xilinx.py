@@ -90,6 +90,12 @@ def _parameter(instance, name):
 def _inputs(instance):
     return [item.expr for item in instance.items if isinstance(item, Instance.Input)]
 
+def _input(instance, name):
+    for item in instance.items:
+        if isinstance(item, Instance.Input) and item.name == name:
+            return item.expr
+    raise KeyError(name)
+
 # Test Xilinx Transceivers -------------------------------------------------------------------------
 
 class TestSerDesXilinx(unittest.TestCase):
@@ -169,6 +175,21 @@ class TestSerDesXilinx(unittest.TestCase):
                         data_width=data_width)
                     for buf in ["BUFR", "PLLE2_ADV"]:
                         self.assertEqual(len(_instances(fragment, buf)), int(buf == primitive))
+
+    def test_gtp_refclk_from_fabric(self):
+        # Reference clock from the fabric: GTGREFCLK0/1 (PLL0/1REFCLKSEL=0b111) instead of GTREFCLK0.
+        for channel in [0, 1]:
+            for refclk_from_fabric in [False, True]:
+                with self.subTest(channel=channel, refclk_from_fabric=refclk_from_fabric):
+                    refclk   = Signal()
+                    pll      = GTPQuadPLL(refclk, 100e6, 5e9, channel=channel, refclk_from_fabric=refclk_from_fabric)
+                    common,  = _instances(pll.get_fragment(), "GTPE2_COMMON")
+                    gtrefclk  = _input(common, "GTREFCLK0")
+                    gtgrefclk = _input(common, f"GTGREFCLK{channel}")
+                    refclksel = _input(common, f"PLL{channel}REFCLKSEL")
+                    self.assertIs(gtgrefclk if refclk_from_fabric else gtrefclk, refclk)
+                    self.assertEqual((gtrefclk if refclk_from_fabric else gtgrefclk).value, 0)
+                    self.assertEqual(refclksel.value, 0b111 if refclk_from_fabric else 0b001)
 
     def test_ultrascale_unaligned_tx_clock_rejected(self):
         # UltraScale(+): TX user clock (without TX buffer) must be an integer division of the

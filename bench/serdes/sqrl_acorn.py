@@ -75,11 +75,11 @@ class GTPTestSoC(SoCMini):
         # GTP RefClk -------------------------------------------------------------------------------
         self.cd_refclk = ClockDomain()
         self.crg.pll.create_clkout(self.cd_refclk, 125e6)
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
-
 
         # GTP PLL ----------------------------------------------------------------------------------
-        self.pll = pll = GTPQuadPLL(self.cd_refclk.clk, 125e6, linerate)
+        # Reference clock from the fabric: GTGREFCLK (clock network), not GTREFCLK (interconnect).
+        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+        self.pll = pll = GTPQuadPLL(self.cd_refclk.clk, 125e6, linerate, refclk_from_fabric=True)
         print(pll)
 
         # GTP --------------------------------------------------------------------------------------
