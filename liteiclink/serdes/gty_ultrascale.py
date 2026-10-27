@@ -377,6 +377,9 @@ class GTY(LiteXModule):
         self.tx_produce_pattern     = Signal()
         self.tx_pattern             = Signal(data_width)
         self.tx_prbs_config         = Signal(2)
+        self.tx_raw_enable          = Signal()           # Transmit tx_raw (raw symbols, no 8b/10b).
+        self.tx_raw                 = Signal(data_width) # i (tx clock domain).
+        self.tx_rate                = Signal(3)          # TXRATE (000: TXOUT_DIV, 001: /1, 010: /2...).
 
         # RX controls.
         self.rx_enable      = Signal(reset=1)
@@ -385,6 +388,8 @@ class GTY(LiteXModule):
         self.rx_prbs_config = Signal(2)
         self.rx_prbs_pause  = Signal()
         self.rx_prbs_errors = Signal(32)
+        self.rx_raw         = Signal(data_width) # o: raw RX symbols (rx clock domain, no 8b/10b).
+        self.rx_rate        = Signal(3)          # RXRATE (000: RXOUT_DIV, 001: /1, 010: /2...).
 
         # DRP.
         self.drp = DRPInterface()
@@ -416,6 +421,9 @@ class GTY(LiteXModule):
         tx_produce_pattern     = Signal()
         tx_pattern             = Signal(data_width)
         tx_prbs_config         = Signal(2)
+        tx_raw_enable          = Signal()
+        tx_rate                = Signal(3)
+        rx_rate                = Signal(3)
 
         rx_prbs_config = Signal(2)
         rx_prbs_pause  = Signal()
@@ -427,12 +435,15 @@ class GTY(LiteXModule):
             MultiReg(self.tx_produce_pattern,     tx_produce_pattern,     "tx"),
             MultiReg(self.tx_pattern,             tx_pattern,             "tx"),
             MultiReg(self.tx_prbs_config,         tx_prbs_config,         "tx"),
+            MultiReg(self.tx_raw_enable,          tx_raw_enable,          "tx"),
+            MultiReg(self.tx_rate,                tx_rate,                "tx"),
         ]
 
         # RX Sync.
         self.specials += [
             MultiReg(self.rx_prbs_config, rx_prbs_config,      "rx"),
             MultiReg(self.rx_prbs_pause,  rx_prbs_pause,       "rx"),
+            MultiReg(self.rx_rate,        rx_rate,             "rx"),
             MultiReg(rx_prbs_errors,      self.rx_prbs_errors, "sys"),
         ]
 
@@ -1026,7 +1037,7 @@ class GTY(LiteXModule):
             i_TX8B10BEN       = 0,
 
             # TX clock.
-            i_TXRATE          = 0b000,
+            i_TXRATE          = tx_rate,
             o_TXOUTCLK        = self.txoutclk,
             i_TXSYSCLKSEL     = 0b00 if use_cpll else 0b10 if use_qpll0 else 0b11,
             i_TXPLLCLKSEL     = 0b00 if use_cpll else 0b11 if use_qpll0 else 0b10,
@@ -1109,7 +1120,7 @@ class GTY(LiteXModule):
             i_RXLPMEN         = 1,
 
             # RX clock.
-            i_RXRATE          = 0b000,
+            i_RXRATE          = rx_rate,
             i_RXSYSCLKSEL     = 0b00 if use_cpll else 0b10 if use_qpll0 else 0b11,
             i_RXOUTCLKSEL     = 0b010,
             i_RXPLLCLKSEL     = 0b00 if use_cpll else 0b11 if use_qpll0 else 0b10,
@@ -1203,6 +1214,8 @@ class GTY(LiteXModule):
                 txdata.eq(Signal(data_width, reset=(1<<(data_width//2))-1))
             ).Elif(tx_produce_pattern,
                 txdata.eq(tx_pattern)
+            ).Elif(tx_raw_enable,
+                txdata.eq(self.tx_raw)
             ).Else(
                 txdata.eq(self.tx_prbs.o)
             )
@@ -1217,6 +1230,7 @@ class GTY(LiteXModule):
         ]
         for i in range(nwords):
             self.comb += self.decoders[i].input.eq(rxdata[10*i:10*(i+1)])
+        self.comb += self.rx_raw.eq(rxdata)
         self.sync.rx += self.rx_prbs.i.eq(rxdata)
 
         # Clock Aligner ----------------------------------------------------------------------------

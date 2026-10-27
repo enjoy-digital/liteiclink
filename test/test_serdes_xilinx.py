@@ -191,6 +191,18 @@ class TestSerDesXilinx(unittest.TestCase):
                     self.assertEqual((gtrefclk if refclk_from_fabric else gtgrefclk).value, 0)
                     self.assertEqual(refclksel.value, 0b111 if refclk_from_fabric else 0b001)
 
+    def test_gty_raw_and_rate(self):
+        # Raw RX symbols output, raw TX symbols input (tx_raw_enable) and TXRATE/RXRATE controls.
+        top, fragment, csrs, verilog = self.elaborate("gty", "qpll", 156.25e6, 10e9, data_width=40,
+            tx_buffer_enable=True, rx_buffer_enable=True)
+        serdes  = top.serdes
+        channel, = _instances(fragment, "GTYE4_CHANNEL")
+        self.assertEqual(len(serdes.rx_raw), 40)
+        self.assertEqual(len(serdes.tx_raw), 40)
+        for name in ["TXRATE", "RXRATE"]:
+            self.assertIsInstance(_input(channel, name), Signal)
+        self.assertIn("tx_raw_enable", verilog)
+
     def test_ultrascale_unaligned_tx_clock_rejected(self):
         # UltraScale(+): TX user clock (without TX buffer) must be an integer division of the
         # reference clock (BUFG_GT divider).
