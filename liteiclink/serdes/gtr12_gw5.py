@@ -28,6 +28,27 @@ from litex.soc.interconnect     import stream
 
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
+# GTR12 8b/10b Decoder ----------------------------------------------------------------------------
+
+class GTR12Decoder(LiteXModule):
+    """8b/10b decoder (Decoder interface: input, d, k, invalid, 1 cycle of latency) with distributed
+    ROMs and registered outputs: no block RAM (slow clock-to-output) on the RX words path."""
+    def __init__(self, lsb_first=True):
+        self.input   = Signal(10)
+        self.d       = Signal(8)
+        self.k       = Signal()
+        self.invalid = Signal()
+
+        # # #
+
+        self.decoder = decoder = Decoder(lsb_first, sync=False)
+        self.comb += decoder.input.eq(self.input)
+        self.sync += [
+            self.d.eq(decoder.d),
+            self.k.eq(decoder.k),
+            self.invalid.eq(decoder.invalid),
+        ]
+
 # GTR12 Quad Helpers -------------------------------------------------------------------------------
 
 def gtr12_quad_params(position="Q1"):
@@ -204,7 +225,7 @@ class GTR12(LiteXModule):
 
         # 8b/10b -----------------------------------------------------------------------------------
         self.encoder  = ClockDomainsRenamer("tx")(Encoder(nwords, True))
-        self.decoders = [ClockDomainsRenamer("rx")(Decoder(True)) for _ in range(nwords)]
+        self.decoders = [ClockDomainsRenamer("rx")(GTR12Decoder(True)) for _ in range(nwords)]
         self.submodules += self.decoders
 
         # Init / Resets ----------------------------------------------------------------------------

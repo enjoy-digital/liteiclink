@@ -7,6 +7,7 @@
 import unittest
 
 from migen import *
+from migen.sim import run_simulation
 
 from litex.gen.fhdl.verilog import convert
 
@@ -71,6 +72,27 @@ class TestGTR12(unittest.TestCase):
         params = gtr12.gtr12_params
         self.assertIs(params["i_AHB_RSTN"],    gtr12.upar.ahb_rstn)
         self.assertIs(params["i_TEST_DEC_EN"], gtr12.upar.test_dec_en)
+
+    def test_decoder(self):
+        # GTR12Decoder == Decoder(sync=True): same outputs and latency on all the 10-bit codes.
+        from litex.soc.cores.code_8b10b import Decoder
+        from liteiclink.serdes.gtr12_gw5 import GTR12Decoder
+        class DUT(Module):
+            def __init__(self):
+                self.submodules.ref = Decoder(True)
+                self.submodules.dut = GTR12Decoder(True)
+        dut  = DUT()
+        outs = {"ref": [], "dut": []}
+        def generator(dut):
+            for code in range(1024):
+                yield dut.ref.input.eq(code)
+                yield dut.dut.input.eq(code)
+                yield
+                for name in outs:
+                    d = getattr(dut, name)
+                    outs[name].append(((yield d.d), (yield d.k), (yield d.invalid)))
+        run_simulation(dut, generator(dut))
+        self.assertEqual(outs["dut"], outs["ref"])
 
     def test_verilog(self):
         platform, gtr12 = self.gtr12()
