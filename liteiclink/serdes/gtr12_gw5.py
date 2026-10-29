@@ -132,34 +132,51 @@ def gtr12_add_csr_config(platform, filename, csr_config):
 
 class GTR12UPAR(LiteXModule):
     """GTR12 registers runtime access (UPAR/DRP, Gowin IPUG1024 Dynamic Reconfiguration): one access
-    at a time, addr/wrdata/we/re with done/rddata (upar clock domain = clk)."""
+    at a time, addr/wrdata/we/re with done/rddata (upar clock domain = clk). The user requests (ex:
+    rate change sequencer) have priority over the CSR requests (add_csr), held until served."""
     def __init__(self, inet_upar_q, clk, rst=0, position="Q1"):
         self.test_dec_en = Signal() # o: To the quad TEST_DEC_EN (same net required).
         self.ahb_rstn    = Signal() # o: To the quad AHB_RSTN (same net required).
         self.addr   = Signal(24) # i
         self.wrdata = Signal(32) # i
-        self.we     = Signal()   # i: Write request (pulse, when ready).
-        self.re     = Signal()   # i: Read request (pulse, when ready).
+        self.we     = Signal()   # i: Write request (when ready, addr/wrdata taken with it).
+        self.re     = Signal()   # i: Read request (when ready, addr taken with it).
         self.ready  = Signal()   # o: Idle.
-        self.done   = Signal()   # o: Access done (pulse).
+        self.done   = Signal()   # o: Access done (pulse, user requests).
         self.rddata = Signal(32) # o
+        self.abort  = Signal()   # i: Abort the access in progress.
 
         # # #
 
-        wren   = Signal()
-        rden   = Signal()
-        rdvld  = Signal()
+        # CSR requests (add_csr), served when no user request.
+        self.csr_addr   = Signal(24)
+        self.csr_wrdata = Signal(32)
+        self.csr_we     = Signal()
+        self.csr_re     = Signal()
+        self.csr_done   = Signal()
+
+        wren       = Signal()
+        rden       = Signal()
+        rdvld      = Signal()
         upar_ready = Signal()
+        self.upar_ready_s = upar_ready
+        self.upar_rdvld_s = rdvld
         rddata = Signal(32)
+        addr   = Signal(24)
+        wrdata = Signal(32)
+        is_csr = Signal()
         self.specials += Instance("GTR12_UPAR",
             i_UPAR_CLK        = clk,
             i_UPAR_RST        = rst,
             i_UPAR_WREN_S     = wren,
-            i_UPAR_ADDR_S     = self.addr,
-            i_UPAR_WRDATA_S   = self.wrdata,
+            i_UPAR_ADDR_S     = addr,
+            i_UPAR_WRDATA_S   = wrdata,
             i_UPAR_RDEN_S     = rden,
             i_UPAR_STRB_S     = Constant(0xff, 8),
             i_UPAR_BUS_WIDTH_S = 0,
+            # Registers access through UPAR (CSR_MODE as in the Gowin SerDes IP generated wrappers,
+            # else the accesses do not complete).
+            i_CSR_MODE        = 0b10100,
             o_UPAR_RDDATA_S   = rddata,
             o_UPAR_RDVLD_S    = rdvld,
             o_UPAR_READY_S    = upar_ready,
@@ -169,19 +186,34 @@ class GTR12UPAR(LiteXModule):
             io_INET_UPAR_Q0   = inet_upar_q if position == "Q0" else Signal(421),
         )
         # Write: wren held until ready. Read: rden held until rdvld.
+        done = Signal()
+        self.comb += [
+            self.done.eq(done & ~is_csr),
+            self.csr_done.eq(done & is_csr),
+        ]
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             self.ready.eq(1),
-            If(self.we, NextState("WRITE")).Elif(self.re, NextState("READ"))
+            If(self.we | self.re,
+                NextValue(addr,   self.addr),
+                NextValue(wrdata, self.wrdata),
+                NextValue(is_csr, 0),
+                If(self.we, NextState("WRITE")).Else(NextState("READ"))
+            ).Elif(self.csr_we | self.csr_re,
+                NextValue(addr,   self.csr_addr),
+                NextValue(wrdata, self.csr_wrdata),
+                NextValue(is_csr, 1),
+                If(self.csr_we, NextState("WRITE")).Else(NextState("READ"))
+            )
         )
         fsm.act("WRITE",
             wren.eq(1),
-            If(upar_ready, self.done.eq(1), NextState("IDLE"))
+            If(upar_ready | self.abort, done.eq(1), NextState("IDLE"))
         )
         fsm.act("READ",
             rden.eq(1),
-            If(rdvld,
-                self.done.eq(1),
+            If(rdvld | self.abort,
+                done.eq(1),
                 NextValue(self.rddata, rddata),
                 NextState("IDLE")
             )
@@ -192,14 +224,39 @@ class GTR12UPAR(LiteXModule):
         self._addr   = CSRStorage(24, description="Register address.")
         self._wrdata = CSRStorage(32, description="Register write data.")
         self._ctrl   = CSR(2)
-        self._status = CSRStatus(fields=[CSRField("ready", size=1)])
+        self._status = CSRStatus(fields=[
+            CSRField("ready",      size=1, description="No CSR access pending/in progress."),
+            CSRField("upar_ready", size=1, description="UPAR_READY_S."),
+            CSRField("upar_rdvld", size=1, description="UPAR_RDVLD_S."),
+        ])
+        self._cfg    = CSRStorage(fields=[
+            CSRField("abort", size=1, description="Abort the access in progress (FSM back to idle)."),
+        ])
         self._rddata = CSRStatus(32, description="Register read data.")
+        pending_we = Signal()
+        pending_re = Signal()
+        busy       = Signal()
+        self.sync += [
+            If(self._ctrl.re,
+                pending_we.eq(self._ctrl.r[0]),
+                pending_re.eq(self._ctrl.r[1]),
+                busy.eq(self._ctrl.r != 0),
+            ).Elif(self._cfg.fields.abort | (self.ready & ~(self.we | self.re)),
+                # Granted (no user request) or aborted.
+                pending_we.eq(0),
+                pending_re.eq(0),
+            ),
+            If(self.csr_done | self._cfg.fields.abort, busy.eq(0)),
+        ]
         self.comb += [
-            self.addr.eq(self._addr.storage),
-            self.wrdata.eq(self._wrdata.storage),
-            self.we.eq(self._ctrl.re & self._ctrl.r[0]),
-            self.re.eq(self._ctrl.re & self._ctrl.r[1]),
-            self._status.fields.ready.eq(self.ready),
+            self.csr_addr.eq(self._addr.storage),
+            self.csr_wrdata.eq(self._wrdata.storage),
+            self.csr_we.eq(pending_we),
+            self.csr_re.eq(pending_re),
+            self._status.fields.ready.eq(~busy),
+            self._status.fields.upar_ready.eq(self.upar_ready_s),
+            self._status.fields.upar_rdvld.eq(self.upar_rdvld_s),
+            self.abort.eq(self._cfg.fields.abort),
             self._rddata.status.eq(self.rddata),
         ]
 
@@ -213,12 +270,17 @@ class GTR12(LiteXModule):
     comma alignment (when configured). Lane status (pll_lock, cdr_lock, aligned, rx_elecidle,
     astat, stat) for the users/bring-up.
     """
-    def __init__(self, platform, line_rate, csr_config, data_width=40, position="Q1", lane=0, pll="QPLL1",
+    def __init__(self, platform, line_rate, csr_config, data_width=40, raw_width=None, position="Q1", lane=0, pll="QPLL1",
         tx_polarity=0, rx_polarity=0, csr_name="gtr12.csr", with_upar=True, upar_clk=None):
         assert data_width in [20, 40, 80]
         assert pll in ["QPLL0", "QPLL1", "CPLL"] # PLL used by the configuration (lock status).
+        # raw_width: width of the raw TX/RX words (tx_raw/rx_raw, >= data_width), ex: 80-bit raw words
+        # (10Gbps, 1:4 gear) with 40-bit 8b/10b words (5Gbps, 1:2 gear, on the LSBs) on the same lane.
+        raw_width = data_width if raw_width is None else raw_width
+        assert raw_width in [20, 40, 80] and raw_width >= data_width
         self.nwords     = nwords = data_width//10
         self.data_width = data_width
+        self.raw_width  = raw_width
         self.line_rate  = line_rate
 
         self.tx_enable          = Signal(reset=1) # i
@@ -226,12 +288,12 @@ class GTR12(LiteXModule):
         self.tx_produce_pattern = Signal()        # i
         self.tx_pattern         = Signal(data_width)
         self.tx_raw_enable      = Signal()        # i: Transmit tx_raw (8b/10b bypassed).
-        self.tx_raw             = Signal(data_width)
+        self.tx_raw             = Signal(raw_width)
 
         self.rx_enable = Signal(reset=1) # i
         self.rx_ready  = Signal()        # o
         self.rx_align  = Signal(reset=1) # i
-        self.rx_raw    = Signal(data_width) # o: Raw RX words (rx clock domain).
+        self.rx_raw    = Signal(raw_width) # o: Raw RX words (rx clock domain).
         self.rx_valid  = Signal()        # o: RX words valid (rx clock domain).
 
         # Lane status (raw, quad clock domains).
@@ -300,7 +362,7 @@ class GTR12(LiteXModule):
             MultiReg(self.tx_produce_pattern, tx_produce_pattern_tx, "tx"),
             MultiReg(self.tx_pattern,         tx_pattern_tx,         "tx"),
         ]
-        txdata = Signal(data_width)
+        txdata = Signal(raw_width)
         self.sync.tx += [
             If(self.tx_raw_enable,
                 txdata.eq(self.tx_raw)
@@ -310,8 +372,8 @@ class GTR12(LiteXModule):
                 txdata.eq(Cat(*[self.encoder.output[i] for i in range(nwords)]))
             )
         ]
-        txdata_pol = Signal(data_width)
-        self.comb += txdata_pol.eq(txdata ^ Replicate(tx_polarity_tx, data_width))
+        txdata_pol = Signal(raw_width)
+        self.comb += txdata_pol.eq(txdata ^ Replicate(tx_polarity_tx, raw_width))
 
         # RX Data ----------------------------------------------------------------------------------
         rx_polarity_rx = Signal()
@@ -319,10 +381,10 @@ class GTR12(LiteXModule):
         rxdata     = Signal(88)
         rx_valid   = Signal()
         rx_empty   = Signal()
-        rxdata_r   = Signal(data_width)
+        rxdata_r   = Signal(raw_width)
         self.sync.rx += [
             self.rx_valid.eq(rx_valid),
-            rxdata_r.eq(rxdata[:data_width] ^ Replicate(rx_polarity_rx, data_width)),
+            rxdata_r.eq(rxdata[:raw_width] ^ Replicate(rx_polarity_rx, raw_width)),
         ]
         self.comb += self.rx_raw.eq(rxdata_r)
         for i in range(nwords):
@@ -340,7 +402,7 @@ class GTR12(LiteXModule):
             f"i_LANE{n}_PCS_RX_RST"          : pcs_rx_rst,
             f"i_LANE{n}_FABRIC_TX_CLK"       : tx_clk,
             f"i_LANE{n}_FABRIC_RX_CLK"       : rx_clk,
-            f"i_FABRIC_LN{n}_TXDATA_I"       : Cat(txdata_pol, Constant(0, 80 - data_width)),
+            f"i_FABRIC_LN{n}_TXDATA_I"       : Cat(txdata_pol, Constant(0, 80 - raw_width)) if raw_width < 80 else txdata_pol,
             f"i_FABRIC_LN{n}_TX_VLD_IN"      : 1,
             f"i_LANE{n}_RX_IF_FIFO_RDEN"     : ~rx_empty,
             f"i_LANE{n}_ALIGN_TRIGGER"       : rx_align,
