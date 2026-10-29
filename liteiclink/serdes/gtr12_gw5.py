@@ -270,12 +270,17 @@ class GTR12(LiteXModule):
     comma alignment (when configured). Lane status (pll_lock, cdr_lock, aligned, rx_elecidle,
     astat, stat) for the users/bring-up.
     """
-    def __init__(self, platform, line_rate, csr_config, data_width=40, position="Q1", lane=0, pll="QPLL1",
+    def __init__(self, platform, line_rate, csr_config, data_width=40, raw_width=None, position="Q1", lane=0, pll="QPLL1",
         tx_polarity=0, rx_polarity=0, csr_name="gtr12.csr", with_upar=True, upar_clk=None):
         assert data_width in [20, 40, 80]
         assert pll in ["QPLL0", "QPLL1", "CPLL"] # PLL used by the configuration (lock status).
+        # raw_width: width of the raw TX/RX words (tx_raw/rx_raw, >= data_width), ex: 80-bit raw words
+        # (10Gbps, 1:4 gear) with 40-bit 8b/10b words (5Gbps, 1:2 gear, on the LSBs) on the same lane.
+        raw_width = data_width if raw_width is None else raw_width
+        assert raw_width in [20, 40, 80] and raw_width >= data_width
         self.nwords     = nwords = data_width//10
         self.data_width = data_width
+        self.raw_width  = raw_width
         self.line_rate  = line_rate
 
         self.tx_enable          = Signal(reset=1) # i
@@ -283,12 +288,12 @@ class GTR12(LiteXModule):
         self.tx_produce_pattern = Signal()        # i
         self.tx_pattern         = Signal(data_width)
         self.tx_raw_enable      = Signal()        # i: Transmit tx_raw (8b/10b bypassed).
-        self.tx_raw             = Signal(data_width)
+        self.tx_raw             = Signal(raw_width)
 
         self.rx_enable = Signal(reset=1) # i
         self.rx_ready  = Signal()        # o
         self.rx_align  = Signal(reset=1) # i
-        self.rx_raw    = Signal(data_width) # o: Raw RX words (rx clock domain).
+        self.rx_raw    = Signal(raw_width) # o: Raw RX words (rx clock domain).
         self.rx_valid  = Signal()        # o: RX words valid (rx clock domain).
 
         # Lane status (raw, quad clock domains).
@@ -357,7 +362,7 @@ class GTR12(LiteXModule):
             MultiReg(self.tx_produce_pattern, tx_produce_pattern_tx, "tx"),
             MultiReg(self.tx_pattern,         tx_pattern_tx,         "tx"),
         ]
-        txdata = Signal(data_width)
+        txdata = Signal(raw_width)
         self.sync.tx += [
             If(self.tx_raw_enable,
                 txdata.eq(self.tx_raw)
@@ -367,8 +372,8 @@ class GTR12(LiteXModule):
                 txdata.eq(Cat(*[self.encoder.output[i] for i in range(nwords)]))
             )
         ]
-        txdata_pol = Signal(data_width)
-        self.comb += txdata_pol.eq(txdata ^ Replicate(tx_polarity_tx, data_width))
+        txdata_pol = Signal(raw_width)
+        self.comb += txdata_pol.eq(txdata ^ Replicate(tx_polarity_tx, raw_width))
 
         # RX Data ----------------------------------------------------------------------------------
         rx_polarity_rx = Signal()
@@ -376,10 +381,10 @@ class GTR12(LiteXModule):
         rxdata     = Signal(88)
         rx_valid   = Signal()
         rx_empty   = Signal()
-        rxdata_r   = Signal(data_width)
+        rxdata_r   = Signal(raw_width)
         self.sync.rx += [
             self.rx_valid.eq(rx_valid),
-            rxdata_r.eq(rxdata[:data_width] ^ Replicate(rx_polarity_rx, data_width)),
+            rxdata_r.eq(rxdata[:raw_width] ^ Replicate(rx_polarity_rx, raw_width)),
         ]
         self.comb += self.rx_raw.eq(rxdata_r)
         for i in range(nwords):
@@ -397,7 +402,7 @@ class GTR12(LiteXModule):
             f"i_LANE{n}_PCS_RX_RST"          : pcs_rx_rst,
             f"i_LANE{n}_FABRIC_TX_CLK"       : tx_clk,
             f"i_LANE{n}_FABRIC_RX_CLK"       : rx_clk,
-            f"i_FABRIC_LN{n}_TXDATA_I"       : Cat(txdata_pol, Constant(0, 80 - data_width)),
+            f"i_FABRIC_LN{n}_TXDATA_I"       : Cat(txdata_pol, Constant(0, 80 - raw_width)) if raw_width < 80 else txdata_pol,
             f"i_FABRIC_LN{n}_TX_VLD_IN"      : 1,
             f"i_LANE{n}_RX_IF_FIFO_RDEN"     : ~rx_empty,
             f"i_LANE{n}_ALIGN_TRIGGER"       : rx_align,
