@@ -21,13 +21,14 @@ class Toolchain:
         self.additional_tcl_commands = []
 
 class Platform:
-    def __init__(self):
-        self.toolchain = Toolchain()
+    def __init__(self, devicename="GW5AST-138C"):
+        self.toolchain  = Toolchain()
+        self.devicename = devicename
 
 
 class TestGTR12(unittest.TestCase):
-    def gtr12(self, **kwargs):
-        platform = Platform()
+    def gtr12(self, devicename="GW5AST-138C", **kwargs):
+        platform = Platform(devicename)
         kwargs.setdefault("line_rate",  5e9)
         kwargs.setdefault("csr_config", "upar_write_driver(0x000000,0x00000000)\n")
         return platform, GTR12(platform, **kwargs)
@@ -105,6 +106,27 @@ class TestGTR12(unittest.TestCase):
             special_overrides={**gowin_special_overrides, **gw5a_special_overrides}))
         self.assertIn("GTR12_QUAD", v)
         self.assertIn("GTR12_UPAR", v)
+
+    def test_primitives(self):
+        from liteiclink.serdes.gtr12_gw5 import gtr12_primitives
+        self.assertEqual(gtr12_primitives("GW5AST-138C"), ("GTR12_QUAD",  "GTR12_UPAR"))
+        self.assertEqual(gtr12_primitives("GW5AT-138B"),  ("GTR12_QUAD",  "GTR12_UPAR"))
+        self.assertEqual(gtr12_primitives("GW5AT-15B"),   ("GTR12_QUADB", "GTR12_UPARA"))
+        with self.assertRaises(ValueError):
+            gtr12_primitives("GW5A-25A")
+
+    def test_verilog_gw5at15(self):
+        # GW5AT-15: GTR12_QUADB (no POSITION, no INET buses) and GTR12_UPARA.
+        platform, gtr12 = self.gtr12(devicename="GW5AT-15B", position="Q0")
+        gtr12.add_stream_endpoints()
+        top = Module()
+        top.clock_domains.cd_sys = ClockDomain()
+        top.submodules.gtr12 = gtr12
+        v = str(convert(top, ios={top.cd_sys.clk, top.cd_sys.rst, gtr12.sink.valid, gtr12.source.valid},
+            special_overrides={**gowin_special_overrides, **gw5a_special_overrides}))
+        self.assertIn("GTR12_QUADB", v)
+        self.assertIn("GTR12_UPARA", v)
+        self.assertNotIn("INET_UPAR", v)
 
 
 if __name__ == "__main__":

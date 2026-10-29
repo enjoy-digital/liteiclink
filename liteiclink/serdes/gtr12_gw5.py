@@ -4,7 +4,10 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Gowin GW5AST GTR12 transceiver (raw PCS, fabric 8b/10b), LiteICLink transceiver interface.
+"""Gowin GW5AST/GW5AT GTR12 transceiver (raw PCS, fabric 8b/10b), LiteICLink transceiver interface.
+
+Devices: GW5AST-138/GW5AT-138 (GTR12_QUAD/GTR12_UPAR, Q0/Q1 quads), GW5AT-15 (GTR12_QUADB/GTR12_UPARA,
+single Q0 quad, the UPAR is connected to the quad by the toolchain).
 
 The GTR12 quad is configured by register writes generated from a TOML description with Gowin's
 serdes_toml_to_csr tool (Gowin Customized PHY IP, IPUG1024): line rate, PLL/CDR, PMA width and
@@ -16,6 +19,8 @@ Fabric side: data_width-bit raw words (8b/10b symbols, 10 bits each, first symbo
 the TX/RX PCS fabric clocks (line rate/data_width), 8b/10b encoding/decoding and polarity inversion
 in the fabric.
 """
+
+import re
 
 from migen import *
 from migen.genlib.cdc       import MultiReg
@@ -87,14 +92,33 @@ class GTR12Decoder(LiteXModule):
 
 # GTR12 Quad Helpers -------------------------------------------------------------------------------
 
-def gtr12_quad_params(position="Q1"):
-    """GTR12_QUAD parameters with all lanes and fabric controls tied off (the register
-    configuration selects their internal controls), the caller overrides the lane it uses."""
-    params = dict(p_POSITION=position)
+def gtr12_primitives(devicename):
+    """GTR12 quad/UPAR primitives of a device: GTR12_QUAD/GTR12_UPAR (GW5AST/GW5AT-138), GTR12_QUADB/
+    GTR12_UPARA (GW5AT-15)."""
+    if re.search(r"-15[A-Z]*$", devicename):
+        return "GTR12_QUADB", "GTR12_UPARA"
+    if re.search(r"-138[A-Z]*$", devicename):
+        return "GTR12_QUAD", "GTR12_UPAR"
+    raise ValueError(f"GTR12: unsupported device {devicename}.")
+
+def gtr12_quad_params(position="Q1", quad="GTR12_QUAD"):
+    """GTR12 quad parameters with all lanes and fabric controls tied off (the register configuration
+    selects their internal controls), the caller overrides the lane it uses."""
+    assert quad in ["GTR12_QUAD", "GTR12_QUADB"]
+    params = dict(p_POSITION=position) if quad == "GTR12_QUAD" else dict()
+    if quad == "GTR12_QUAD":
+        for name, width in [
+            ("FABRIC_CLK_LIFE_DIV_I", 2), ("FABRIC_CM0_RXCLK_OE_L_I", 1), ("FABRIC_CM0_RXCLK_OE_R_I", 1),
+            ("FABRIC_REFCLK_OE_L_I", 1), ("FABRIC_REFCLK_OE_R_I", 1), ("FABRIC_REFCLK_OUTPUT_SEL_I", 5)]:
+            params[f"i_{name}"] = Constant(0, width)
+    else:
+        for name, width in [
+            ("CLK_VIQ_I", 2), ("FABRIC_CM2_PD_REFCLK_DET_I", 1), ("FABRIC_CM3_PD_REFCLK_DET_I", 1)]:
+            params[f"i_{name}"] = Constant(0, width)
+        for n in range(4):
+            params[f"i_FABRIC_LN{n}_TX_DISPARITY_I"] = Constant(0, 8)
     for name, width in [
-        ("FABRIC_CLK_LIFE_DIV_I", 2), ("FABRIC_CM0_RXCLK_OE_L_I", 1), ("FABRIC_CM0_RXCLK_OE_R_I", 1),
         ("FABRIC_PMA_PD_REFHCLK_I", 1), ("FABRIC_REFCLK1_INPUT_SEL_I", 3), ("FABRIC_REFCLK_INPUT_SEL_I", 3),
-        ("FABRIC_REFCLK_OE_L_I", 1), ("FABRIC_REFCLK_OE_R_I", 1), ("FABRIC_REFCLK_OUTPUT_SEL_I", 5),
         ("REFCLKM0_I", 1), ("REFCLKM1_I", 1), ("REFCLKP0_I", 1), ("REFCLKP1_I", 1),
         ("FABRIC_BURN_IN_I", 1), ("FABRIC_CK_SOC_DIV_I", 2), ("FABRIC_CLK_REF_CORE_I", 1),
         ("FABRIC_CMU1_REFCLK_GATE_I", 1), ("FABRIC_CMU_REFCLK_GATE_I", 1), ("FABRIC_GLUE_MAC_INIT_INFO_I", 1),
@@ -105,6 +129,8 @@ def gtr12_quad_params(position="Q1"):
         ("CK_AHB_I", 1), ("AHB_RSTN", 1), ("TEST_DEC_EN", 1), ("QUAD_PCIE_CLK", 1),
         ("PCIE_DIV2_REG", 1), ("PCIE_DIV4_REG", 1), ("PMAC_LN_RSTN", 1)]:
         params[f"i_{name}"] = Constant(0, width)
+    if quad == "GTR12_QUADB":
+        params["i_FABRIC_CLK_REF_CORE_I"] = Constant(0, 4) # 4-bit on GTR12_QUADB.
     for n in range(4):
         for name, width in [
             ("LN{n}_RXM_I", 1), ("LN{n}_RXP_I", 1), ("FABRIC_LN{n}_CTRL_I", 43), ("FABRIC_LN{n}_IDDQ_I", 1),
@@ -133,8 +159,9 @@ def gtr12_add_csr_config(platform, filename, csr_config):
 class GTR12UPAR(LiteXModule):
     """GTR12 registers runtime access (UPAR/DRP, Gowin IPUG1024 Dynamic Reconfiguration): one access
     at a time, addr/wrdata/we/re with done/rddata (upar clock domain = clk). The user requests (ex:
-    rate change sequencer) have priority over the CSR requests (add_csr), held until served."""
-    def __init__(self, inet_upar_q, clk, rst=0, position="Q1"):
+    rate change sequencer) have priority over the CSR requests (add_csr), held until served.
+    upar: GTR12_UPAR (INET buses to the quad) or GTR12_UPARA (GW5AT-15: connected by the toolchain)."""
+    def __init__(self, inet_upar_q, clk, rst=0, position="Q1", upar="GTR12_UPAR"):
         self.test_dec_en = Signal() # o: To the quad TEST_DEC_EN (same net required).
         self.ahb_rstn    = Signal() # o: To the quad AHB_RSTN (same net required).
         self.addr   = Signal(24) # i
@@ -165,7 +192,12 @@ class GTR12UPAR(LiteXModule):
         addr   = Signal(24)
         wrdata = Signal(32)
         is_csr = Signal()
-        self.specials += Instance("GTR12_UPAR",
+        # GTR12_UPARA (GW5AT-15): no INET buses, connected to the quad by the toolchain.
+        inet_params = {} if upar != "GTR12_UPAR" else dict(
+            io_INET_UPAR_Q1 = inet_upar_q if position == "Q1" else Signal(421),
+            io_INET_UPAR_Q0 = inet_upar_q if position == "Q0" else Signal(421),
+        )
+        self.specials += Instance(upar,
             i_UPAR_CLK        = clk,
             i_UPAR_RST        = rst,
             i_UPAR_WREN_S     = wren,
@@ -182,8 +214,7 @@ class GTR12UPAR(LiteXModule):
             o_UPAR_READY_S    = upar_ready,
             o_QUAD_CFG_TEST_DEC_EN = self.test_dec_en,
             o_AHB_RSTN_O      = self.ahb_rstn,
-            io_INET_UPAR_Q1   = inet_upar_q if position == "Q1" else Signal(421),
-            io_INET_UPAR_Q0   = inet_upar_q if position == "Q0" else Signal(421),
+            **inet_params
         )
         # Write: wren held until ready. Read: rden held until rdvld.
         done = Signal()
@@ -395,7 +426,10 @@ class GTR12(LiteXModule):
         rx_align = Signal()
         self.specials += MultiReg(self.rx_align, rx_align, "rx")
         n = lane
-        self.gtr12_params = params = gtr12_quad_params(position)
+        self.quad, upar = gtr12_primitives(getattr(platform, "devicename", "GW5AST-138"))
+        if self.quad == "GTR12_QUADB":
+            assert position == "Q0" # Single quad.
+        self.gtr12_params = params = gtr12_quad_params(position, quad=self.quad)
         params.update({
             f"i_FABRIC_LN{n}_RSTN_I"         : lane_rstn,
             f"i_LANE{n}_PCS_TX_RST"          : pcs_tx_rst,
@@ -422,21 +456,22 @@ class GTR12(LiteXModule):
             f"o_FABRIC_LN{n}_STAT_O"         : self.stat,
             "o_FABRIC_PMA_CM0_DR_REFCLK_DET_O" : self.refclk_det[0],
             "o_FABRIC_PMA_CM1_DR_REFCLK_DET_O" : self.refclk_det[1],
-            "io_INET_Q_UPAR"                 : inet_upar_q,
         })
+        if self.quad == "GTR12_QUAD":
+            params["io_INET_Q_UPAR"] = inet_upar_q
         gtr12_add_csr_config(platform, csr_name, csr_config)
 
         # UPAR -------------------------------------------------------------------------------------
         if with_upar:
             upar_clk = ClockSignal("sys") if upar_clk is None else upar_clk
-            self.upar = GTR12UPAR(inet_upar_q, clk=upar_clk, position=position)
+            self.upar = GTR12UPAR(inet_upar_q, clk=upar_clk, position=position, upar=upar)
             # The quad AHB clock/reset and test decoder enable come from the UPAR (same nets).
             params["i_CK_AHB_I"]  = upar_clk
             params["i_AHB_RSTN"]  = self.upar.ahb_rstn
             params["i_TEST_DEC_EN"] = self.upar.test_dec_en
 
     def do_finalize(self):
-        self.specials += Instance("GTR12_QUAD", **self.gtr12_params)
+        self.specials += Instance(self.quad, **self.gtr12_params)
 
     def add_stream_endpoints(self):
         self.sink   = sink   = stream.Endpoint([("data", self.nwords*8), ("ctrl", self.nwords)])
