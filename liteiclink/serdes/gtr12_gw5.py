@@ -31,22 +31,58 @@ from litex.soc.cores.code_8b10b import Encoder, Decoder
 # GTR12 8b/10b Decoder ----------------------------------------------------------------------------
 
 class GTR12Decoder(LiteXModule):
-    """8b/10b decoder (Decoder interface: input, d, k, invalid, 1 cycle of latency) with distributed
-    ROMs and registered outputs: no block RAM (slow clock-to-output) on the RX words path."""
+    """8b/10b decoder (Decoder interface: input, d, k, invalid, 1 cycle of latency) with the lookups
+    in logic and registered outputs: no block ROM (slow clock-to-output; GowinSynthesis infers block
+    ROMs from the registered lookups and can merge them with other lookups on the same address into
+    wrong contents: syn_romstyle "logic")."""
     def __init__(self, lsb_first=True):
         self.input   = Signal(10)
-        self.d       = Signal(8)
-        self.k       = Signal()
+        self.d       = Signal(8, attr={("syn_romstyle", "logic")})
+        self.k       = Signal(attr={("syn_romstyle", "logic")})
         self.invalid = Signal()
 
         # # #
 
-        self.decoder = decoder = Decoder(lsb_first, sync=False)
-        self.comb += decoder.input.eq(self.input)
+        from litex.soc.cores.code_8b10b import table_6b5b, table_4b3b, table_4b3b_kn, table_4b3b_kp
+
+        input_msb_first = Signal(10)
+        if lsb_first:
+            self.comb += [input_msb_first[i].eq(self.input[9-i]) for i in range(10)]
+        else:
+            self.comb += input_msb_first.eq(self.input)
+        code6b = input_msb_first[4:]
+        code4b = input_msb_first[:4]
+        code5b = Signal(5)
+        code3b = Signal(3)
+        k      = Signal()
+        self.comb += [
+            Case(code6b, {i: code5b.eq(v) for i, v in enumerate(table_6b5b)}),
+            k.eq(0),
+            If(code6b == 0b001111,
+                k.eq(1),
+                Case(code4b, {i: code3b.eq(v) for i, v in enumerate(table_4b3b_kn)}),
+            ).Elif(code6b == 0b110000,
+                k.eq(1),
+                Case(code4b, {i: code3b.eq(v) for i, v in enumerate(table_4b3b_kp)}),
+            ).Else(
+                If((code4b == 0b0111) | (code4b == 0b1000), # D.x.A7/K.x.7
+                    If((code6b != 0b100011) &
+                       (code6b != 0b010011) &
+                       (code6b != 0b001011) &
+                       (code6b != 0b110100) &
+                       (code6b != 0b101100) &
+                       (code6b != 0b011100), k.eq(1))
+                ),
+                Case(code4b, {i: code3b.eq(v) for i, v in enumerate(table_4b3b)}),
+            ),
+        ]
+        # Basic invalid symbols detection (as Decoder): 4, 5 or 6 ones in the symbol.
+        ones = Signal(4)
+        self.comb += ones.eq(Reduce("ADD", [self.input[i] for i in range(10)]))
         self.sync += [
-            self.d.eq(decoder.d),
-            self.k.eq(decoder.k),
-            self.invalid.eq(decoder.invalid),
+            self.d.eq(Cat(code5b, code3b)),
+            self.k.eq(k),
+            self.invalid.eq((ones != 4) & (ones != 5) & (ones != 6)),
         ]
 
 # GTR12 Quad Helpers -------------------------------------------------------------------------------
