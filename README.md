@@ -42,7 +42,7 @@ SerWB (see [doc/serwb.md](doc/serwb.md)):
   - AXI-Lite/AXI SoCs supported through LiteX bridges.
 
 SerDes (see [doc/serdes.md](doc/serdes.md)):
-  - Xilinx 7-Series GTP/GTX/GTH, UltraScale GTH, UltraScale+ GTH/GTY, Lattice ECP5 and Gowin GW5AST GTR12 support.
+  - Xilinx 7-Series GTP/GTX/GTH, UltraScale GTH, UltraScale+ GTH/GTY, Lattice ECP5 and Gowin GW5AST/GW5AT GTR12 support.
   - Automatic PLL configuration (CPLL/QPLL) from reference clock and linerate.
   - Vendor reset/init sequences, TX/RX buffer bypass (fixed latency) or buffers.
   - 8b10b encoding/decoding, 20/40-bit (80-bit on GTY) data widths.
