@@ -96,6 +96,12 @@ def _input(instance, name):
             return item.expr
     raise KeyError(name)
 
+def _output(instance, name):
+    for item in instance.items:
+        if isinstance(item, Instance.Output) and item.name == name:
+            return item.expr
+    raise KeyError(name)
+
 # Test Xilinx Transceivers -------------------------------------------------------------------------
 
 class TestSerDesXilinx(unittest.TestCase):
@@ -202,6 +208,105 @@ class TestSerDesXilinx(unittest.TestCase):
         for name in ["TXRATE", "RXRATE"]:
             self.assertIsInstance(_input(channel, name), Signal)
         self.assertIn("tx_raw_enable", verilog)
+
+    def test_gtp_pcie_options(self):
+        # GTP options/ports for protocols with Electrical Idle, rate changes and PIPE-style drivers
+        # (PCIe): comma alignment on any byte, RXCDR_CFG override, PIPE TX drive mode, PCS PCIe
+        # mode, Electrical Idle detection with a fabric clock, raw symbols, TX/RX rates, receiver
+        # detection, power-down and status ports.
+        oob_clk   = Signal()
+        rxcdr_cfg = 0x000107FE406001041010
+        top, fragment, csrs, verilog = self.elaborate("gtp", "qpll", 100e6, 2.5e9,
+            data_width         = 40,
+            tx_buffer_enable   = True,
+            rx_buffer_enable   = True,
+            clock_aligner      = False,
+            align_comma_word   = 1,
+            rxcdr_cfg          = rxcdr_cfg,
+            tx_drive_mode      = "PIPE",
+            pcs_pcie_en        = True,
+            rx_elecidle_detect = True,
+            rx_elecidle_clk    = oob_clk,
+        )
+        serdes   = top.serdes
+        channel, = _instances(fragment, "GTPE2_CHANNEL")
+        self.assertEqual(_parameter(channel, "ALIGN_COMMA_WORD"), 1)
+        self.assertEqual(_parameter(channel, "RXCDR_CFG"),        rxcdr_cfg)
+        self.assertEqual(_parameter(channel, "TX_DRIVE_MODE"),    "PIPE")
+        self.assertEqual(_parameter(channel, "TX_DEEMPH0"),       0b10100)
+        self.assertEqual(_parameter(channel, "TX_DEEMPH1"),       0b01011)
+        self.assertEqual(_parameter(channel, "PCS_PCIE_EN"),      "TRUE")
+        self.assertEqual(_parameter(channel, "PCS_RSVD_ATTR"),    0x100)
+        self.assertEqual(_parameter(channel, "RXOOB_CLK_CFG"),    "FABRIC")
+        self.assertIs(_input(channel, "SIGVALIDCLK"), oob_clk)
+        self.assertEqual(_input(channel, "RXELECIDLEMODE").value, 0b00)
+        for name, signal in [
+            ("TXRATE",      None),
+            ("RXRATE",      None),
+            ("TXELECIDLE",  serdes.tx_elecidle),
+            ("TXDETECTRX",  serdes.tx_detect_rx),
+            ("TXPD",        serdes.tx_pd),
+            ("TXDEEMPH",    serdes.tx_deemph),
+            ("TXMARGIN",    serdes.tx_margin),
+            ("TXSWING",     serdes.tx_swing),
+            ("TXDIFFCTRL",  serdes.tx_diffctrl),
+            ("TXPOSTCURSOR",serdes.tx_postcursor),
+            ("TXPRECURSOR", serdes.tx_precursor),
+            ("RXCDRHOLD",   serdes.rx_cdr_hold),
+        ]:
+            self.assertIsInstance(_input(channel, name), Signal)
+            if signal is not None:
+                self.assertIs(_input(channel, name), signal)
+        for name, signal in [
+            ("RXELECIDLE",      serdes.rx_elecidle),
+            ("PHYSTATUS",       serdes.phy_status),
+            ("RXSTATUS",        serdes.rx_status),
+            ("RXVALID",         serdes.rx_valid),
+            ("RXBYTEISALIGNED", serdes.rx_byte_is_aligned),
+            ("RXBUFSTATUS",     serdes.rx_buf_status),
+            ("TXRATEDONE",      serdes.tx_rate_done),
+            ("RXRATEDONE",      serdes.rx_rate_done),
+        ]:
+            self.assertIs(_output(channel, name), signal)
+        self.assertEqual(len(serdes.rx_raw), 40)
+        self.assertEqual(len(serdes.tx_raw), 40)
+        self.assertIn("tx_raw_enable", verilog)
+
+    def test_gtp_pcie_options_defaults(self):
+        # Without the options, the GTPE2_CHANNEL configuration is unchanged.
+        top, fragment, csrs, verilog = self.elaborate("gtp", "qpll", 125e6, 2.5e9)
+        channel, = _instances(fragment, "GTPE2_CHANNEL")
+        self.assertEqual(_parameter(channel, "ALIGN_COMMA_WORD"), 2)
+        self.assertEqual(_parameter(channel, "TX_DRIVE_MODE"),    "DIRECT")
+        self.assertEqual(_parameter(channel, "TX_DEEMPH0"),       0)
+        self.assertEqual(_parameter(channel, "PCS_PCIE_EN"),      "FALSE")
+        self.assertEqual(_parameter(channel, "PCS_RSVD_ATTR"),    0)
+        self.assertEqual(_parameter(channel, "RXOOB_CLK_CFG"),    "PMA")
+        self.assertEqual(_input(channel, "SIGVALIDCLK").value,     0)
+        self.assertEqual(_input(channel, "RXELECIDLEMODE").value,  0b11)
+        self.assertEqual(_input(channel, "TXOUTCLKSEL").value,     0b011)
+        # Reset values of the new control signals keep the previous constants.
+        serdes = top.serdes
+        self.assertEqual(serdes.tx_diffctrl.reset.value, 0b1000)
+        for signal in [serdes.tx_elecidle, serdes.tx_detect_rx, serdes.tx_pd, serdes.tx_deemph,
+                       serdes.tx_margin, serdes.tx_swing, serdes.tx_postcursor, serdes.tx_precursor,
+                       serdes.tx_rate, serdes.rx_rate, serdes.rx_cdr_hold]:
+            self.assertEqual(signal.reset.value, 0)
+
+    def test_gtp_txoutclk_sel(self):
+        # TXOUTCLK source override (ex: reference clock to a fabric MMCM), only with an external
+        # tx_clk since TXOUTCLK then no longer drives the tx clock domain.
+        top, fragment, csrs, verilog = self.elaborate("gtp", "qpll", 100e6, 2.5e9,
+            external_clks    = True,
+            tx_buffer_enable = True,
+            rx_buffer_enable = True,
+            txoutclk_sel     = "refclk",
+        )
+        channel, = _instances(fragment, "GTPE2_CHANNEL")
+        self.assertEqual(_input(channel, "TXOUTCLKSEL").value, 0b011)
+        with self.assertRaises(AssertionError):
+            self.elaborate("gtp", "qpll", 100e6, 2.5e9, tx_buffer_enable=True, rx_buffer_enable=True,
+                txoutclk_sel="refclk")
 
     def test_ultrascale_unaligned_tx_clock_rejected(self):
         # UltraScale(+): TX user clock (without TX buffer) must be an integer division of the

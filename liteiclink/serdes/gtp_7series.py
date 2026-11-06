@@ -166,8 +166,19 @@ class GTP(LiteXModule):
         clock_aligner       = True,
         clock_aligner_comma = 0b0101111100,
         tx_polarity         = 0,
-        rx_polarity         = 0):
-        assert data_width in [20, 40]
+        rx_polarity         = 0,
+        align_comma_word    = None,     # Comma alignment positions: None (2/4 bytes with data_width 20/40) or 1 (any byte).
+        rxcdr_cfg           = None,     # RXCDR_CFG override (ex: protocol/SSC specific settings).
+        tx_drive_mode       = "DIRECT", # TX driver mode: "DIRECT" or "PIPE" (tx_deemph/tx_margin/tx_swing, PCIe).
+        pcs_pcie_en         = False,    # PCS PCIe mode (PCS_PCIE_EN): rx_status/phy_status/rx_valid semantics, receiver detection.
+        rx_elecidle_detect  = False,    # RX Electrical Idle detection (rx_elecidle output).
+        rx_elecidle_clk     = None,     # Fabric clock for the Electrical Idle detection (None: PMA clock).
+        txoutclk_sel        = None):    # TXOUTCLK source override: None (buffer: PMA, bypass: refclk), "pma", "refclk" or "pcs".
+        assert data_width    in [20, 40]
+        assert tx_drive_mode in ["DIRECT", "PIPE"]
+        assert txoutclk_sel  in [None, "pma", "refclk", "pcs"]
+        if (txoutclk_sel is not None) and (tx_clk is None):
+            raise AssertionError("txoutclk_sel requires an external tx_clk (TXOUTCLK no longer drives the tx clock domain).")
 
         # TX controls.
         self.tx_enable              = Signal(reset=1)
@@ -177,14 +188,39 @@ class GTP(LiteXModule):
         self.tx_produce_pattern     = Signal()
         self.tx_pattern             = Signal(data_width)
         self.tx_prbs_config         = Signal(2)
+        self.tx_raw_enable          = Signal()                # Transmit tx_raw (raw symbols, no 8b/10b).
+        self.tx_raw                 = Signal(data_width)      # i (tx clock domain).
+        self.tx_rate                = Signal(3)               # TXRATE (000: TXOUT_DIV, 001: /1, 010: /2...).
+        self.tx_rate_done           = Signal()                # o (tx clock domain): TXRATEDONE.
+        self.tx_elecidle            = Signal()                # i (tx clock domain): TX Electrical Idle.
+        self.tx_detect_rx           = Signal()                # i (tx clock domain): receiver detection (TXDETECTRX, PCS PCIe mode).
+        self.tx_pd                  = Signal(2)               # i (tx clock domain): TX power-down (00: P0, 01: P0s, 10: P1, 11: P2).
+        self.tx_deemph              = Signal()                # i: PIPE mode de-emphasis (0: TX_DEEMPH0, 1: TX_DEEMPH1).
+        self.tx_margin              = Signal(3)               # i: PIPE mode voltage margin (TX_MARGIN_FULL/LOW_n).
+        self.tx_swing               = Signal()                # i: PIPE mode voltage swing (0: full, 1: low).
+        self.tx_diffctrl            = Signal(4, reset=0b1000) # i: TX driver swing (see UG482).
+        self.tx_postcursor          = Signal(5)               # i: TX post-cursor pre-emphasis.
+        self.tx_postcursor_inv      = Signal()                # i: TX post-cursor polarity.
+        self.tx_precursor           = Signal(5)               # i: TX pre-cursor pre-emphasis.
+        self.tx_precursor_inv       = Signal()                # i: TX pre-cursor polarity.
 
         # RX controls.
-        self.rx_enable      = Signal(reset=1)
-        self.rx_ready       = Signal()
-        self.rx_align       = Signal(reset=1)
-        self.rx_prbs_config = Signal(2)
-        self.rx_prbs_pause  = Signal()
-        self.rx_prbs_errors = Signal(32)
+        self.rx_enable          = Signal(reset=1)
+        self.rx_ready           = Signal()
+        self.rx_align           = Signal(reset=1)
+        self.rx_prbs_config     = Signal(2)
+        self.rx_prbs_pause      = Signal()
+        self.rx_prbs_errors     = Signal(32)
+        self.rx_raw             = Signal(data_width) # o: raw RX symbols (rx clock domain, no 8b/10b).
+        self.rx_rate            = Signal(3)          # RXRATE (000: RXOUT_DIV, 001: /1, 010: /2...).
+        self.rx_rate_done       = Signal()           # o (rx clock domain): RXRATEDONE.
+        self.rx_elecidle        = Signal()           # o (asynchronous): RX Electrical Idle (rx_elecidle_detect).
+        self.rx_cdr_hold        = Signal()           # i (rx clock domain): hold the CDR (ex: during Electrical Idle).
+        self.rx_byte_is_aligned = Signal()           # o (rx clock domain): comma alignment achieved.
+        self.rx_buf_status      = Signal(3)          # o (rx clock domain): RXBUFSTATUS.
+        self.rx_valid           = Signal()           # o (rx clock domain): RXVALID (PCS PCIe mode).
+        self.rx_status          = Signal(3)          # o (rx clock domain): RXSTATUS (PCS PCIe mode).
+        self.phy_status         = Signal()           # o (tx clock domain): PHYSTATUS (PCS PCIe mode).
 
         # DRP.
         self.drp = DRPInterface()
@@ -212,6 +248,9 @@ class GTP(LiteXModule):
         tx_produce_pattern     = Signal()
         tx_pattern             = Signal(data_width)
         tx_prbs_config         = Signal(2)
+        tx_raw_enable          = Signal()
+        tx_rate                = Signal(3)
+        rx_rate                = Signal(3)
 
         rx_prbs_config = Signal(2)
         rx_prbs_pause  = Signal()
@@ -223,12 +262,15 @@ class GTP(LiteXModule):
             MultiReg(self.tx_produce_pattern,     tx_produce_pattern,     "tx"),
             MultiReg(self.tx_pattern,             tx_pattern,             "tx"),
             MultiReg(self.tx_prbs_config,         tx_prbs_config,         "tx"),
+            MultiReg(self.tx_raw_enable,          tx_raw_enable,          "tx"),
+            MultiReg(self.tx_rate,                tx_rate,                "tx"),
         ]
 
         # RX Sync.
         self.specials += [
             MultiReg(self.rx_prbs_config, rx_prbs_config,      "rx"),
             MultiReg(self.rx_prbs_pause,  rx_prbs_pause,       "rx"),
+            MultiReg(self.rx_rate,        rx_rate,             "rx"),
             MultiReg(rx_prbs_errors,      self.rx_prbs_errors, "sys"),
         ]
 
@@ -285,7 +327,7 @@ class GTP(LiteXModule):
             # RX Byte and Word Alignment Attributes.
             p_ALIGN_COMMA_DOUBLE         = "FALSE",
             p_ALIGN_COMMA_ENABLE         = 0b1111111111,
-            p_ALIGN_COMMA_WORD           = 2 if data_width == 20 else 4,
+            p_ALIGN_COMMA_WORD           = (2 if data_width == 20 else 4) if align_comma_word is None else align_comma_word,
             p_ALIGN_MCOMMA_DET           = "TRUE",
             p_ALIGN_MCOMMA_VALUE         = 0b1010000011,
             p_ALIGN_PCOMMA_DET           = "TRUE",
@@ -376,10 +418,10 @@ class GTP(LiteXModule):
             p_UCODEER_CLR                = 0b0,
 
             # PCI Express Attributes.
-            p_PCS_PCIE_EN                = "FALSE",
+            p_PCS_PCIE_EN                = "TRUE" if pcs_pcie_en else "FALSE",
 
             # PCS Attributes.
-            p_PCS_RSVD_ATTR              = 0x000000000000,
+            p_PCS_RSVD_ATTR              = 0x000000000100 if rx_elecidle_detect else 0x000000000000, # [8]: OOB/Electrical Idle detection power-up.
 
             # RX Buffer Attributes.
             p_RXBUF_ADDR_MODE            = "FAST",
@@ -406,7 +448,7 @@ class GTP(LiteXModule):
             p_RX_DEFER_RESET_BUF_EN      = "TRUE",
 
             # CDR Attributes.
-            p_RXCDR_CFG                  = rxcdr_cfgs[qpll.config["d"]],
+            p_RXCDR_CFG                  = rxcdr_cfgs[qpll.config["d"]] if rxcdr_cfg is None else rxcdr_cfg,
             p_RXCDR_FR_RESET_ON_EIDLE    = 0b0,
             p_RXCDR_HOLD_DURING_EIDLE    = 0b0,
             p_RXCDR_PH_RESET_ON_EIDLE    = 0b0,
@@ -465,22 +507,24 @@ class GTP(LiteXModule):
             p_TX_DATA_WIDTH              = data_width,
 
             # TX Configurable Driver Attributes.
-            p_TX_DEEMPH0                 = 0b000000,
-            p_TX_DEEMPH1                 = 0b000000,
+            # PIPE mode: TX_DEEMPH0/1 are the TXDEEMPH=0/1 de-emphasis (6.0/3.5 dB, PCIe) and
+            # TX_MARGIN_FULL/LOW_n the TXMARGIN voltage levels (1000 to 400 mV / 500 to 250 mV).
+            p_TX_DEEMPH0                 = 0b10100 if tx_drive_mode == "PIPE" else 0b000000,
+            p_TX_DEEMPH1                 = 0b01011 if tx_drive_mode == "PIPE" else 0b000000,
             p_TX_EIDLE_ASSERT_DELAY      = 0b110,
             p_TX_EIDLE_DEASSERT_DELAY    = 0b100,
             p_TX_LOOPBACK_DRIVE_HIZ      = "FALSE",
             p_TX_MAINCURSOR_SEL          = 0b0,
-            p_TX_DRIVE_MODE              = "DIRECT",
-            p_TX_MARGIN_FULL_0           = 0b1001110,
-            p_TX_MARGIN_FULL_1           = 0b1001001,
-            p_TX_MARGIN_FULL_2           = 0b1000101,
-            p_TX_MARGIN_FULL_3           = 0b1000010,
-            p_TX_MARGIN_FULL_4           = 0b1000000,
-            p_TX_MARGIN_LOW_0            = 0b1000110,
-            p_TX_MARGIN_LOW_1            = 0b1000100,
-            p_TX_MARGIN_LOW_2            = 0b1000010,
-            p_TX_MARGIN_LOW_3            = 0b1000000,
+            p_TX_DRIVE_MODE              = tx_drive_mode,
+            p_TX_MARGIN_FULL_0           = 0b1001111 if tx_drive_mode == "PIPE" else 0b1001110,
+            p_TX_MARGIN_FULL_1           = 0b1001110 if tx_drive_mode == "PIPE" else 0b1001001,
+            p_TX_MARGIN_FULL_2           = 0b1001101 if tx_drive_mode == "PIPE" else 0b1000101,
+            p_TX_MARGIN_FULL_3           = 0b1001100 if tx_drive_mode == "PIPE" else 0b1000010,
+            p_TX_MARGIN_FULL_4           = 0b1000011 if tx_drive_mode == "PIPE" else 0b1000000,
+            p_TX_MARGIN_LOW_0            = 0b1000101 if tx_drive_mode == "PIPE" else 0b1000110,
+            p_TX_MARGIN_LOW_1            = 0b1000110 if tx_drive_mode == "PIPE" else 0b1000100,
+            p_TX_MARGIN_LOW_2            = 0b1000011 if tx_drive_mode == "PIPE" else 0b1000010,
+            p_TX_MARGIN_LOW_3            = 0b1000010 if tx_drive_mode == "PIPE" else 0b1000000,
             p_TX_MARGIN_LOW_4            = 0b1000000,
 
             # TX Gearbox Attributes.
@@ -571,7 +615,7 @@ class GTP(LiteXModule):
             p_PMA_LOOPBACK_CFG           = 0b0,
 
             # RX OOB Signalling Attributes.
-            p_RXOOB_CLK_CFG              = "PMA",
+            p_RXOOB_CLK_CFG              = "PMA" if rx_elecidle_clk is None else "FABRIC",
 
             # TX OOB Signalling Attributes.
             p_TXOOB_CFG                  = 0b0,
@@ -617,9 +661,9 @@ class GTP(LiteXModule):
             i_LOOPBACK             = self.loopback,
 
             # PCI Express Ports.
-            o_PHYSTATUS            = Open(),
-            i_RXRATE               = 0,
-            o_RXVALID              = Open(),
+            o_PHYSTATUS            = self.phy_status,
+            i_RXRATE               = rx_rate,
+            o_RXVALID              = self.rx_valid,
 
             # PMA Reserved Ports.
             i_PMARSVDIN3           = 0b0,
@@ -627,7 +671,7 @@ class GTP(LiteXModule):
 
             # Power-Down Ports.
             i_RXPD                 = Cat(rx_init.gtrxpd, rx_init.gtrxpd),
-            i_TXPD                 = 0b00,
+            i_TXPD                 = self.tx_pd,
 
             # RX 8B/10B Decoder Ports.
             i_SETERRSTATUS         = 0,
@@ -647,11 +691,11 @@ class GTP(LiteXModule):
             i_DMONFIFORESET        = 0,
             i_DMONITORCLK          = 0,
             o_RXPMARESETDONE       = rx_init.rxpmaresetdone,
-            i_SIGVALIDCLK          = 0,
+            i_SIGVALIDCLK          = 0 if rx_elecidle_clk is None else rx_elecidle_clk,
 
             # Receive Ports - CDR Ports.
             i_RXCDRFREQRESET       = 0,
-            i_RXCDRHOLD            = 0,
+            i_RXCDRHOLD            = self.rx_cdr_hold,
             o_RXCDRLOCK            = Open(),
             i_RXCDROVRDEN          = 0,
             i_RXCDRRESET           = 0,
@@ -700,7 +744,7 @@ class GTP(LiteXModule):
 
             # Receive Ports - RX Buffer Bypass Ports.
             i_RXBUFRESET           = 0,
-            o_RXBUFSTATUS          = Open(),
+            o_RXBUFSTATUS          = self.rx_buf_status,
             i_RXDDIEN              = 0 if rx_buffer_enable else 1,
             i_RXDLYBYPASS          = 1 if rx_buffer_enable else 0,
             i_RXDLYEN              = 0,
@@ -715,7 +759,7 @@ class GTP(LiteXModule):
             o_RXPHMONITOR          = Open(),
             i_RXPHOVRDEN           = 0,
             o_RXPHSLIPMONITOR      = Open(),
-            o_RXSTATUS             = Open(),
+            o_RXSTATUS             = self.rx_status,
             i_RXSYNCALLIN          = rxphaligndone,
             o_RXSYNCDONE           = rx_init.rxsyncdone,
             i_RXSYNCIN             = 0,
@@ -723,7 +767,7 @@ class GTP(LiteXModule):
             o_RXSYNCOUT            = Open(),
 
             # Receive Ports - RX Byte and Word Alignment Ports.
-            o_RXBYTEISALIGNED      = Open(),
+            o_RXBYTEISALIGNED      = self.rx_byte_is_aligned,
             o_RXBYTEREALIGN        = Open(),
             o_RXCOMMADET           = Open(),
             i_RXCOMMADETEN         = 1,
@@ -765,7 +809,7 @@ class GTP(LiteXModule):
             i_RXOSOVRDEN           = 0,
 
             # Receive Ports - RX Fabric ClocK Output Control Ports.
-            o_RXRATEDONE           = Open(),
+            o_RXRATEDONE           = self.rx_rate_done,
 
             # Receive Ports - RX Fabric Clock Output Control Ports.
             i_RXRATEMODE           = 0b0,
@@ -794,8 +838,8 @@ class GTP(LiteXModule):
             o_RXCOMSASDET          = Open(),
             o_RXCOMWAKEDET         = Open(),
             o_RXCOMINITDET         = Open(),
-            o_RXELECIDLE           = Open(),
-            i_RXELECIDLEMODE       = 0b11,
+            o_RXELECIDLE           = self.rx_elecidle,
+            i_RXELECIDLEMODE       = 0b00 if rx_elecidle_detect else 0b11,
 
             # Receive Ports - RX Polarity Control Ports.
             i_RXPOLARITY           = rx_polarity,
@@ -807,10 +851,10 @@ class GTP(LiteXModule):
             i_TXPHDLYTSTCLK        = 0,
 
             # TX Configurable Driver Ports.
-            i_TXPOSTCURSOR         = 0b00000,
-            i_TXPOSTCURSORINV      = 0,
-            i_TXPRECURSOR          = 0b00000,
-            i_TXPRECURSORINV       = 0,
+            i_TXPOSTCURSOR         = self.tx_postcursor,
+            i_TXPOSTCURSORINV      = self.tx_postcursor_inv,
+            i_TXPRECURSOR          = self.tx_precursor,
+            i_TXPRECURSORINV       = self.tx_precursor_inv,
 
             # TX Fabric Clock Output Control Ports.
             i_TXRATEMODE           = 0,
@@ -845,10 +889,10 @@ class GTP(LiteXModule):
             i_TXUSRCLK2            = ClockSignal("tx"),
 
             # Transmit Ports - PCI Express Ports.
-            i_TXELECIDLE           = 0,
-            i_TXMARGIN             = 0,
-            i_TXRATE               = 0,
-            i_TXSWING              = 0,
+            i_TXELECIDLE           = self.tx_elecidle,
+            i_TXMARGIN             = self.tx_margin,
+            i_TXRATE               = tx_rate,
+            i_TXSWING              = self.tx_swing,
 
             # Transmit Ports - Pattern Generator Ports.
             i_TXPRBSFORCEERR       = 0,
@@ -890,8 +934,8 @@ class GTP(LiteXModule):
             o_GTPTXN               = tx_pads.n,
             o_GTPTXP               = tx_pads.p,
             i_TXBUFDIFFCTRL        = 0b100,
-            i_TXDEEMPH             = 0,
-            i_TXDIFFCTRL           = 0b1000,
+            i_TXDEEMPH             = self.tx_deemph,
+            i_TXDIFFCTRL           = self.tx_diffctrl,
             i_TXDIFFPD             = 0,
             i_TXINHIBIT            = self.tx_inhibit,
             i_TXMAINCURSOR         = 0b0000000,
@@ -901,8 +945,8 @@ class GTP(LiteXModule):
             o_TXOUTCLK             = self.txoutclk,
             o_TXOUTCLKFABRIC       = Open(),
             o_TXOUTCLKPCS          = Open(),
-            i_TXOUTCLKSEL          = 0b010 if tx_buffer_enable else 0b011,
-            o_TXRATEDONE           = Open(),
+            i_TXOUTCLKSEL          = {None: 0b010 if tx_buffer_enable else 0b011, "pcs": 0b001, "pma": 0b010, "refclk": 0b011}[txoutclk_sel],
+            o_TXRATEDONE           = self.tx_rate_done,
 
             # Transmit Ports - TX Gearbox Ports.
             o_TXGEARBOXREADY       = Open(),
@@ -926,7 +970,7 @@ class GTP(LiteXModule):
             i_TXPOLARITY           = tx_polarity,
 
             # Transmit Ports - TX Receiver Detection Ports.
-            i_TXDETECTRX           = 0,
+            i_TXDETECTRX           = self.tx_detect_rx,
 
             # Transmit Ports - pattern Generator Ports.
             i_TXPRBSSEL            = 0,
@@ -1019,6 +1063,8 @@ class GTP(LiteXModule):
                 txdata.eq(Signal(data_width, reset=(1<<(data_width//2))-1))
             ).Elif(tx_produce_pattern,
                 txdata.eq(tx_pattern)
+            ).Elif(tx_raw_enable,
+                txdata.eq(self.tx_raw)
             ).Else(
                 txdata.eq(self.tx_prbs.o)
             )
@@ -1037,6 +1083,7 @@ class GTP(LiteXModule):
         self.sync.rx += rxdata_r.eq(rxdata)
         for i in range(nwords):
             self.comb += self.decoders[i].input.eq(rxdata_r[10*i:10*(i+1)])
+        self.comb += self.rx_raw.eq(rxdata_r)
         self.sync.rx += self.rx_prbs.i.eq(rxdata)
 
         # Clock Aligner ----------------------------------------------------------------------------
@@ -1183,13 +1230,13 @@ class GTP(LiteXModule):
         self._tx_postcursor_inv = CSRStorage(1, reset=0b0,     description="TX Post Cursor Polarity, see UG482.")
         self._tx_precursor      = CSRStorage(5, reset=0b00000, description="TX Pre Cursor Pre-emphasis Control, see UG482.")
         self._tx_precursor_inv  = CSRStorage(1, reset=0b0,     description="Invert polarity of TX Pre Cursor, see UG482.")
-        self.gtp_params.update(
-            i_TXDIFFCTRL      = self._tx_diffctrl.storage,
-            i_TXPOSTCURSOR    = self._tx_postcursor.storage,
-            i_TXPOSTCURSORINV = self._tx_postcursor_inv.storage,
-            i_TXPRECURSOR     = self._tx_precursor.storage,
-            i_TXPRECURSORINV  = self._tx_precursor_inv.storage,
-        )
+        self.comb += [
+            self.tx_diffctrl.eq(self._tx_diffctrl.storage),
+            self.tx_postcursor.eq(self._tx_postcursor.storage),
+            self.tx_postcursor_inv.eq(self._tx_postcursor_inv.storage),
+            self.tx_precursor.eq(self._tx_precursor.storage),
+            self.tx_precursor_inv.eq(self._tx_precursor_inv.storage),
+        ]
 
     def add_controls(self, auto_enable=True, rx_prbs_errors_width=32):
         self.add_base_control(auto_enable)

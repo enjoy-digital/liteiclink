@@ -86,6 +86,24 @@ platform.add_false_path_constraints(soc.crg.cd_sys.clk, serdes.cd_tx.clk, serdes
   clocks (simpler clocking, variable latency), and are required to use external `tx_clk`/`rx_clk`
   (for example to share one user clock between several transceivers).
 
+### Protocol options (GTP)
+
+For protocols with Electrical Idle, rate changes or a PIPE-style driver (PCIe, USB3), `GTP` takes
+additional options (defaults keep the previous behavior): `align_comma_word=1` (commas aligned on
+any byte: Ordered Sets at any symbol position), `rxcdr_cfg` (`RXCDR_CFG` override, ex: SSC
+settings), `tx_drive_mode="PIPE"` (`tx_deemph`: 6.0/3.5 dB de-emphasis, `tx_margin`, `tx_swing`),
+`pcs_pcie_en=True` (PCS PCIe mode: `rx_status`/`phy_status`/`rx_valid` semantics, receiver
+detection with `tx_detect_rx`), `rx_elecidle_detect=True` with an optional fabric
+`rx_elecidle_clk` (`rx_elecidle` output), and `txoutclk_sel` (`TXOUTCLK` source, with an external
+`tx_clk`). The matching signals are `tx_elecidle`, `tx_pd`, `tx_rate`/`rx_rate` with
+`tx_rate_done`/`rx_rate_done` (`TXRATE`/`RXRATE` without PLL reconfiguration), `rx_cdr_hold`,
+`rx_byte_is_aligned`, `rx_buf_status`, raw symbols (`tx_raw_enable`/`tx_raw`, `rx_raw`) and the
+driver controls (`tx_diffctrl`, `tx_postcursor`, `tx_precursor`) that `add_electrical_control()`
+drives from CSRs. Signals are in the transceiver clock domains (see the comments in
+`gtp_7series.py`); the protocol-specific attributes (buffer/CDR behavior on Electrical Idle,
+clock correction sequences, channel bonding...) stay with the protocol core through
+`gtp_params.update()`.
+
 ### Init
 
 TX/RX init FSMs (`*_init.py`) follow the vendor reset sequences: PLL reset/lock, transceiver reset
