@@ -148,6 +148,138 @@ class SerDesECP5WordAligner(LiteXModule):
             self.source.eq(shifted[:20]),
         ]
 
+# ECP5 SerDes Gearboxes (40-bit) ------------------------------------------------------------------
+
+class SerDesECP5TXGearbox(LiteXModule):
+    """40-bit words (bits 0-19 first) on the "half" clock to 20-bit words on the "full" clock.
+
+    The full clock is the DCU TX clock and the half clock its CLKDIVF /2 output (frequency/phase
+    related): the half clock phase is recovered from a toggle register sampled in the full clock
+    domain, the first full cycle with a new 40-bit word transmits its LSBs.
+    """
+    def __init__(self, cd_full="full", cd_half="half"):
+        self.sink   = Signal(40) # i (half).
+        self.source = Signal(20) # o (full).
+
+        # # #
+
+        toggle    = Signal()
+        toggle_r  = Signal()
+        toggle_d  = Signal()
+        word      = Signal(40)
+        sync_half = getattr(self.sync, cd_half)
+        sync_full = getattr(self.sync, cd_full)
+        sync_half += toggle.eq(~toggle)
+        sync_full += [
+            word.eq(self.sink),
+            toggle_r.eq(toggle),
+            toggle_d.eq(toggle_r),
+            If(toggle_r != toggle_d,
+                self.source.eq(word[:20])
+            ).Else(
+                self.source.eq(word[20:])
+            )
+        ]
+
+class SerDesECP5RXGearbox(LiteXModule):
+    """20-bit words on the "full" clock to 40-bit words (first word in bits 0-19) on the "half" clock.
+
+    The 40-bit word is updated in the full cycle following a half clock edge (stable for the next
+    half clock edge).
+    """
+    def __init__(self, cd_full="full", cd_half="half"):
+        self.sink   = Signal(20) # i (full).
+        self.source = Signal(40) # o (half).
+
+        # # #
+
+        toggle    = Signal()
+        toggle_r  = Signal()
+        toggle_d  = Signal()
+        data      = Signal(20)
+        data_d    = Signal(20)
+        word      = Signal(40)
+        sync_half = getattr(self.sync, cd_half)
+        sync_full = getattr(self.sync, cd_full)
+        sync_half += toggle.eq(~toggle)
+        sync_full += [
+            data.eq(self.sink),
+            data_d.eq(data),
+            toggle_r.eq(toggle),
+            toggle_d.eq(toggle_r),
+            If(toggle_r != toggle_d,
+                word.eq(Cat(data_d, data))
+            )
+        ]
+        sync_half += self.source.eq(word)
+
+# ECP5 SerDes Symbol Aligner (40-bit) -------------------------------------------------------------
+
+class SerDesECP5SymbolAligner(LiteXModule):
+    """Align the 10-bit symbols of the raw 40-bit receive words (LSB first) on the commas.
+
+    Commas (K28.1/K28.5/K28.7, bits a-g 0011111/1100000) are searched at the 10 bit offsets of an
+    80-bit window. The bit offset moves when commas are found at another offset in 2 consecutive
+    words with commas (and enable set). The symbols position within the 40-bit words is not changed
+    (as the Xilinx transceivers comma alignment on 4-byte words).
+    """
+    def __init__(self):
+        self.enable  = Signal(reset=1) # i: Alignment allowed.
+        self.sink    = Signal(40)      # i.
+        self.source  = Signal(40)      # o (2 cycles latency).
+        self.offset  = Signal(4)       # o: Current bit offset.
+        self.aligned = Signal()        # o: Commas received at the current bit offset.
+
+        # # #
+
+        data   = Signal(40)
+        data_d = Signal(40)
+        window = Signal(80)
+        self.sync += [
+            data.eq(self.sink),
+            data_d.eq(data),
+        ]
+        self.comb += window.eq(Cat(data_d, data))
+
+        # Commas detection at each bit offset (4 symbols per word).
+        found = Signal(10)
+        for o in range(10):
+            matches = []
+            for k in range(4):
+                bits = window[o + 10*k:o + 10*k + 7]
+                matches.append((bits == 0b1111100) | (bits == 0b0000011))
+            self.sync += found[o].eq(Reduce("OR", matches))
+
+        # Offset selection.
+        window_d  = Signal(80)
+        candidate = Signal(4)
+        pending   = Signal()
+        current   = Signal()
+        others    = Signal(4)
+        self.sync += window_d.eq(window)
+        self.comb += current.eq(Array(found)[self.offset])
+        for o in reversed(range(10)):
+            self.comb += If(found[o], others.eq(o))
+        self.sync += [
+            If(found != 0,
+                self.aligned.eq(current),
+                If(~current & self.enable,
+                    If(pending & (others == candidate),
+                        self.offset.eq(candidate),
+                        pending.eq(0),
+                    ).Else(
+                        candidate.eq(others),
+                        pending.eq(1),
+                    )
+                ).Else(
+                    pending.eq(0),
+                )
+            )
+        ]
+
+        # Shift.
+        self.sync += Case(self.offset, {o: self.source.eq(window_d[o:o + 40]) for o in range(10)})
+
 # SerDesSCI ----------------------------------------------------------------------------------------
 
 class SerDesECP5SCI(LiteXModule):
@@ -574,6 +706,14 @@ class SerdesInitOOB(LiteXModule):
 # SerDesECP5 ---------------------------------------------------------------------------------------
 
 class SerDesECP5(LiteXModule):
+    """ECP5-5G DCU channel (raw 10BSER, fabric 8b/10b).
+
+    data_width=20: 20-bit words on the DCU TX/RX clocks (DCU 1:2 gearbox, linerate/20).
+    data_width=40: 40-bit words on the CLKDIVF /2 of the DCU TX/RX clocks ("tx"/"rx", linerate/40)
+    with fabric gearboxes on the DCU clocks ("tx_full"/"rx_full", linerate/20, reset-less): for
+    the line rates where the fabric logic doesn't reach linerate/20 (ex: 5Gbps, 250MHz). Requires
+    with_oob (fabric comma alignment). The txoutclk/rxoutclk period constraints are at linerate/20.
+    """
     def __init__(self, pll, tx_pads, rx_pads,
         dual        = 0,
         channel     = 0,
@@ -583,7 +723,8 @@ class SerDesECP5(LiteXModule):
         with_oob    = False):
         assert dual       in [0, 1]
         assert channel    in [0, 1]
-        assert data_width in [20]
+        assert data_width in [20, 40]
+        assert with_oob or (data_width == 20)
         self.dual    = dual
         self.channel = channel
 
@@ -633,18 +774,18 @@ class SerDesECP5(LiteXModule):
         rx_lol     = Signal()
         rx_lsm     = Signal()
         rx_align   = Signal()
-        rx_data    = Signal(20)
+        rx_data    = Signal(data_width)
         rx_bus     = Signal(24)
 
         tx_lol     = Signal()
-        tx_data    = Signal(20)
-        tx_data_d  = Signal(20)
+        tx_data    = Signal(data_width)
+        tx_data_d  = Signal(data_width)
         tx_bus     = Signal(24)
 
         # Control/Status CDC -----------------------------------------------------------------------
         tx_produce_square_wave = Signal()
         tx_produce_pattern     = Signal()
-        tx_pattern             = Signal(20)
+        tx_pattern             = Signal(data_width)
         tx_prbs_config         = Signal(2)
 
         rx_prbs_config         = Signal(2)
@@ -666,7 +807,18 @@ class SerDesECP5(LiteXModule):
             MultiReg(rx_prbs_errors, self.rx_prbs_errors, "sys"),
         ]
 
-        if with_oob:
+        if data_width == 40:
+            # 40-bit words from the RX gearbox, 10-bit symbols aligned in the fabric on the commas
+            # (not during PRBS checks: PRBS data contains comma patterns).
+            self.rx_gearbox = rx_gearbox = SerDesECP5RXGearbox(cd_full="rx_full", cd_half="rx")
+            self.rx_aligner = rx_aligner = ClockDomainsRenamer("rx")(SerDesECP5SymbolAligner())
+            self.comb += [
+                rx_gearbox.sink.eq(Cat(rx_bus[0:10], rx_bus[12:22])),
+                rx_aligner.sink.eq(rx_gearbox.source),
+                rx_aligner.enable.eq(rx_align & (rx_prbs_config == 0)),
+                self.rx_raw_data.eq(rx_aligner.source),
+            ]
+        elif with_oob:
             # The raw 10BSER bus has no working DCU comma alignment. Align it in the fabric before
             # decoding. Re-arm only after a sustained absence of valid K28.5 characters: scrambled
             # payload can contain isolated comma-like bit patterns that must not move a healthy
@@ -732,14 +884,33 @@ class SerDesECP5(LiteXModule):
 
         # Clocking ---------------------------------------------------------------------------------
         self.cd_tx = ClockDomain()
-        self.comb += self.cd_tx.clk.eq(self.txoutclk)
-        self.specials += AsyncResetSynchronizer(self.cd_tx, ~tx_ready)
-        self.comb += self.tx_ready.eq(tx_ready)
-
         self.cd_rx = ClockDomain()
-        self.comb += self.cd_rx.clk.eq(self.rxoutclk)
+        if data_width == 40:
+            # DCU clocks for the gearboxes, CLKDIVF /2 for the 40-bit words.
+            self.cd_tx_full = ClockDomain(reset_less=True)
+            self.cd_rx_full = ClockDomain(reset_less=True)
+            self.comb += self.cd_tx_full.clk.eq(self.txoutclk)
+            self.comb += self.cd_rx_full.clk.eq(self.rxoutclk)
+            for name, clki, clko in [
+                ("tx", self.txoutclk, self.cd_tx.clk),
+                ("rx", self.rxoutclk, self.cd_rx.clk)]:
+                self.specials += Instance("CLKDIVF",
+                    name      = f"serdes_{name}_clkdivf",
+                    p_DIV     = "2.0",
+                    i_CLKI    = clki,
+                    i_RST     = 0,
+                    i_ALIGNWD = 0,
+                    o_CDIVX   = clko,
+                )
+        else:
+            self.comb += self.cd_tx.clk.eq(self.txoutclk)
+            self.comb += self.cd_rx.clk.eq(self.rxoutclk)
+        self.specials += AsyncResetSynchronizer(self.cd_tx, ~tx_ready)
         self.specials += AsyncResetSynchronizer(self.cd_rx, ~rx_ready)
+        self.comb += self.tx_ready.eq(tx_ready)
         self.comb += self.rx_ready.eq(rx_ready)
+        dcu_tx_cd = {20: "tx", 40: "tx_full"}[data_width]
+        dcu_rx_cd = {20: "rx", 40: "rx_full"}[data_width]
 
         # DCU instance -----------------------------------------------------------------------------
         self.serdes_params = dict(
@@ -838,7 +1009,7 @@ class SerDesECP5(LiteXModule):
             # CHX RX ­— clocking
             i_CHX_RX_REFCLK         = pll.refclk,
             o_CHX_FF_RX_PCLK        = self.rxoutclk,
-            i_CHX_FF_RXI_CLK        = ClockSignal("rx"),
+            i_CHX_FF_RXI_CLK        = ClockSignal(dcu_rx_cd),
 
             p_CHX_CDR_MAX_RATE      = "5.0",    # 5.0 Gbps
             p_CHX_RX_DCO_CK_DIV     = {
@@ -944,7 +1115,7 @@ class SerDesECP5(LiteXModule):
 
             # CHX TX — clocking
             o_CHX_FF_TX_PCLK        = self.txoutclk,
-            i_CHX_FF_TXI_CLK        = ClockSignal("tx"),
+            i_CHX_FF_TXI_CLK        = ClockSignal(dcu_tx_cd),
 
             p_CHX_TX_GEAR_MODE      = "0b1",    # 1:2 gearbox
             p_CHX_FF_TX_H_CLK_EN    = "0b1",    # enable  DIV/2 output clock
@@ -993,10 +1164,18 @@ class SerDesECP5(LiteXModule):
                 ).Else(
                     tx_data.eq(self.tx_prbs.o)
                 ),
-                tx_bus[ 0:10].eq(tx_data_d[ 0:10]),
-                tx_bus[12:22].eq(tx_data_d[10:20]),
             ]
             self.sync.tx += tx_data_d.eq(tx_data)
+            if data_width == 40:
+                self.tx_gearbox = tx_gearbox = SerDesECP5TXGearbox(cd_full="tx_full", cd_half="tx")
+                self.comb += tx_gearbox.sink.eq(tx_data_d)
+                tx_bus_data = tx_gearbox.source
+            else:
+                tx_bus_data = tx_data_d
+            self.comb += [
+                tx_bus[ 0:10].eq(tx_bus_data[ 0:10]),
+                tx_bus[12:22].eq(tx_bus_data[10:20]),
+            ]
         else:
             self.comb += [
                 If(tx_produce_square_wave,
