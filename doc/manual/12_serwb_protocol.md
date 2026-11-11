@@ -39,8 +39,8 @@ port, marking the last one. Two cases end a packet early:
   packet, only while no word arrives.
 
 Without CRC, the payload words go to the port as they arrive. A packet cut by the timeout ends
-without a last word, and the next packet continues it: on the remote side, the next request
-becomes write data.
+with an error word, marked last and with the `error` flag: it is not packet data, and the bus
+protocol discards the request or fails the read instead of taking the next packet as its rest.
 
 Without flow control, idle words fill every word slot, so the timer does not run inside a packet,
 and a lost word is replaced by the following word. Only `with_crc=True` protects against both.
@@ -210,7 +210,8 @@ self.serwb_core.add_upstream_endpoint(  port=3, endpoint=rx)
 ```
 
 On the downstream endpoint, the module sets `length` (bytes) for the packet and `last` on its final
-word; the core sets the port. The upstream endpoint receives `data`, `length` and `last`. The
+word; the core sets the port. The upstream endpoint receives `data`, `length` and `last`, and
+`error` on the last word of a packet cut by the timeout, which must then be discarded. The
 endpoints are connected when the core is finalized, so they are added while the SoC is built.
 
 - Set `length` to four times the number of words: the receiver frames the packet on `length`,

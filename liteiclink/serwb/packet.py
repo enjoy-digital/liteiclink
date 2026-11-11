@@ -18,8 +18,10 @@ PREAMBLE = 0x5aa55aa5
 # Layouts ------------------------------------------------------------------------------------------
 
 def packet_description(dw):
+    # error: set on the last word of a packet cut by the depacketizer timeout (the word is not
+    # packet data, the packet has to be discarded).
     payload_layout = [("data", dw)]
-    param_layout   = [("port", 8), ("length", 16)]
+    param_layout   = [("port", 8), ("length", 16), ("error", 1)]
     return stream.EndpointDescription(payload_layout, param_layout)
 
 def phy_description(dw):
@@ -199,9 +201,14 @@ class Depacketizer(LiteXModule):
             source.length.eq(length),
             source.data.eq(sink.data),
             sink.ready.eq(source.ready),
+            # Timeout: end the packet with an error word (last + error) so that the consumers
+            # resynchronize instead of taking the next packet as its continuation.
             If(timer.done,
-                NextState("PREAMBLE")
-            ).Elif(source.valid & source.ready,
+                source.valid.eq(1),
+                source.last.eq(1),
+                source.error.eq(1),
+            ),
+            If(source.valid & source.ready,
                 NextValue(count, count + 1),
                 If(source.last,
                     NextState("PREAMBLE")
