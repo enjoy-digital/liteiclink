@@ -64,7 +64,7 @@ class GTPTestSoC(SoCMini):
         sys_clk_freq = int(100e6)
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteSATA bench on Acorn CLE 215+")
+        SoCMini.__init__(self, platform, sys_clk_freq, ident="LiteICLink bench on Acorn CLE 215+")
 
         # UARTBone ---------------------------------------------------------------------------------
         self.add_uartbone()
