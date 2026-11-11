@@ -208,6 +208,18 @@ class TestSerDesXilinx(unittest.TestCase):
             self.assertIsInstance(_input(channel, name), Signal)
         self.assertIn("tx_raw_enable", verilog)
 
+    def test_gtp_raw(self):
+        # Raw RX symbols output and raw TX symbols input (tx_raw_enable), same API as the GTY.
+        for data_width in [20, 40]:
+            with self.subTest(data_width=data_width):
+                top, fragment, csrs, verilog = self.elaborate("gtp", "qpll", 125e6, 2.5e9,
+                    data_width=data_width, clock_aligner=False)
+                serdes = top.serdes
+                self.assertEqual(len(serdes.rx_raw), data_width)
+                self.assertEqual(len(serdes.tx_raw), data_width)
+                self.assertEqual(len(_instances(fragment, "GTPE2_CHANNEL")), 1)
+                self.assertIn("tx_raw_enable", verilog)
+
     def test_ultrascale_unaligned_tx_clock_rejected(self):
         # UltraScale(+): TX user clock (without TX buffer) must be an integer division of the
         # reference clock (BUFG_GT divider).
