@@ -178,9 +178,8 @@ For example, a 125 MHz reference clock at 2.5 Gbps and 20 bits gives a 125 MHz u
 ratio 1. The same reference at 5 Gbps and 40 bits gives the same ratio. The test
 `test_ultrascale_unaligned_tx_clock_rejected` checks the UltraScale rejection.
 
-The UltraScale wrappers check only that the ratio is an integer. The BUFG_GT divider input has 3
-bits, so a ratio above 8 is truncated without error and gives a wrong user clock: keep it at 8 or
-less.
+The UltraScale wrappers also check that the ratio is 8 or less: the BUFG_GT divider input has 3
+bits, and a larger ratio would be truncated and give a wrong user clock.
 
 The GTY selects its program divider output as TXOUTCLK in bypass mode instead of the
 reference clock, while its divider is computed for the reference clock. That path has no recorded

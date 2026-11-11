@@ -175,8 +175,8 @@ integer; the wrapper asserts it. For example, a 156.25 MHz reference clock at 5 
 gives a 125 MHz user clock: the ratio 1.25 is rejected in buffer bypass, and accepted with the TX
 buffer enabled.
 
-The ratio must also be 8 or less, the range of the 3-bit BUFG_GT divider, which
-the wrapper does not check.
+The ratio must also be 8 or less, the range of the 3-bit BUFG_GT divider; the wrapper
+asserts it too.
 
 In buffer bypass, the GTY selects its program divider output as TXOUTCLK, not the reference clock
 as the GTH does, while the BUFG_GT divider is computed for the reference clock. No run records
@@ -215,7 +215,7 @@ default ([DRP](#sd-drp)). Debug tools reach the channel registers through it, fo
   not rounded in the solver.
 - The DRP interfaces have a 9-bit address, as on 7-Series. Check the DRP address width of the GTH4
   and GTY channels in UG576 and UG578: registers above that range are not reachable through `drp`.
-- The BUFG_GT divider ratio is not checked against its 1 to 8 range, and the GTY TX clock in buffer
+- The GTY TX clock in buffer
   bypass has no recorded run ([Init and clocking](#us-init)).
 - On the GTY, `RXCDRHOLD` is meant to follow the near-end PCS loopback, but the condition is a
   Python test of a signal, evaluated once at elaboration: the input is always 0.
