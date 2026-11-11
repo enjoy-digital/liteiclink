@@ -167,7 +167,8 @@ class TestSERWBPacket(unittest.TestCase):
         self.assertEqual(results, [(3, 0x11111111, 0), (3, 0x22222222, 1)])
 
     def test_depacketizer_timeout(self):
-        # A truncated packet must be dropped after timeout and the next packet received.
+        # A truncated packet must be ended after timeout with an error word (last + error, so that
+        # consumers resynchronize) and the next packet received.
         dut     = Depacketizer(clk_freq=int(1e6), timeout=50e-6)
         results = []
         def generator():
@@ -175,8 +176,17 @@ class TestSERWBPacket(unittest.TestCase):
             for _ in range(100):
                 yield
             yield from words_generator(dut.sink, [0x5aa55aa5, (4 << 8) | 2, 0xcafecafe])
-        run_simulation(dut, [generator(), words_checker(dut.source, results, 200)])
-        self.assertEqual(results, [(0, 0xdeadbeef, 0), (2, 0xcafecafe, 1)])
+        @passive
+        def checker():
+            yield dut.source.ready.eq(1)
+            while True:
+                if (yield dut.source.valid):
+                    error = (yield dut.source.error)
+                    data  = None if error else (yield dut.source.data)
+                    results.append(((yield dut.source.port), data, (yield dut.source.last), error))
+                yield
+        run_simulation(dut, [generator(), checker()])
+        self.assertEqual(results, [(0, 0xdeadbeef, 0, 0), (0, None, 1, 1), (2, 0xcafecafe, 1, 0)])
 
 # CRC ----------------------------------------------------------------------------------------------
 
