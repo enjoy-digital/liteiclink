@@ -163,10 +163,11 @@ class _SerdesInit(LiteXModule):
         if hasattr(serdes.rx, "phase_sel"):
             self.comb += serdes.rx.phase_sel.eq(phase_sel)
         fsm.act("INC-PHASE-SEL",
-            NextValue(phase_sel, phase_sel + 1),
             If(phase_sel == ({"1:1":1, "1:2":2, "1:4":4}[clk_ratio] - 1),
+                # Keep the last phase tried (debug).
                 NextState("ERROR")
             ).Else(
+                NextValue(phase_sel, phase_sel + 1),
                 NextState("IDLE")
             )
         )
