@@ -32,7 +32,7 @@ leds of the ECPIX-5 and iCEBreaker should be up, indicating a LiteICLink SerWB's
 ![](https://github.com/enjoy-digital/liteiclink/assets/1450143/8045d0f0-3977-4891-bd45-da6d05a1d48f)
 
 
-Access over Etherbone to the peripherlas of the ECXPIX-5 and iCEBreaker can be tested with the
+Access over Etherbone to the peripherals of the ECPIX-5 and iCEBreaker can be tested with the
 following commands:
 
     litex_server --udp
