@@ -102,12 +102,12 @@ class SerWBTestSoC(SoCMini):
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
-            csr_data_with = 32,
-            cpu_type      = None,
-            ident         = f"LiteICLink SerWB bench @ {int(sys_clk_freq/1e6):d}MHz on Efinix Trion T120 BGA576 Dev Kit",
-            ident_version = True,
-            with_uart     = True,
-            uart_name     = "uartbone",
+            csr_data_width = 32,
+            cpu_type       = None,
+            ident          = f"LiteICLink SerWB bench @ {int(sys_clk_freq/1e6):d}MHz on Efinix Trion T120 BGA576 Dev Kit",
+            ident_version  = True,
+            with_uart      = True,
+            uart_name      = "uartbone",
         )
 
         # SerWB ------------------------------------------------------------------------------------
