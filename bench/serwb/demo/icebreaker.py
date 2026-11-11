@@ -119,6 +119,7 @@ def main():
     parser = argparse.ArgumentParser(description="LiteICLink SerWB demo on iCEBreaker")
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load",  action="store_true", help="Load bitstream (to SRAM)")
+    parser.add_argument("--flash", action="store_true", help="Flash bitstream (to SPI Flash)")
     args = parser.parse_args()
 
     platform = icebreaker.Platform()
@@ -129,6 +130,11 @@ def main():
     builder.build(run=args.build)
 
     if args.load:
+        from litex.build.lattice.programmer import IceStormProgrammer
+        prog = IceStormProgrammer()
+        prog.load_bitstream("build/icebreaker/gateware/icebreaker.bin")
+
+    if args.flash:
         from litex.build.lattice.programmer import IceStormProgrammer
         prog = IceStormProgrammer()
         prog.flash(0, "build/icebreaker/gateware/icebreaker.bin")
