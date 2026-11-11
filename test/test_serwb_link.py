@@ -94,10 +94,9 @@ class DatapathPHY(LiteXModule):
             self.comb += [
                 If(self.init.ready,
                     If(sink.valid, sink.connect(self.tx.sink)),
-                    self.rx.source.connect(source),
-                ).Else(
-                    self.rx.source.ready.eq(1),
+                    self.rx.source.connect(source, omit={"ready"}),
                 ),
+                self.rx.source.ready.eq(1),
                 self.tx.sink.valid.eq(1),
             ]
 
