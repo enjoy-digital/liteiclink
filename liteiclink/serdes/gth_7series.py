@@ -328,7 +328,7 @@ class GTH(LiteXModule):
         self.drp_mux = drp_mux = DRPMux()
         drp_mux.add_interface(self.drp)
 
-        # GTHE4_CHANNEL instance -------------------------------------------------------------------
+        # GTHE2_CHANNEL instance -------------------------------------------------------------------
         txdata        = Signal(data_width)
         rxdata        = Signal(data_width)
         rxphaligndone = Signal()
