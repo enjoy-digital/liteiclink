@@ -234,7 +234,8 @@ Bank `serdes_drp`.
 Defined by `SerDesECP5` (`liteiclink/serdes/serdes_ecp5.py`).
 
 The base, PRBS and clock-cycle registers have the layout of the Xilinx banks, without
-polarity and electrical controls; `loopback` is 1 bit. The `sci_reconfig_` registers
+polarity and electrical controls; `loopback` takes the 3-bit modes of the Xilinx banks,
+any non-zero value requesting the DCU loopback. The `sci_reconfig_` registers
 are always present: they give software byte access to the SCI configuration registers
 of the DCU (`sel` 0 for the channel, 1 for the dual), and `pause` stops the hardware
 reconfiguration sequence while software uses them. The `tx_inhibit` and `loopback`
@@ -261,10 +262,10 @@ Bank `serdes_ecp5`.
 | `tx_prbs_config` | `0x0038` | 2 | rw | `0b00`: PRBS Disabled. `0b01`: PRBS7 Enabled. `0b10`: PRBS15 Enabled. `0b11`: PRBS31 Enabled. Reset `0x0`. |
 | `rx_prbs_config` | `0x003c` | 3 | rw | See the fields below. Reset `0x0`. |
 | `rx_prbs_errors` | `0x0040` | 32 | ro | RX PRBS errors. |
-| `loopback` | `0x0044` | 1 | rw | 1: loopback through the SCI reconfiguration of the DCU (see the note above). Reset `0x0`. |
+| `loopback` | `0x0044` | 3 | rw | Loopback: 0: Disabled / Non-zero: DCU loopback (lb_ctl=0b0001). Reset `0x0`. |
 | `clock_latch` | `0x0048` | 1 | rw | Write to latch TX/RX clock cycles. Reset `0x0`. |
-| `clock_tx_cycles` | `0x004c` | 32 | rw | TX clock cycles. Reset `0x0`. |
-| `clock_rx_cycles` | `0x0050` | 32 | rw | RX clock cycles. Reset `0x0`. |
+| `clock_tx_cycles` | `0x004c` | 32 | ro | TX clock cycles. |
+| `clock_rx_cycles` | `0x0050` | 32 | ro | RX clock cycles. |
 
 Fields of `rx_prbs_config`:
 

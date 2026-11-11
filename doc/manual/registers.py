@@ -61,8 +61,6 @@ RENAMES = {
 # the gateware takes precedence. Fields declared with `values` and no description get the list of
 # their values (see _describe).
 DESCRIPTIONS = {
-    ("ecp5", "loopback") : "1: loopback through the SCI reconfiguration of the DCU (see the note above).",
-
     ("gtr12", "upar_ctrl") : "Write strobe: bit 0 requests a write of `upar_wrdata` at `upar_addr`, bit 1 a read.",
 
     ("serwb_phy", "control_reset")           : "Write strobe (link master only): restart the link initialization of both sides.",
@@ -118,7 +116,8 @@ NOTES = {
     ],
     "serdes_ecp5": [
         "The base, PRBS and clock-cycle registers have the layout of the Xilinx banks, without",
-        "polarity and electrical controls; `loopback` is 1 bit. The `sci_reconfig_` registers",
+        "polarity and electrical controls; `loopback` takes the 3-bit modes of the Xilinx banks,",
+        "any non-zero value requesting the DCU loopback. The `sci_reconfig_` registers",
         "are always present: they give software byte access to the SCI configuration registers",
         "of the DCU (`sel` 0 for the channel, 1 for the dual), and `pause` stops the hardware",
         "reconfiguration sequence while software uses them. The `tx_inhibit` and `loopback`",

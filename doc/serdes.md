@@ -127,7 +127,8 @@ RXDATA, which gives a fixed RX latency (`BruteforceClockAligner`).
 | `tx_diffctrl`, `tx_postcursor`, `tx_precursor`     | TX swing and pre-emphasis (Xilinx, see vendor user guides). |
 | `clock_latch`, `clock_tx_cycles`, `clock_rx_cycles`| TX/RX clock frequency measurement.               |
 
-ECP5 provides the base, PRBS and loopback controls (no polarity/electrical CSRs).
+ECP5 provides the base, PRBS and loopback controls (no polarity/electrical CSRs; any non-zero
+`loopback` value requests the DCU loopback).
 
 ## Benches
 

@@ -183,10 +183,9 @@ clock. A clock that does not run is printed as `2147.484MHz`, not 0: the script 
 counter value twice and takes it as a full wrap of the 32-bit counter. Errors in near-end loopback point to the clocking inside the FPGA, not to the board:
 [Debugging](#debugging) covers both cases.
 
-The ECP5 wrapper has a one-bit loopback register, and `--loopback` writes `0b010` to it: on the
-ECP5 targets the option leaves the loopback off. Write `serdes0_loopback` to 1 with `litex_cli`
-instead, and run `test_prbs.py` without `--loopback`. This ECP5 loopback is not validated: the
-code marks it `FIXME` (`serdes_ecp5.py`). If the test fails with it, use an external loopback.
+On ECP5, `--loopback` requests the DCU loopback: any non-zero value of the `loopback` register
+does. This ECP5 loopback is not validated: the code marks it `FIXME` (`serdes_ecp5.py`). If the
+test fails with it, use an external loopback.
 
 ## Step 6: PRBS through the connector {#gs-serdes-cable}
 

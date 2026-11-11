@@ -1295,8 +1295,10 @@ class SerDesECP5(LiteXModule):
         ]
 
     def add_loopback_control(self):
-        self._loopback = CSRStorage()
-        self.comb += self.loopback.eq(self._loopback.storage)
+        # 3-bit, as on the other wrappers (same software, ex: test_prbs.py --loopback writing the
+        # Near-End PMA Loopback mode 0b010): any non-zero value requests the DCU loopback.
+        self._loopback = CSRStorage(3, description="Loopback: 0: Disabled / Non-zero: DCU loopback (lb_ctl=0b0001).")
+        self.comb += self.loopback.eq(self._loopback.storage != 0)
 
 
     def add_controls(self, auto_enable=True, rx_prbs_errors_width=32):
