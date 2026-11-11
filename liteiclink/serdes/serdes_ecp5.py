@@ -713,6 +713,11 @@ class SerDesECP5(LiteXModule):
     with fabric gearboxes on the DCU clocks ("tx_full"/"rx_full", linerate/20, reset-less): for
     the line rates where the fabric logic doesn't reach linerate/20 (ex: 5Gbps, 250MHz). Requires
     with_oob (fabric comma alignment). The txoutclk/rxoutclk period constraints are at linerate/20.
+
+    pcie=True (linerate <= 2.5Gbps): PCI Express Gen1 DCU configuration (PCIE_MODE, 2.5Gbps rate attributes)
+    and the raw receiver detection ports (``pcie_det_en``, ``pcie_ct``, ``pcie_done``, ``pcie_con``, TN1261):
+    the detection sequence is left to the user, on the DCU TX clock. ``rx_los`` is the raw (asynchronous) DCU
+    loss of signal, for the user's own filtering.
     """
     def __init__(self, pll, tx_pads, rx_pads,
         dual        = 0,
@@ -720,11 +725,13 @@ class SerDesECP5(LiteXModule):
         data_width  = 20,
         tx_polarity = 0,
         rx_polarity = 0,
-        with_oob    = False):
+        with_oob    = False,
+        pcie        = False):
         assert dual       in [0, 1]
         assert channel    in [0, 1]
         assert data_width in [20, 40]
         assert with_oob or (data_width == 20)
+        assert (not pcie) or (pll.config["linerate"] <= 2.5e9) # Gen1 only (2.5 Gbps DCU rate attributes).
         self.dual    = dual
         self.channel = channel
 
@@ -751,6 +758,13 @@ class SerDesECP5(LiteXModule):
         self.rx_cdr_hold            = Signal()
         self.rx_raw_data            = Signal(data_width)
 
+        # PCIe receiver detection (pcie=True, TN1261): raw DCU ports, the sequencing is done by the user
+        # on the DCU TX clock ("tx_full" with data_width=40, "tx" with data_width=20).
+        self.pcie_det_en            = Signal() # TX driver in receiver detect mode (TX idle, >= 120ns before pcie_ct).
+        self.pcie_ct                = Signal() # Detection strobe (4 DCU TX clock cycles).
+        self.pcie_done              = Signal() # Detection done (low during the detection).
+        self.pcie_con               = Signal() # Receiver connected (valid when pcie_done is high again).
+
         # Loopback.
         self.loopback               = Signal() # FIXME: reconfigure lb_ctl to 0b0001 but does not seem enough
 
@@ -770,7 +784,7 @@ class SerDesECP5(LiteXModule):
         self.rx_clk_freq = pll.config["linerate"]/data_width
 
         # Internal signals -------------------------------------------------------------------------
-        rx_los     = Signal()
+        rx_los     = self.rx_los = Signal() # Raw (asynchronous) DCU loss of signal, exposed for the user's own filtering.
         rx_lol     = Signal()
         rx_lsm     = Signal()
         rx_align   = Signal()
@@ -1129,6 +1143,19 @@ class SerDesECP5(LiteXModule):
             self.serdes_params.update(
                 p_D_SYNC_LOCAL_EN = "0b1", # Enable the local TX gearbox clock.
                 p_CHX_LSM_DISABLE = "0b1", # Use fabric word alignment.
+            )
+
+        if pcie:
+            # PCIe mode, 2.5Gbps rate attributes and receiver detection ports (sequence: Lattice TN1261), as
+            # documented by whitequark in Yumewatari (0BSD) and used by Vegard Storheil Eriksen (zyp) in katsuo-pcie (MIT).
+            self.serdes_params.update(
+                p_D_TX_MAX_RATE         = "2.5",
+                p_CHX_CDR_MAX_RATE      = "2.5",
+                p_CHX_PCIE_MODE         = "0b1",
+                i_CHX_FFC_PCIE_DET_EN   = self.pcie_det_en,
+                i_CHX_FFC_PCIE_CT       = self.pcie_ct,
+                o_CHX_FFS_PCIE_DONE     = self.pcie_done,
+                o_CHX_FFS_PCIE_CON      = self.pcie_con,
             )
 
         # SCI Reconfiguration ----------------------------------------------------------------------
