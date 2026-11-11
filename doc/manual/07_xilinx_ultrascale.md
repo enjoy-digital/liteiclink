@@ -217,8 +217,6 @@ default ([DRP](#sd-drp)). Debug tools reach the channel registers through it, fo
   and GTY channels in UG576 and UG578: registers above that range are not reachable through `drp`.
 - The BUFG_GT divider ratio is not checked against its 1 to 8 range, and the GTY TX clock in buffer
   bypass has no recorded run ([Init and clocking](#us-init)).
-- On the GTY, `RXCDRHOLD` is meant to follow the near-end PCS loopback, but the condition is a
-  Python test of a signal, evaluated once at elaboration: the input is always 0.
 - With 80-bit GTY words, the comma aligner aligns on 4-byte boundaries, so the comma lands on
   symbol 0 or 4 ([Receive](#sd-rx)).
 - The reset of the `rx` domain passes through a register clocked by `tx`, as on 7-Series
