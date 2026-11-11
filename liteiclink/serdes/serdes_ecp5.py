@@ -1135,7 +1135,8 @@ class SerDesECP5(LiteXModule):
         self.sci_reconfig = sci_reconfig = SerDesECP5SCIReconfig(
             self, tx_idle_via_sci=not with_oob)
         self.comb += sci_reconfig.reset.eq(~tx_ready)
-        self.comb += sci_reconfig.sci.dual_sel.eq(dual)
+        # Note: The SCI port belongs to the DCU of the instance (LOC DCU<dual>): dual_sel selects
+        # the DCU registers (instead of the channel ones), only driven by user accesses (sel=1).
         self.comb += sci_reconfig.loopback.eq(self.loopback)
         self.comb += sci_reconfig.tx_idle.eq(self.tx_idle if not with_oob else 0)
         self.comb += sci_reconfig.rx_polarity.eq(rx_polarity)
