@@ -175,7 +175,7 @@ class SerWBTestSoC(SoCMini):
 
         # SerIO.
         # ------
-        self.serio_slave = SERIOCore(serwb_core=self.serwb_slave_core, port=1)
+        self.serio_slave = ClockDomainsRenamer("rx_sys")(SERIOCore(serwb_core=self.serwb_slave_core, port=1))
 
         # Increment Inputs every 10ms as PoC.
         self.serio_timer = ClockDomainsRenamer("rx_sys")(WaitTimer(10e-3*sys_clk_freq))
