@@ -146,7 +146,7 @@ class SerWBTestSoC(SoCMini):
 
         # Connect as peripheral to main SoC.
         # ----------------------------------
-        self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=1024))
+        self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=1024, cached=False))
 
         # SerWB Slave ----------------------------------------------------------------------------
         # PHY.

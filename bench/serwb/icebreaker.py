@@ -133,7 +133,7 @@ class SerWBTestSoC(SoCMini):
         # Wishbone SRAM.
         # --------------
         self.serwb_sram = Up5kSPRAM(size=64*kB)
-        self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192))
+        self.bus.add_slave("serwb", serwb_master_core.bus, SoCRegion(origin=0x30000000, size=8192, cached=False))
         self.comb += serwb_slave_core.bus.connect(self.serwb_sram.bus)
 
         # Leds -------------------------------------------------------------------------------------

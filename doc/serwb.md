@@ -163,7 +163,8 @@ from liteiclink.serwb.core import SERWBCore
 # FPGA A (SoC side).
 self.serwb_phy  = SERWBPHY(platform.device, platform.request("serwb"), mode="master")
 self.serwb_core = SERWBCore(self.serwb_phy, sys_clk_freq, mode="slave")
-self.bus.add_slave("serwb", self.serwb_core.bus, SoCRegion(origin=0x30000000, size=0x10000000))
+# Uncached (remote registers); with a CPU, the region must be in the CPU IO region.
+self.bus.add_slave("serwb", self.serwb_core.bus, SoCRegion(origin=0x30000000, size=0x10000000, cached=False))
 
 # FPGA B (remote side).
 self.serwb_phy  = SERWBPHY(platform.device, platform.request("serwb"), mode="slave")
