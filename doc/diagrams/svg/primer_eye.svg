@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="225" viewBox="0 0 760 225">
+<defs>
+  <marker id="arrow-ctrl" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 Z" fill="#5b5b5b"/></marker>
+  <marker id="arrow-ctrl-rev" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="1" refY="4" orient="auto">
+    <path d="M8,0 L0,4 L8,8 Z" fill="#5b5b5b"/></marker>
+  <marker id="arrow-stream" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="9" refY="4.5" orient="auto">
+    <path d="M0,0 L9,4.5 L0,9 Z" fill="#606060"/></marker>
+  <marker id="arrow-accent" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="9" refY="4.5" orient="auto">
+    <path d="M0,0 L9,4.5 L0,9 Z" fill="#2eaadc"/></marker>
+  <marker id="arrow-accent-rev" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="0" refY="4.5" orient="auto">
+    <path d="M9,0 L0,4.5 L9,9 Z" fill="#2eaadc"/></marker>
+  <marker id="arrow-stream-rev" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="0" refY="4.5" orient="auto">
+    <path d="M9,0 L0,4.5 L9,9 Z" fill="#606060"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<polyline points="190,122 255,122 255,78 320,78 385,78 450,78 450,122 515,122 515,78 580,78 580,122 645,122 710,122" fill="none" stroke="#606060" stroke-width="2.0"/>
+<polyline points="190,197 255,197 255,153 320,153 320,164 385,164 450,164 450,197 515,197 515,153 580,153 580,197 645,197 645,186 710,186" fill="none" stroke="#2eaadc" stroke-width="2.0"/>
+<polyline points="190,100 710,100" fill="none" stroke="#5b5b5b" stroke-width="1.0" stroke-dasharray="2,4"/>
+<polyline points="190,175 710,175" fill="none" stroke="#5b5b5b" stroke-width="1.0" stroke-dasharray="2,4"/>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="190" y="20" width="65" height="30" rx="0" ry="0"/>
+</g>
+<text x="222.5" y="35" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="222.5" dy="0">0</tspan></text>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="255" y="20" width="65" height="30" rx="0" ry="0"/>
+</g>
+<text x="287.5" y="35" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="287.5" dy="0">1</tspan></text>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="320" y="20" width="65" height="30" rx="0" ry="0"/>
+</g>
+<text x="352.5" y="35" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="352.5" dy="0">1</tspan></text>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="385" y="20" width="65" height="30" rx="0" ry="0"/>
+</g>
+<text x="417.5" y="35" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="417.5" dy="0">1</tspan></text>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="450" y="20" width="65" height="30" rx="0" ry="0"/>
+</g>
+<text x="482.5" y="35" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="482.5" dy="0">0</tspan></text>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="515" y="20" width="65" height="30" rx="0" ry="0"/>
+</g>
+<text x="547.5" y="35" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="547.5" dy="0">1</tspan></text>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="580" y="20" width="65" height="30" rx="0" ry="0"/>
+</g>
+<text x="612.5" y="35" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="612.5" dy="0">0</tspan></text>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="645" y="20" width="65" height="30" rx="0" ry="0"/>
+</g>
+<text x="677.5" y="35" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="677.5" dy="0">0</tspan></text>
+<text x="175" y="35" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="end" dominant-baseline="central"><tspan x="175" dy="0">bits</tspan></text>
+<text x="175" y="100" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="end" dominant-baseline="central"><tspan x="175" dy="0">full swing</tspan></text>
+<text x="175" y="175" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="end" dominant-baseline="central"><tspan x="175" dy="0">de-emphasis</tspan></text>
+</svg>

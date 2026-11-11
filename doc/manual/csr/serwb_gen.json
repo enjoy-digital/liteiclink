@@ -1,0 +1,110 @@
+{
+ "argv": [
+  "soc_serwb_gen"
+ ],
+ "banks": {
+  "serwb_phy_gen": [
+   {
+    "access": "wo",
+    "description": "Write strobe (link master only): restart the link initialization of both sides.",
+    "fields": [],
+    "name": "control_reset",
+    "offset": 0,
+    "reset": null,
+    "size": 1
+   },
+   {
+    "access": "ro",
+    "description": "1: link initialized, words are exchanged.",
+    "fields": [],
+    "name": "control_ready",
+    "offset": 4,
+    "reset": null,
+    "size": 1
+   },
+   {
+    "access": "ro",
+    "description": "1: the initialization failed: no sampling window or word alignment found.",
+    "fields": [],
+    "name": "control_error",
+    "offset": 8,
+    "reset": null,
+    "size": 1
+   },
+   {
+    "access": "ro",
+    "description": "Word alignment found by the initialization (bitslip).",
+    "fields": [],
+    "name": "control_shift",
+    "offset": 12,
+    "reset": null,
+    "size": 6
+   },
+   {
+    "access": "wo",
+    "description": "Write strobe: clear `control_prbs_errors` and count errors for `control_prbs_cycles` cycles.",
+    "fields": [],
+    "name": "control_prbs_start",
+    "offset": 16,
+    "reset": null,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "Duration of a link test, in `sys` cycles.",
+    "fields": [],
+    "name": "control_prbs_cycles",
+    "offset": 20,
+    "reset": 0,
+    "size": 32
+   },
+   {
+    "access": "ro",
+    "description": "Errors counted by the last link test.",
+    "fields": [],
+    "name": "control_prbs_errors",
+    "offset": 24,
+    "reset": null,
+    "size": 32
+   },
+   {
+    "access": "ro",
+    "description": "Number of invalid 8b10b words received (link ready).",
+    "fields": [],
+    "name": "control_invalid_errors",
+    "offset": 28,
+    "reset": null,
+    "size": 32
+   },
+   {
+    "access": "ro",
+    "description": "Number of link losses (ready to not ready).",
+    "fields": [],
+    "name": "control_link_drops",
+    "offset": 32,
+    "reset": null,
+    "size": 32
+   },
+   {
+    "access": "rw",
+    "description": "Transmit PRBS31 instead of traffic (link ready).",
+    "fields": [],
+    "name": "control_prbs_tx",
+    "offset": 36,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "Check received words against PRBS31 (traffic not forwarded).",
+    "fields": [],
+    "name": "control_prbs_rx",
+    "offset": 40,
+    "reset": 0,
+    "size": 1
+   }
+  ]
+ },
+ "config": "serwb_gen",
+ "target": "doc/manual/registers.py"
+}

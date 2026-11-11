@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="345" viewBox="0 0 760 345">
+<defs>
+  <marker id="arrow-ctrl" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 Z" fill="#5b5b5b"/></marker>
+  <marker id="arrow-ctrl-rev" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="1" refY="4" orient="auto">
+    <path d="M8,0 L0,4 L8,8 Z" fill="#5b5b5b"/></marker>
+  <marker id="arrow-stream" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="9" refY="4.5" orient="auto">
+    <path d="M0,0 L9,4.5 L0,9 Z" fill="#606060"/></marker>
+  <marker id="arrow-accent" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="9" refY="4.5" orient="auto">
+    <path d="M0,0 L9,4.5 L0,9 Z" fill="#2eaadc"/></marker>
+  <marker id="arrow-accent-rev" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="0" refY="4.5" orient="auto">
+    <path d="M9,0 L0,4.5 L9,9 Z" fill="#2eaadc"/></marker>
+  <marker id="arrow-stream-rev" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="0" refY="4.5" orient="auto">
+    <path d="M9,0 L0,4.5 L9,9 Z" fill="#606060"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<polyline points="120,46 120,335" fill="none" stroke="#5b5b5b" stroke-width="1.0" stroke-dasharray="4,3"/>
+<polyline points="380,46 380,335" fill="none" stroke="#5b5b5b" stroke-width="1.0" stroke-dasharray="4,3"/>
+<polyline points="640,46 640,335" fill="none" stroke="#5b5b5b" stroke-width="1.0" stroke-dasharray="4,3"/>
+<polyline points="120,85 380,85" fill="none" stroke="#5b5b5b" stroke-width="1.0" marker-end="url(#arrow-ctrl)"/>
+<text x="250" y="78" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="250" dy="0">write</tspan></text>
+<polyline points="380,115 120,115" fill="none" stroke="#5b5b5b" stroke-width="1.0" marker-end="url(#arrow-ctrl)"/>
+<text x="250" y="108" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="250" dy="0">ack</tspan></text>
+<polyline points="380,145 640,145" fill="none" stroke="#2eaadc" stroke-width="2.0" marker-end="url(#arrow-accent)"/>
+<text x="510" y="135" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="510" dy="0">write request</tspan></text>
+<polyline points="120,215 380,215" fill="none" stroke="#5b5b5b" stroke-width="1.0" marker-end="url(#arrow-ctrl)"/>
+<text x="250" y="208" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="250" dy="0">read</tspan></text>
+<polyline points="380,245 640,245" fill="none" stroke="#2eaadc" stroke-width="2.0" marker-end="url(#arrow-accent)"/>
+<text x="510" y="235" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="510" dy="0">read request</tspan></text>
+<polyline points="640,285 380,285" fill="none" stroke="#2eaadc" stroke-width="2.0" marker-end="url(#arrow-accent)"/>
+<text x="510" y="275" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="510" dy="0">read response</tspan></text>
+<polyline points="380,315 120,315" fill="none" stroke="#5b5b5b" stroke-width="1.0" marker-end="url(#arrow-ctrl)"/>
+<text x="250" y="308" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="250" dy="0">ack and data</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M61.2,12 L172.2,12 L181.2,21 L181.2,48 Q181.2,48 181.2,48 L70.2,48 L61.2,39 L61.2,12 Q61.2,12 61.2,12 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M61.2,12 L172.2,12 L181.2,21 L181.2,48 Q181.2,48 181.2,48 L70.2,48 L61.2,39 L61.2,12 Q61.2,12 61.2,12 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M61,11.5 L172,11.5 L181,20.5 L181,47.5 Q181,47.5 181,47.5 L70,47.5 L61,38.5 L61,11.5 Q61,11.5 61,11.5 Z"/>
+</g>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M60,10 L171,10 L180,19 L180,46 Q180,46 180,46 L69,46 L60,37 L60,10 Q60,10 60,10 Z"/>
+</g>
+<text x="120" y="28" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="120" dy="0">CPU</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M321.2,12 L432.2,12 L441.2,21 L441.2,48 Q441.2,48 441.2,48 L330.2,48 L321.2,39 L321.2,12 Q321.2,12 321.2,12 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M321.2,12 L432.2,12 L441.2,21 L441.2,48 Q441.2,48 441.2,48 L330.2,48 L321.2,39 L321.2,12 Q321.2,12 321.2,12 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M321,11.5 L432,11.5 L441,20.5 L441,47.5 Q441,47.5 441,47.5 L330,47.5 L321,38.5 L321,11.5 Q321,11.5 321,11.5 Z"/>
+</g>
+<g fill="#e6f5fb" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M320,10 L431,10 L440,19 L440,46 Q440,46 440,46 L329,46 L320,37 L320,10 Q320,10 320,10 Z"/>
+</g>
+<text x="380" y="28" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="380" dy="0">SoC side</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M581.2,12 L692.2,12 L701.2,21 L701.2,48 Q701.2,48 701.2,48 L590.2,48 L581.2,39 L581.2,12 Q581.2,12 581.2,12 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M581.2,12 L692.2,12 L701.2,21 L701.2,48 Q701.2,48 701.2,48 L590.2,48 L581.2,39 L581.2,12 Q581.2,12 581.2,12 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M581,11.5 L692,11.5 L701,20.5 L701,47.5 Q701,47.5 701,47.5 L590,47.5 L581,38.5 L581,11.5 Q581,11.5 581,11.5 Z"/>
+</g>
+<g fill="#e6f5fb" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M580,10 L691,10 L700,19 L700,46 Q700,46 700,46 L589,46 L580,37 L580,10 Q580,10 580,10 Z"/>
+</g>
+<text x="640" y="28" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="640" dy="0">Remote side</tspan></text>
+<text x="650" y="170" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="start" dominant-baseline="central"><tspan x="650" dy="0">bus write</tspan></text>
+<text x="650" y="265" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="start" dominant-baseline="central"><tspan x="650" dy="0">bus read</tspan></text>
+<text x="110" y="265" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="end" dominant-baseline="central"><tspan x="110" dy="0">CPU waits</tspan></text>
+</svg>

@@ -1,0 +1,452 @@
+{
+ "argv": [
+  "soc_gtp"
+ ],
+ "banks": {
+  "serdes_gtp": [
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: Clock aligner enabled. `0b1`: Clock aligner disabled.",
+      "name": "disable",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "Clock aligner enabled."
+       ],
+       [
+        "``0b1``",
+        "Clock aligner disabled."
+       ]
+      ]
+     }
+    ],
+    "name": "clock_aligner_disable",
+    "offset": 0,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: TX disabled. `0b1`: TX enabled.",
+      "name": "enable",
+      "offset": 0,
+      "reset": 1,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "TX disabled."
+       ],
+       [
+        "``0b1``",
+        "TX enabled."
+       ]
+      ]
+     }
+    ],
+    "name": "tx_enable",
+    "offset": 4,
+    "reset": 1,
+    "size": 1
+   },
+   {
+    "access": "ro",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: TX not initialized. `0b1`: TX initialized and ready.",
+      "name": "ready",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "TX not initialized."
+       ],
+       [
+        "``0b1``",
+        "TX initialized and ready."
+       ]
+      ]
+     }
+    ],
+    "name": "tx_ready",
+    "offset": 8,
+    "reset": null,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: Normal operation. `0b1`: TX inhibited.",
+      "name": "inhibit",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "Normal operation."
+       ],
+       [
+        "``0b1``",
+        "TX inhibited."
+       ]
+      ]
+     }
+    ],
+    "name": "tx_inhibit",
+    "offset": 12,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: Normal operation. `0b1`: TX square wave generation enabled (linerate observation/checks).",
+      "name": "enable",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "Normal operation."
+       ],
+       [
+        "``0b1``",
+        "TX square wave generation enabled (linerate observation/checks)."
+       ]
+      ]
+     }
+    ],
+    "name": "tx_produce_square_wave",
+    "offset": 16,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: RX disabled. `0b1`: RX enabled.",
+      "name": "enable",
+      "offset": 0,
+      "reset": 1,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "RX disabled."
+       ],
+       [
+        "``0b1``",
+        "RX enabled."
+       ]
+      ]
+     }
+    ],
+    "name": "rx_enable",
+    "offset": 20,
+    "reset": 1,
+    "size": 1
+   },
+   {
+    "access": "ro",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: RX not initialized. `0b1`: RX initialized and ready.",
+      "name": "ready",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "RX not initialized."
+       ],
+       [
+        "``0b1``",
+        "RX initialized and ready."
+       ]
+      ]
+     }
+    ],
+    "name": "rx_ready",
+    "offset": 24,
+    "reset": null,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b00`: PRBS Disabled. `0b01`: PRBS7 Enabled. `0b10`: PRBS15 Enabled. `0b11`: PRBS31 Enabled.",
+      "name": "config",
+      "offset": 0,
+      "reset": 0,
+      "size": 2,
+      "values": [
+       [
+        "``0b00``",
+        "PRBS   Disabled."
+       ],
+       [
+        "``0b01``",
+        "PRBS7  Enabled."
+       ],
+       [
+        "``0b10``",
+        "PRBS15 Enabled."
+       ],
+       [
+        "``0b11``",
+        "PRBS31 Enabled."
+       ]
+      ]
+     }
+    ],
+    "name": "tx_prbs_config",
+    "offset": 28,
+    "reset": 0,
+    "size": 2
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b00`: PRBS Disabled. `0b01`: PRBS7 Enabled. `0b10`: PRBS15 Enabled. `0b11`: PRBS31 Enabled.",
+      "name": "config",
+      "offset": 0,
+      "reset": 0,
+      "size": 2,
+      "values": [
+       [
+        "``0b00``",
+        "PRBS   Disabled."
+       ],
+       [
+        "``0b01``",
+        "PRBS7  Enabled."
+       ],
+       [
+        "``0b10``",
+        "PRBS15 Enabled."
+       ],
+       [
+        "``0b11``",
+        "PRBS31 Enabled."
+       ]
+      ]
+     },
+     {
+      "description": "Pause RX PRBS.",
+      "name": "pause",
+      "offset": 2,
+      "reset": 0,
+      "size": 1,
+      "values": []
+     }
+    ],
+    "name": "rx_prbs_config",
+    "offset": 32,
+    "reset": 0,
+    "size": 3
+   },
+   {
+    "access": "ro",
+    "description": "RX PRBS errors.",
+    "fields": [],
+    "name": "rx_prbs_errors",
+    "offset": 36,
+    "reset": null,
+    "size": 32
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b000`: Normal operation. `0b001`: Near-End PCS Loopback. `0b010`: Near-End PMA Loopback. `0b100`: Far-End PMA Loopback. `0b110`: Far-End PCS Loopback.",
+      "name": "config",
+      "offset": 0,
+      "reset": 0,
+      "size": 3,
+      "values": [
+       [
+        "``0b000``",
+        "Normal operation."
+       ],
+       [
+        "``0b001``",
+        "Near-End PCS Loopback."
+       ],
+       [
+        "``0b010``",
+        "Near-End PMA Loopback."
+       ],
+       [
+        "``0b100``",
+        "Far-End PMA Loopback."
+       ],
+       [
+        "``0b110``",
+        "Far-End PCS Loopback."
+       ]
+      ]
+     }
+    ],
+    "name": "loopback",
+    "offset": 40,
+    "reset": 0,
+    "size": 3
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: Normal operation. `0b1`: TX polarity swap (equivalent to P/N swap).",
+      "name": "swap",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "Normal operation."
+       ],
+       [
+        "``0b1``",
+        "TX polarity swap (equivalent to P/N swap)."
+       ]
+      ]
+     }
+    ],
+    "name": "tx_polarity",
+    "offset": 44,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: Normal operation. `0b1`: RX polarity swap (equivalent to P/N swap).",
+      "name": "swap",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "Normal operation."
+       ],
+       [
+        "``0b1``",
+        "RX polarity swap (equivalent to P/N swap)."
+       ]
+      ]
+     }
+    ],
+    "name": "rx_polarity",
+    "offset": 48,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "TX Driver Swing Control, see UG482.",
+    "fields": [],
+    "name": "tx_diffctrl",
+    "offset": 52,
+    "reset": 8,
+    "size": 4
+   },
+   {
+    "access": "rw",
+    "description": "TX Post Cursor Pre-emphasis Control, see UG482.",
+    "fields": [],
+    "name": "tx_postcursor",
+    "offset": 56,
+    "reset": 0,
+    "size": 5
+   },
+   {
+    "access": "rw",
+    "description": "TX Post Cursor Polarity, see UG482.",
+    "fields": [],
+    "name": "tx_postcursor_inv",
+    "offset": 60,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "TX Pre Cursor Pre-emphasis Control, see UG482.",
+    "fields": [],
+    "name": "tx_precursor",
+    "offset": 64,
+    "reset": 0,
+    "size": 5
+   },
+   {
+    "access": "rw",
+    "description": "Invert polarity of TX Pre Cursor, see UG482.",
+    "fields": [],
+    "name": "tx_precursor_inv",
+    "offset": 68,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "Write to latch TX/RX clock cycles.",
+    "fields": [],
+    "name": "clock_latch",
+    "offset": 72,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "TX clock cycles.",
+    "fields": [],
+    "name": "clock_tx_cycles",
+    "offset": 76,
+    "reset": 0,
+    "size": 32
+   },
+   {
+    "access": "rw",
+    "description": "RX clock cycles.",
+    "fields": [],
+    "name": "clock_rx_cycles",
+    "offset": 80,
+    "reset": 0,
+    "size": 32
+   }
+  ]
+ },
+ "config": "gtp",
+ "target": "doc/manual/registers.py"
+}

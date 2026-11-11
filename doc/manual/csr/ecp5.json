@@ -1,0 +1,368 @@
+{
+ "argv": [
+  "soc_ecp5"
+ ],
+ "banks": {
+  "serdes_ecp5": [
+   {
+    "access": "rw",
+    "description": "Pause Hardware re-configuration.",
+    "fields": [],
+    "name": "sci_reconfig_pause",
+    "offset": 0,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "Channel/Dual selection: 0 Channel / 1 Dual.",
+    "fields": [],
+    "name": "sci_reconfig_sel",
+    "offset": 4,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "Do a Write access.",
+    "fields": [],
+    "name": "sci_reconfig_we",
+    "offset": 8,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "Do a Read access.",
+    "fields": [],
+    "name": "sci_reconfig_re",
+    "offset": 12,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "ro",
+    "description": "Access is Done.",
+    "fields": [],
+    "name": "sci_reconfig_done",
+    "offset": 16,
+    "reset": null,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "Access address.",
+    "fields": [],
+    "name": "sci_reconfig_adr",
+    "offset": 20,
+    "reset": 0,
+    "size": 6
+   },
+   {
+    "access": "rw",
+    "description": "Access Write data.",
+    "fields": [],
+    "name": "sci_reconfig_dat_w",
+    "offset": 24,
+    "reset": 0,
+    "size": 8
+   },
+   {
+    "access": "ro",
+    "description": "Access Read data.",
+    "fields": [],
+    "name": "sci_reconfig_dat_r",
+    "offset": 28,
+    "reset": null,
+    "size": 8
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: TX disabled. `0b1`: TX enabled.",
+      "name": "enable",
+      "offset": 0,
+      "reset": 1,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "TX disabled."
+       ],
+       [
+        "``0b1``",
+        "TX enabled."
+       ]
+      ]
+     }
+    ],
+    "name": "tx_enable",
+    "offset": 32,
+    "reset": 1,
+    "size": 1
+   },
+   {
+    "access": "ro",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: TX not initialized. `0b1`: TX initialized and ready.",
+      "name": "ready",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "TX not initialized."
+       ],
+       [
+        "``0b1``",
+        "TX initialized and ready."
+       ]
+      ]
+     }
+    ],
+    "name": "tx_ready",
+    "offset": 36,
+    "reset": null,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: Normal operation. `0b1`: TX inhibited.",
+      "name": "inhibit",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "Normal operation."
+       ],
+       [
+        "``0b1``",
+        "TX inhibited."
+       ]
+      ]
+     }
+    ],
+    "name": "tx_inhibit",
+    "offset": 40,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: Normal operation. `0b1`: TX square wave generation enabled (linerate observation/checks).",
+      "name": "enable",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "Normal operation."
+       ],
+       [
+        "``0b1``",
+        "TX square wave generation enabled (linerate observation/checks)."
+       ]
+      ]
+     }
+    ],
+    "name": "tx_produce_square_wave",
+    "offset": 44,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: RX disabled. `0b1`: RX enabled.",
+      "name": "enable",
+      "offset": 0,
+      "reset": 1,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "RX disabled."
+       ],
+       [
+        "``0b1``",
+        "RX enabled."
+       ]
+      ]
+     }
+    ],
+    "name": "rx_enable",
+    "offset": 48,
+    "reset": 1,
+    "size": 1
+   },
+   {
+    "access": "ro",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b0`: RX not initialized. `0b1`: RX initialized and ready.",
+      "name": "ready",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": [
+       [
+        "``0b0``",
+        "RX not initialized."
+       ],
+       [
+        "``0b1``",
+        "RX initialized and ready."
+       ]
+      ]
+     }
+    ],
+    "name": "rx_ready",
+    "offset": 52,
+    "reset": null,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b00`: PRBS Disabled. `0b01`: PRBS7 Enabled. `0b10`: PRBS15 Enabled. `0b11`: PRBS31 Enabled.",
+      "name": "config",
+      "offset": 0,
+      "reset": 0,
+      "size": 2,
+      "values": [
+       [
+        "``0b00``",
+        "PRBS   Disabled."
+       ],
+       [
+        "``0b01``",
+        "PRBS7  Enabled."
+       ],
+       [
+        "``0b10``",
+        "PRBS15 Enabled."
+       ],
+       [
+        "``0b11``",
+        "PRBS31 Enabled."
+       ]
+      ]
+     }
+    ],
+    "name": "tx_prbs_config",
+    "offset": 56,
+    "reset": 0,
+    "size": 2
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "`0b00`: PRBS Disabled. `0b01`: PRBS7 Enabled. `0b10`: PRBS15 Enabled. `0b11`: PRBS31 Enabled.",
+      "name": "config",
+      "offset": 0,
+      "reset": 0,
+      "size": 2,
+      "values": [
+       [
+        "``0b00``",
+        "PRBS   Disabled."
+       ],
+       [
+        "``0b01``",
+        "PRBS7  Enabled."
+       ],
+       [
+        "``0b10``",
+        "PRBS15 Enabled."
+       ],
+       [
+        "``0b11``",
+        "PRBS31 Enabled."
+       ]
+      ]
+     },
+     {
+      "description": "Pause RX PRBS.",
+      "name": "pause",
+      "offset": 2,
+      "reset": 0,
+      "size": 1,
+      "values": []
+     }
+    ],
+    "name": "rx_prbs_config",
+    "offset": 60,
+    "reset": 0,
+    "size": 3
+   },
+   {
+    "access": "ro",
+    "description": "RX PRBS errors.",
+    "fields": [],
+    "name": "rx_prbs_errors",
+    "offset": 64,
+    "reset": null,
+    "size": 32
+   },
+   {
+    "access": "rw",
+    "description": "1: loopback through the SCI reconfiguration of the DCU (see the note above).",
+    "fields": [],
+    "name": "loopback",
+    "offset": 68,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "Write to latch TX/RX clock cycles.",
+    "fields": [],
+    "name": "clock_latch",
+    "offset": 72,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "rw",
+    "description": "TX clock cycles.",
+    "fields": [],
+    "name": "clock_tx_cycles",
+    "offset": 76,
+    "reset": 0,
+    "size": 32
+   },
+   {
+    "access": "rw",
+    "description": "RX clock cycles.",
+    "fields": [],
+    "name": "clock_rx_cycles",
+    "offset": 80,
+    "reset": 0,
+    "size": 32
+   }
+  ]
+ },
+ "config": "ecp5",
+ "target": "doc/manual/registers.py"
+}

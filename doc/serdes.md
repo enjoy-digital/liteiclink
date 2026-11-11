@@ -1,5 +1,9 @@
 # SerDes
 
+> Short developer note. The reference is the [LiteICLink manual](manual/README.md): Part II
+> (SerDes wrapper architecture, one chapter per family), Part IV (integration, benches, tests,
+> debugging) and the register appendix.
+
 LiteICLink wraps the FPGA multi-gigabit transceivers in a common interface: PLL configuration
 computed from the reference clock and linerate, reset/init sequencing, 8b10b encoding/decoding,
 user clock generation, stream endpoints and CSRs (PRBS, loopback, polarity, TX driver settings).
