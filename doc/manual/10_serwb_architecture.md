@@ -191,6 +191,7 @@ role and these options:
 | `protocol` | `"native"` | `"native"` or `"etherbone"` (deprecated), both sides |
 | `burst_depth` | 4 | Native: largest request, in words |
 | `coalescing_timeout` | 4 | Native: idle cycles before pending writes are sent |
+| `response_timeout` | `1e-3` | Native: seconds before a read without response ends with an error, `None` waits |
 | `etherbone_buffer_depth`| 4 | Etherbone: record buffer, at least 2 |
 | `tx_buffer_depth` | `None` | TX buffer depth, computed when `None` |
 | `rx_buffer_depth` | `None` | RX buffer depth, computed when `None` |

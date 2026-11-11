@@ -32,10 +32,13 @@ class SERWBCore(LiteXModule):
         protocol               = "native",
         burst_depth            = 4,
         coalescing_timeout     = 4,
+        response_timeout       = 1e-3,
     ):
         # Protocol: "native" (default, SerWB MMAP protocol with write coalescing up to burst_depth
         # words, see serwb/mmap.py) or "etherbone" (deprecated, kept for compatibility with existing
         # designs). Must match on both sides.
+        # response_timeout: native SoC side, seconds to wait for a read response before ending the
+        # access with an error (None: no timeout).
         assert protocol in ["etherbone", "native"]
         if protocol == "etherbone":
             warnings.warn(
@@ -85,7 +88,11 @@ class SERWBCore(LiteXModule):
         # ------------
         if protocol == "native":
             if mode == "slave":
-                etherbone = SERWBMMAPSlave(burst_depth=burst_depth, coalescing_timeout=coalescing_timeout)
+                etherbone = SERWBMMAPSlave(
+                    burst_depth        = burst_depth,
+                    coalescing_timeout = coalescing_timeout,
+                    response_timeout   = None if response_timeout is None else max(1, int(clk_freq*response_timeout)),
+                )
             else:
                 etherbone = SERWBMMAPMaster(burst_depth=burst_depth)
             self.mmap = etherbone = ResetInserter()(etherbone)
