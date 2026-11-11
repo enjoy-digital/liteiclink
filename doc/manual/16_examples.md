@@ -320,9 +320,9 @@ configurations and tracks the cost of a change; the counts are estimates, not ve
 | `--json` | none | Save the results to a file |
 | `--compare` | none | Print the difference with a saved file |
 
-The script reads the statistics that Yosys prints as a cell name followed by its count. Recent
-Yosys versions print the count first, and every result then reads 0. The relative figures of the
-native protocol are in [Performance and resources](#performance).
+The script reads the cell counts of the Yosys statistics, printed after the cell name by older
+Yosys versions and before it by recent ones. The relative figures of the native protocol are in
+[Performance and resources](#performance).
 
 ## In the code {#ex-code}
 
