@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="250" viewBox="0 0 760 250">
+<defs>
+  <marker id="arrow-ctrl" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 Z" fill="#5b5b5b"/></marker>
+  <marker id="arrow-ctrl-rev" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="1" refY="4" orient="auto">
+    <path d="M8,0 L0,4 L8,8 Z" fill="#5b5b5b"/></marker>
+  <marker id="arrow-stream" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="9" refY="4.5" orient="auto">
+    <path d="M0,0 L9,4.5 L0,9 Z" fill="#606060"/></marker>
+  <marker id="arrow-accent" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="9" refY="4.5" orient="auto">
+    <path d="M0,0 L9,4.5 L0,9 Z" fill="#2eaadc"/></marker>
+  <marker id="arrow-accent-rev" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="0" refY="4.5" orient="auto">
+    <path d="M9,0 L0,4.5 L9,9 Z" fill="#2eaadc"/></marker>
+  <marker id="arrow-stream-rev" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="0" refY="4.5" orient="auto">
+    <path d="M9,0 L0,4.5 L9,9 Z" fill="#606060"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M21.2,22 L199.2,22 L221.2,44 L221.2,232 Q221.2,232 221.2,232 L43.2,232 L21.2,210 L21.2,22 Q21.2,22 21.2,22 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M21.2,22 L199.2,22 L221.2,44 L221.2,232 Q221.2,232 221.2,232 L43.2,232 L21.2,210 L21.2,22 Q21.2,22 21.2,22 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M21,21.5 L199,21.5 L221,43.5 L221,231.5 Q221,231.5 221,231.5 L43,231.5 L21,209.5 L21,21.5 Q21,21.5 21,21.5 Z"/>
+</g>
+<g fill="#eeeeee" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M20,20 L198,20 L220,42 L220,230 Q220,230 220,230 L42,230 L20,208 L20,20 Q20,20 20,20 Z"/>
+</g>
+<text x="44" y="209.2" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="18" fill="#000000" text-anchor="start" font-style="italic" dominant-baseline="central"><tspan x="44" dy="0">Host</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M261.2,22 L579.2,22 L601.2,44 L601.2,232 Q601.2,232 601.2,232 L283.2,232 L261.2,210 L261.2,22 Q261.2,22 261.2,22 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M261.2,22 L579.2,22 L601.2,44 L601.2,232 Q601.2,232 601.2,232 L283.2,232 L261.2,210 L261.2,22 Q261.2,22 261.2,22 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M261,21.5 L579,21.5 L601,43.5 L601,231.5 Q601,231.5 601,231.5 L283,231.5 L261,209.5 L261,21.5 Q261,21.5 261,21.5 Z"/>
+</g>
+<g fill="#eeeeee" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M260,20 L578,20 L600,42 L600,230 Q600,230 600,230 L282,230 L260,208 L260,20 Q260,20 260,20 Z"/>
+</g>
+<text x="284" y="209.2" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="18" fill="#000000" text-anchor="start" font-style="italic" dominant-baseline="central"><tspan x="284" dy="0">Bench SoC</tspan></text>
+<polyline points="120,95 120,135" fill="none" stroke="#5b5b5b" stroke-width="1.0" marker-end="url(#arrow-ctrl)" marker-start="url(#arrow-ctrl-rev)"/>
+<text x="127" y="115" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="start" dominant-baseline="central"><tspan x="127" dy="0">TCP</tspan></text>
+<polyline points="195,160 285,160" fill="none" stroke="#5b5b5b" stroke-width="1.0" marker-end="url(#arrow-ctrl)" marker-start="url(#arrow-ctrl-rev)"/>
+<text x="240" y="153" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="240" dy="0">UART</tspan></text>
+<polyline points="345,135 345,95" fill="none" stroke="#5b5b5b" stroke-width="1.0" marker-end="url(#arrow-ctrl)" marker-start="url(#arrow-ctrl-rev)"/>
+<polyline points="405,70 450,70.1" fill="none" stroke="#5b5b5b" stroke-width="1.0" marker-end="url(#arrow-ctrl)" marker-start="url(#arrow-ctrl-rev)"/>
+<polyline points="575,95 640,95" fill="none" stroke="#2eaadc" stroke-width="2.0" marker-end="url(#arrow-accent)"/>
+<text x="615" y="85" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="615" dy="0">TX</tspan></text>
+<polyline points="640,125 575,125" fill="none" stroke="#2eaadc" stroke-width="2.0" marker-end="url(#arrow-accent)"/>
+<text x="615" y="140" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="615" dy="0">RX</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M46.2,47 L184.2,47 L196.2,59 L196.2,97 Q196.2,97 196.2,97 L58.2,97 L46.2,85 L46.2,47 Q46.2,47 46.2,47 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M46.2,47 L184.2,47 L196.2,59 L196.2,97 Q196.2,97 196.2,97 L58.2,97 L46.2,85 L46.2,47 Q46.2,47 46.2,47 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M46,46.5 L184,46.5 L196,58.5 L196,96.5 Q196,96.5 196,96.5 L58,96.5 L46,84.5 L46,46.5 Q46,46.5 46,46.5 Z"/>
+</g>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M45,45 L183,45 L195,57 L195,95 Q195,95 195,95 L57,95 L45,83 L45,45 Q45,45 45,45 Z"/>
+</g>
+<text x="120" y="70" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="120" dy="0">test_prbs.py</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M46.2,137 L184.2,137 L196.2,149 L196.2,187 Q196.2,187 196.2,187 L58.2,187 L46.2,175 L46.2,137 Q46.2,137 46.2,137 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M46.2,137 L184.2,137 L196.2,149 L196.2,187 Q196.2,187 196.2,187 L58.2,187 L46.2,175 L46.2,137 Q46.2,137 46.2,137 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M46,136.5 L184,136.5 L196,148.5 L196,186.5 Q196,186.5 196,186.5 L58,186.5 L46,174.5 L46,136.5 Q46,136.5 46,136.5 Z"/>
+</g>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M45,135 L183,135 L195,147 L195,185 Q195,185 195,185 L57,185 L45,173 L45,135 Q45,135 45,135 Z"/>
+</g>
+<text x="120" y="160" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="120" dy="0">litex_server</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M286.2,137 L394.2,137 L406.2,149 L406.2,187 Q406.2,187 406.2,187 L298.2,187 L286.2,175 L286.2,137 Q286.2,137 286.2,137 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M286.2,137 L394.2,137 L406.2,149 L406.2,187 Q406.2,187 406.2,187 L298.2,187 L286.2,175 L286.2,137 Q286.2,137 286.2,137 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M286,136.5 L394,136.5 L406,148.5 L406,186.5 Q406,186.5 406,186.5 L298,186.5 L286,174.5 L286,136.5 Q286,136.5 286,136.5 Z"/>
+</g>
+<g fill="#fafafa" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M285,135 L393,135 L405,147 L405,185 Q405,185 405,185 L297,185 L285,173 L285,135 Q285,135 285,135 Z"/>
+</g>
+<text x="345" y="160" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="345" dy="0">UARTBone</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M286.2,47 L394.2,47 L406.2,59 L406.2,97 Q406.2,97 406.2,97 L298.2,97 L286.2,85 L286.2,47 Q286.2,47 286.2,47 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M286.2,47 L394.2,47 L406.2,59 L406.2,97 Q406.2,97 406.2,97 L298.2,97 L286.2,85 L286.2,47 Q286.2,47 286.2,47 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M286,46.5 L394,46.5 L406,58.5 L406,96.5 Q406,96.5 406,96.5 L298,96.5 L286,84.5 L286,46.5 Q286,46.5 286,46.5 Z"/>
+</g>
+<g fill="#e6f5fb" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M285,45 L393,45 L405,57 L405,95 Q405,95 405,95 L297,95 L285,83 L285,45 Q285,45 285,45 Z"/>
+</g>
+<text x="345" y="61" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="345" dy="0">serdes0</tspan><tspan x="345" dy="18">registers</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M451.2,47 L564.2,47 L576.2,59 L576.2,187 Q576.2,187 576.2,187 L463.2,187 L451.2,175 L451.2,47 Q451.2,47 451.2,47 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M451.2,47 L564.2,47 L576.2,59 L576.2,187 Q576.2,187 576.2,187 L463.2,187 L451.2,175 L451.2,47 Q451.2,47 451.2,47 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M451,46.5 L564,46.5 L576,58.5 L576,186.5 Q576,186.5 576,186.5 L463,186.5 L451,174.5 L451,46.5 Q451,46.5 451,46.5 Z"/>
+</g>
+<g fill="#bfe6f5" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M450,45 L563,45 L575,57 L575,185 Q575,185 575,185 L462,185 L450,173 L450,45 Q450,45 450,45 Z"/>
+</g>
+<text x="512.5" y="97" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="512.5" dy="0">SerDes</tspan><tspan x="512.5" dy="18">wrapper</tspan><tspan x="512.5" dy="18">PRBS</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M641.2,67 L729.2,67 L741.2,79 L741.2,157 Q741.2,157 741.2,157 L653.2,157 L641.2,145 L641.2,67 Q641.2,67 641.2,67 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M641.2,67 L729.2,67 L741.2,79 L741.2,157 Q741.2,157 741.2,157 L653.2,157 L641.2,145 L641.2,67 Q641.2,67 641.2,67 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M641,66.5 L729,66.5 L741,78.5 L741,156.5 Q741,156.5 741,156.5 L653,156.5 L641,144.5 L641,66.5 Q641,66.5 641,66.5 Z"/>
+</g>
+<g fill="#b8b8b8" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M640,65 L728,65 L740,77 L740,155 Q740,155 740,155 L652,155 L640,143 L640,65 Q640,65 640,65 Z"/>
+</g>
+<text x="690" y="101" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="690" dy="0">Loopback</tspan><tspan x="690" dy="18">or cable</tspan></text>
+</svg>

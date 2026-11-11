@@ -1,0 +1,108 @@
+{
+ "argv": [
+  "soc_gtr12"
+ ],
+ "banks": {
+  "serdes_gtr12": [
+   {
+    "access": "ro",
+    "description": "pll_lock[0], cdr_lock[1], aligned[2], k_lock[3], rx_elecidle[4], astat[10:5], stat[23:11], refclk_det[25:24], plls_lock[28:26] (QPLL0, QPLL1, CPLL).",
+    "fields": [],
+    "name": "status",
+    "offset": 0,
+    "reset": null,
+    "size": 29
+   },
+   {
+    "access": "rw",
+    "description": "Register address.",
+    "fields": [],
+    "name": "upar_addr",
+    "offset": 4,
+    "reset": 0,
+    "size": 24
+   },
+   {
+    "access": "rw",
+    "description": "Register write data.",
+    "fields": [],
+    "name": "upar_wrdata",
+    "offset": 8,
+    "reset": 0,
+    "size": 32
+   },
+   {
+    "access": "wo",
+    "description": "Write strobe: bit 0 requests a write of `upar_wrdata` at `upar_addr`, bit 1 a read.",
+    "fields": [],
+    "name": "upar_ctrl",
+    "offset": 12,
+    "reset": null,
+    "size": 2
+   },
+   {
+    "access": "ro",
+    "description": "",
+    "fields": [
+     {
+      "description": "No CSR access pending/in progress.",
+      "name": "ready",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": []
+     },
+     {
+      "description": "UPAR_READY_S.",
+      "name": "upar_ready",
+      "offset": 1,
+      "reset": 0,
+      "size": 1,
+      "values": []
+     },
+     {
+      "description": "UPAR_RDVLD_S.",
+      "name": "upar_rdvld",
+      "offset": 2,
+      "reset": 0,
+      "size": 1,
+      "values": []
+     }
+    ],
+    "name": "upar_status",
+    "offset": 16,
+    "reset": null,
+    "size": 3
+   },
+   {
+    "access": "rw",
+    "description": "",
+    "fields": [
+     {
+      "description": "Abort the access in progress (FSM back to idle).",
+      "name": "abort",
+      "offset": 0,
+      "reset": 0,
+      "size": 1,
+      "values": []
+     }
+    ],
+    "name": "upar_cfg",
+    "offset": 20,
+    "reset": 0,
+    "size": 1
+   },
+   {
+    "access": "ro",
+    "description": "Register read data.",
+    "fields": [],
+    "name": "upar_rddata",
+    "offset": 24,
+    "reset": null,
+    "size": 32
+   }
+  ]
+ },
+ "config": "gtr12",
+ "target": "doc/manual/registers.py"
+}
