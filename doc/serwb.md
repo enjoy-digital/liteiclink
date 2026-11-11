@@ -116,7 +116,8 @@ MMAP protocol designed for the point-to-point link (`serwb/mmap.py`), used on bo
 ### Etherbone protocol (`protocol="etherbone"`, deprecated)
 
 The original SerWB protocol: one Etherbone record per packet (32-bit address/data, no
-probing/address spaces), built on LiteEth's Etherbone. A single access costs 7 words on the link
+probing/address spaces), built on LiteEth's Etherbone (the only part of LiteICLink requiring
+LiteEth: `pip install liteiclink[etherbone]`). A single access costs 7 words on the link
 (2 packet + 2 Etherbone + 1 record header + 1 address + 1 data), writes are not coalesced and
 remote bus errors are not reported. It is only kept for compatibility with existing designs (a
 `FutureWarning` is emitted) and will be removed.

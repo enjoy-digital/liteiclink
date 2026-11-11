@@ -17,7 +17,6 @@ from litex.soc.interconnect.packet import Arbiter, Dispatcher
 
 from liteiclink.serwb.packet    import packet_description
 from liteiclink.serwb.packet    import Packetizer, Depacketizer, CRCDepacketizer
-from liteiclink.serwb.etherbone import Etherbone
 from liteiclink.serwb.mmap      import SERWBMMAPSlave, SERWBMMAPMaster
 
 # SERWB Core ---------------------------------------------------------------------------------------
@@ -75,6 +74,8 @@ class SERWBCore(LiteXModule):
         # Etherbone.
         # ----------
         if protocol == "etherbone":
+            # Imported here: the deprecated Etherbone protocol is the only LiteEth user.
+            from liteiclink.serwb.etherbone import Etherbone
             self.etherbone = etherbone = ResetInserter()(Etherbone(mode, etherbone_buffer_depth))
             self.add_downstream_endpoint(port=port, endpoint=etherbone.source)
             self.add_upstream_endpoint(  port=port, endpoint=etherbone.sink)
