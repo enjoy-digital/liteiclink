@@ -210,8 +210,6 @@ default ([DRP](#sd-drp)). Debug tools reach the channel registers through it, fo
   GTH has no recorded result. With a quad PLL, the CPLL also stays powered (`CPLLPD` at 0).
 - The GTY quad PLL attributes carry several comments with alternative values, and its fraction is
   not rounded in the solver.
-- The DRP interfaces have a 9-bit address, as on 7-Series. Check the DRP address width of the GTH4
-  and GTY channels in UG576 and UG578: registers above that range are not reachable through `drp`.
 - The GTY TX clock in buffer
   bypass has no recorded run ([Init and clocking](#us-init)).
 - With 80-bit GTY words, the comma aligner aligns on 4-byte boundaries, so the comma lands on

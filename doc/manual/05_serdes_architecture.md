@@ -400,7 +400,8 @@ never write them. The fields and reset values of every register are in the
 
 Every Xilinx channel and quad PLL has a dynamic reconfiguration port (DRP), a small bus to read
 and write the configuration of the primitive at run time. The wrappers expose it as a
-`DRPInterface`: 9-bit address, 16-bit data, enable, write enable and ready.
+`DRPInterface`: 9-bit address (10-bit on the GTH4 and GTY channels), 16-bit data, enable, write
+enable and ready.
 
 The channel port sits behind a mux (`drp_mux`, a `DRPMux` of up to 16 interfaces selected by its
 4-bit `sel`).

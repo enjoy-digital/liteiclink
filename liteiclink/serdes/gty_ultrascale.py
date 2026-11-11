@@ -391,8 +391,8 @@ class GTY(LiteXModule):
         self.rx_raw         = Signal(data_width) # o: raw RX symbols (rx clock domain, no 8b/10b).
         self.rx_rate        = Signal(3)          # RXRATE (000: RXOUT_DIV, 001: /1, 010: /2...).
 
-        # DRP.
-        self.drp = DRPInterface()
+        # DRP (10-bit channel DRP address on GTYE4).
+        self.drp = DRPInterface(address_width=10)
 
         # Loopback.
         self.loopback = Signal(3)
@@ -472,7 +472,7 @@ class GTY(LiteXModule):
             self.comb += pll.reset.eq(tx_init.pllreset)
 
         # DRP mux ----------------------------------------------------------------------------------
-        self.drp_mux = drp_mux = DRPMux()
+        self.drp_mux = drp_mux = DRPMux(address_width=10)
         drp_mux.add_interface(self.drp)
 
         # GTYE4_CHANNEL instance -------------------------------------------------------------------
