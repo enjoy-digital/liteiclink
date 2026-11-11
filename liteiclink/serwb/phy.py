@@ -223,7 +223,7 @@ class SERWBPHY(SERWBPHYBase):
         # -------
 
         # Xilinx Ultrascale(+).
-        if device[:4] in ["xcku", "xvu", "xczu"]:
+        if device[:4] in ["xcku", "xcvu", "xczu"]:
             assert clk_ratio == "1:1"
             taps = 512
             self.serdes = KUSerdes(pads, mode, usp=usp)
