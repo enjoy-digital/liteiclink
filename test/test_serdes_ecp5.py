@@ -270,3 +270,13 @@ class TestSerDesECP5PCIe(unittest.TestCase):
     def test_pcie_is_gen1_only(self):
         with self.assertRaises(AssertionError):
             self.serdes(linerate=3e9, pcie=True)
+
+    def test_pcie_analog_options(self):
+        with self.assertRaises(AssertionError):
+            self.serdes(pcie=True, pcie_analog="unknown")
+        default = self.serdes(pcie=True, pcie_analog="default").serdes_params
+        wizard  = self.serdes(pcie=True, pcie_analog="wizard").serdes_params
+        # "wizard" (the default option) replaces the 10BSER sample code attributes.
+        self.assertEqual(self.serdes(pcie=True).serdes_params["p_CHX_RTERM_RX"], wizard["p_CHX_RTERM_RX"])
+        self.assertEqual(wizard["p_CHX_RTERM_RX"], "0d22")
+        self.assertNotEqual(default["p_CHX_RTERM_RX"], "0d22")

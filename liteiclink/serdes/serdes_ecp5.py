@@ -718,6 +718,9 @@ class SerDesECP5(LiteXModule):
     and the raw receiver detection ports (``pcie_det_en``, ``pcie_ct``, ``pcie_done``, ``pcie_con``, TN1261):
     the detection sequence is left to the user, on the DCU TX clock. ``rx_los`` is the raw (asynchronous) DCU
     loss of signal, for the user's own filtering.
+
+    pcie_analog (pcie=True): the DCU PLL/CDR/driver/receiver analog attributes: "wizard" (Lattice's PCI Express
+    2.5Gbps wizard values, as documented in Yumewatari) or "default" (the 10BSER sample code ones).
     """
     def __init__(self, pll, tx_pads, rx_pads,
         dual        = 0,
@@ -726,12 +729,14 @@ class SerDesECP5(LiteXModule):
         tx_polarity = 0,
         rx_polarity = 0,
         with_oob    = False,
-        pcie        = False):
+        pcie        = False,
+        pcie_analog = "wizard"):
         assert dual       in [0, 1]
         assert channel    in [0, 1]
         assert data_width in [20, 40]
         assert with_oob or (data_width == 20)
         assert (not pcie) or (pll.config["linerate"] <= 2.5e9) # Gen1 only (2.5 Gbps DCU rate attributes).
+        assert pcie_analog in ["wizard", "default"]
         self.dual    = dual
         self.channel = channel
 
@@ -1157,6 +1162,26 @@ class SerDesECP5(LiteXModule):
                 o_CHX_FFS_PCIE_DONE     = self.pcie_done,
                 o_CHX_FFS_PCIE_CON      = self.pcie_con,
             )
+            if pcie_analog == "wizard":
+                # Analog/PLL/CDR/driver attributes of Lattice's PCI Express 2.5 Gbps wizard output, as documented by
+                # whitequark in Yumewatari (0BSD, Copyright (C) 2018 whitequark@whitequark.org), instead of the
+                # 10BSER sample code ones above (for non-5G LFE5UM: not verified on hardware, "default" selects
+                # the 10BSER ones).
+                self.serdes_params.update(
+                    p_D_CMUSETI4CPP         = "0d4",
+                    p_D_CMUSETZGM           = "0b100",
+                    p_D_RG_EN               = "0b1",
+                    p_D_SETIRPOLY_AUX       = "0b10",
+                    p_D_SETIRPOLY_CH        = "0b10",
+                    p_CHX_DCOCALDIV         = "0b010",
+                    p_CHX_DCODISBDAVOID     = "0b1",
+                    p_CHX_DCOFTNRG          = "0b010",
+                    p_CHX_DCONUOFLSB        = "0b101",
+                    p_CHX_RTERM_RX          = "0d22",   # 50 Ohm (wizard value, does not match the datasheet table)
+                    p_CHX_TDRV_SLICE3_CUR   = "0b11",   # 3200 uA
+                    p_CHX_TDRV_SLICE4_CUR   = "0b11",   # 3200 uA
+                    p_CHX_TDRV_SLICE4_SEL   = "0b01",   # main data
+                )
 
         # SCI Reconfiguration ----------------------------------------------------------------------
         self.sci_reconfig = sci_reconfig = SerDesECP5SCIReconfig(
