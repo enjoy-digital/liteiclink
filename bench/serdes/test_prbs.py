@@ -61,8 +61,8 @@ class SerDes:
         print(f"Configuring Serdes{self.n}...")
 
         if hasattr(self, "clock_aligner_disable"):
-            print("Disabling Clock Aligner")
-            self.clock_aligner_disable.write(0)
+            print("Disabling Clock Aligner.")
+            self.clock_aligner_disable.write(1)
 
         if square_wave:
             print(f"Setting Square-wave mode.")
