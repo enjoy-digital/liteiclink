@@ -122,9 +122,10 @@ TAP interface needs the rights of the network administrator.
 state changes of both initialization state machines, so it shows the calibration of the link step by
 step.
 
-After both PHYs reach `READY`, its counter checkers also print "check error" lines, mostly on the
-master side; the cause is not investigated. The self-checking mode is the reference for a pass or
-a fail.
+After both PHYs reach `READY`, each counter checker prints "check started" at the first counter
+word, then a "check error" line for each word out of sequence; a working link prints none.
+`test/test_serwb_sim_min.py` runs this mode. The self-checking mode is the reference for the bus
+traffic.
 
 The simulated system clock is 1 MHz and the PHYs use a short initialization timeout
 (`init_timeout=128`), so the link comes up in a few thousand cycles. Rates and latencies in cycles
