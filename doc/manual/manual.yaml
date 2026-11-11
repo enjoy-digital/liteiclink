@@ -1,0 +1,29 @@
+# Manual of this project: output name and chapters, in order (read by build.py; the pandoc defaults
+# files and the theme are generic, from the manual kit).
+name: liteiclink_manual
+chapters:
+  - 00_front.md
+  - 01_introduction.md
+  - 02_serial_primer.md
+  - 03_transceiver_primer.md
+  - 04_serwb_primer.md
+  - 05_serdes_architecture.md
+  - 06_xilinx_7series.md
+  - 07_xilinx_ultrascale.md
+  - 08_lattice_ecp5.md
+  - 09_gowin_gw5.md
+  - 10_serwb_architecture.md
+  - 11_serwb_phys.md
+  - 12_serwb_protocol.md
+  - 13_boards.md
+  - 14_getting_started.md
+  - 15_integration.md
+  - 16_examples.md
+  - 17_simulation.md
+  - 18_debugging.md
+  - Z_appendix.md
+  - A_registers.md
+  - B_build_options.md
+  - C_glossary.md
+  - D_performance.md
+  - E_maintenance.md

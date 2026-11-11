@@ -1,0 +1,16 @@
+---
+# Project metadata of the manual (title page, headers, document properties). The theme (colours,
+# fonts, LaTeX options) is in theme.yaml; build.py merges both and replaces @DATE@.
+title: "Transceivers & Inter-Chip Links"
+project: "LiteICLink"
+subtitle: "Reference manual of the LiteX transceiver wrappers (Xilinx, Lattice, Gowin) and of SerWB, Wishbone over serial links"
+author: [Enjoy-Digital]
+date: "@DATE@"
+license: "Copyright © 2017-2026 Enjoy-Digital. Licensed under the BSD-2-Clause license."
+license-short: "BSD-2-Clause"
+contact: "hello@enjoy-digital.fr"
+website: "enjoy-digital.fr"
+subject: "LiteICLink"
+lang: en-US
+header-right: "Transceivers \\& Inter-Chip Links · BSD-2-Clause · \\href{mailto:hello@enjoy-digital.fr}{hello@enjoy-digital.fr}"
+---
