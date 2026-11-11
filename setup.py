@@ -21,8 +21,9 @@ setup(
     test_suite                    = "test",
     license                       = "BSD",
     python_requires               = "~=3.7",
-    install_requires              = ["pyyaml", "litex", "liteeth"],
+    install_requires              = ["pyyaml", "litex"],
     extras_require                = {
+        "etherbone": ["liteeth"], # Deprecated SERWBCore(protocol="etherbone").
         "develop": [
           "meson",
           "pexpect",

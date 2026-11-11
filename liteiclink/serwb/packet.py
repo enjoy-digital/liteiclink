@@ -11,8 +11,6 @@ from litex.gen.genlib.misc import WaitTimer
 
 from litex.soc.interconnect import stream
 
-from liteeth.mac.crc import LiteEthMACCRCEngine
-
 # Constants ----------------------------------------------------------------------------------------
 
 PREAMBLE = 0x5aa55aa5
@@ -36,6 +34,8 @@ class _CRC16(LiteXModule):
     SerWB packets are short (a few words): CRC-16 detects all 1/2/3-bit errors and bursts up to
     16-bit on them, at about half the logic of a CRC-32.
     """
+    polynom = 0x1021
+
     def __init__(self):
         self.reset  = Signal()
         self.update = Signal()
@@ -44,18 +44,36 @@ class _CRC16(LiteXModule):
 
         # # #
 
-        self.engine = engine = LiteEthMACCRCEngine(data_width=32, width=16, polynom=0x1021)
-        self.comb += [
-            engine.data.eq(self.data),
-            engine.crc_prev.eq(self.value),
-        ]
+        # Next CRC value: LFSR (data LSB first) unrolled over the 32 data bits, each CRC bit is the
+        # XOR of previous CRC bits and data bits.
+        crc_next  = Signal(16)
+        equations = self.lfsr_equations(data_width=32, width=16, polynom=self.polynom)
+        for i, (state_bits, data_bits) in enumerate(equations):
+            xors = [self.value[n] for n in state_bits] + [self.data[n] for n in data_bits]
+            self.comb += crc_next[i].eq(Reduce("XOR", xors))
         self.sync += [
             If(self.reset,
                 self.value.eq(2**16-1)
             ).Elif(self.update,
-                self.value.eq(engine.crc_next)
+                self.value.eq(crc_next)
             )
         ]
+
+    @staticmethod
+    def lfsr_equations(data_width, width, polynom):
+        """Return, for each CRC bit, the (previous CRC bits, data bits) XORed to compute it."""
+        # Each bit is tracked as a set of terms: a term XORed twice cancels out.
+        bits = [{("state", i)} for i in range(width)]
+        for n in range(data_width):
+            feedback = bits.pop(-1) ^ {("data", n)}
+            for pos in range(width - 1):
+                if (polynom >> (pos + 1)) & 1:
+                    bits[pos] = bits[pos] ^ feedback
+            bits.insert(0, feedback)
+        return [(
+            sorted(n for t, n in terms if t == "state"),
+            sorted(n for t, n in terms if t == "data"),
+        ) for terms in bits]
 
 # Packetizer ---------------------------------------------------------------------------------------
 

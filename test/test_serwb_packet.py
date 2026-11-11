@@ -6,8 +6,10 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+import sys
 import unittest
 import random
+import subprocess
 
 from migen import *
 
@@ -17,6 +19,7 @@ from litex.gen.sim import *
 from litex.soc.interconnect import stream
 
 from liteiclink.serwb.packet import Packetizer, Depacketizer, CRCDepacketizer, packet_description
+from liteiclink.serwb.packet import _CRC16
 
 # DUT ----------------------------------------------------------------------------------------------
 
@@ -174,6 +177,60 @@ class TestSERWBPacket(unittest.TestCase):
             yield from words_generator(dut.sink, [0x5aa55aa5, (4 << 8) | 2, 0xcafecafe])
         run_simulation(dut, [generator(), words_checker(dut.source, results, 200)])
         self.assertEqual(results, [(0, 0xdeadbeef, 0), (2, 0xcafecafe, 1)])
+
+# CRC ----------------------------------------------------------------------------------------------
+
+def crc16_reference(value, word):
+    """CRC-16 (0x1021) update over a 32-bit word, data LSB first (bitwise reference)."""
+    for n in range(32):
+        feedback = ((value >> 15) ^ (word >> n)) & 1
+        value    = (value << 1) & 0xffff
+        if feedback:
+            value ^= 0x1021
+    return value
+
+class TestSERWBCRC(unittest.TestCase):
+    def crc16_sim(self, words):
+        dut     = _CRC16()
+        results = []
+        def generator():
+            for word in words:
+                yield dut.data.eq(word)
+                yield dut.update.eq(1)
+                yield
+                yield dut.update.eq(0)
+                yield
+                results.append((yield dut.value))
+        run_simulation(dut, generator())
+        return results
+
+    def test_crc16_values(self):
+        # Values on the link (computed with the LiteEth CRC engine previously used): changing them
+        # would break the CRC between SerWB versions.
+        words = [0x00000000, 0xffffffff, 0x12345678, 0x5aa55aa5]
+        self.assertEqual(self.crc16_sim(words), [0x84c0, 0xa8f1, 0xd4c7, 0x179d])
+
+    def test_crc16_random(self):
+        prng  = random.Random(42)
+        words = [prng.randrange(2**32) for _ in range(64)]
+        value, expected = 0xffff, []
+        for word in words:
+            value = crc16_reference(value, word)
+            expected.append(value)
+        self.assertEqual(self.crc16_sim(words), expected)
+
+    def test_no_liteeth(self):
+        # The native protocol and the CRC don't require LiteEth (LiteEth itself imports LiteICLink).
+        code = "\n".join([
+            "import sys",
+            "sys.modules['liteeth'] = None",
+            "from liteiclink.serwb.core import SERWBCore",
+            "from liteiclink.serwb.packet import Packetizer, CRCDepacketizer",
+            "Packetizer(with_crc=True)",
+            "CRCDepacketizer(clk_freq=int(1e6), max_words=16)",
+        ])
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
 
 if __name__ == "__main__":
     unittest.main()
