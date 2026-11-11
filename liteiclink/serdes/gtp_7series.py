@@ -177,6 +177,8 @@ class GTP(LiteXModule):
         self.tx_produce_pattern     = Signal()
         self.tx_pattern             = Signal(data_width)
         self.tx_prbs_config         = Signal(2)
+        self.tx_raw_enable          = Signal()           # Transmit tx_raw (raw symbols, no 8b/10b).
+        self.tx_raw                 = Signal(data_width) # i (tx clock domain).
 
         # RX controls.
         self.rx_enable      = Signal(reset=1)
@@ -185,6 +187,7 @@ class GTP(LiteXModule):
         self.rx_prbs_config = Signal(2)
         self.rx_prbs_pause  = Signal()
         self.rx_prbs_errors = Signal(32)
+        self.rx_raw         = Signal(data_width) # o: raw RX symbols (rx clock domain, no 8b/10b).
 
         # DRP.
         self.drp = DRPInterface()
@@ -212,6 +215,7 @@ class GTP(LiteXModule):
         tx_produce_pattern     = Signal()
         tx_pattern             = Signal(data_width)
         tx_prbs_config         = Signal(2)
+        tx_raw_enable          = Signal()
 
         rx_prbs_config = Signal(2)
         rx_prbs_pause  = Signal()
@@ -223,6 +227,7 @@ class GTP(LiteXModule):
             MultiReg(self.tx_produce_pattern,     tx_produce_pattern,     "tx"),
             MultiReg(self.tx_pattern,             tx_pattern,             "tx"),
             MultiReg(self.tx_prbs_config,         tx_prbs_config,         "tx"),
+            MultiReg(self.tx_raw_enable,          tx_raw_enable,          "tx"),
         ]
 
         # RX Sync.
@@ -1019,6 +1024,8 @@ class GTP(LiteXModule):
                 txdata.eq(Signal(data_width, reset=(1<<(data_width//2))-1))
             ).Elif(tx_produce_pattern,
                 txdata.eq(tx_pattern)
+            ).Elif(tx_raw_enable,
+                txdata.eq(self.tx_raw)
             ).Else(
                 txdata.eq(self.tx_prbs.o)
             )
@@ -1037,6 +1044,7 @@ class GTP(LiteXModule):
         self.sync.rx += rxdata_r.eq(rxdata)
         for i in range(nwords):
             self.comb += self.decoders[i].input.eq(rxdata_r[10*i:10*(i+1)])
+        self.comb += self.rx_raw.eq(rxdata_r)
         self.sync.rx += self.rx_prbs.i.eq(rxdata)
 
         # Clock Aligner ----------------------------------------------------------------------------
