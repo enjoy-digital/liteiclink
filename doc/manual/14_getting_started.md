@@ -179,8 +179,7 @@ error count stays at 0, and the printed BER at `0.000e+00`. At the end, the scri
 PRBS and the loopback.
 
 **If not.** A clock far from the expected value points to the PLL configuration or the reference
-clock. A clock that does not run is printed as `2147.484MHz`, not 0: the script reads the same
-counter value twice and takes it as a full wrap of the 32-bit counter. Errors in near-end loopback point to the clocking inside the FPGA, not to the board:
+clock. A clock that does not run is printed as `0.000MHz`. Errors in near-end loopback point to the clocking inside the FPGA, not to the board:
 [Debugging](#debugging) covers both cases.
 
 On ECP5, `--loopback` requests the DCU loopback: any non-zero value of the `loopback` register
