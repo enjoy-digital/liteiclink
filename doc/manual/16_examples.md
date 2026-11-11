@@ -257,7 +257,7 @@ python3 bench/serwb/test_serwb.py --ident --init --sram --access
 |----------------------|----------------------------------------------------------------------------------------------------------------------|
 | `--ident` | Read and print the identifier string of the SoC |
 | `--init` | Reset the link master, wait up to 4 s for `ready` or `error`, print the state of both PHYs |
-| `--sram` | Write a counter to the first 128 words of the SRAM and dump the first 32, then write four known words and dump the same 32 |
+| `--sram` | Write a counter to the first 128 words of the SRAM and dump them, then write four known words and dump the same 128 words |
 | `--access` | Write `0x12345678` at offset `0x100` of the SRAM over the link and read it back |
 | `--port` | Port of `litex_server` (default `1234`) |
 
