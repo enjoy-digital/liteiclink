@@ -58,8 +58,10 @@ def init_test(port):
         timeout -= 0.1
     print("")
     if (timeout <= 0):
-        print("Failed.")
+        print("Failed (timeout).")
         return
+    elif bus.regs.serwb_master_phy_control_error.read():
+        print("Failed (error).")
     else:
         print("Success.")
 
