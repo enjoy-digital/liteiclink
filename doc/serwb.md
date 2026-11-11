@@ -48,7 +48,7 @@ instead of stalling the bus.
 |---------------------------------------|-----------------------------------------------------|
 | `reset` (master only)                 | Restart link initialization.                        |
 | `ready`, `error`                      | Link status.                                        |
-| `delay`, `delay_min(_found)`, `delay_max(_found)`, `phase` | Sampling window calibration results (high-speed PHYs). |
+| `delay`, `delay_min(_found)`, `delay_max(_found)`, `phase` | Sampling window calibration results (high-speed PHYs, `phase`: Efinix only). |
 | `shift`                               | Word alignment (bitslip) result.                    |
 | `prbs_start`, `prbs_cycles`, `prbs_errors` | Link test: errors counted over `prbs_cycles`.  |
 | `prbs_tx`, `prbs_rx` (`with_prbs`)    | Send PRBS31 instead of traffic / check received PRBS31. |
