@@ -126,12 +126,14 @@ class SerWBTestSoC(SoCMini):
         # PHY.
         # ----
         self.serwb_master_phy = serwb_master_phy = SERWBPHY(
-            device       = self.platform.device,
-            pads         = self.platform.request("serwb_master"),
-            mode         = "master",
-            clk          = "serwb_phy",
-            clk4x        = "serwb_phy4x",
-            clk_ratio    = clk_ratio,
+            device         = self.platform.device,
+            pads           = self.platform.request("serwb_master"),
+            mode           = "master",
+            clk            = "serwb_phy",
+            clk4x          = "serwb_phy4x",
+            clk_ratio      = clk_ratio,
+            clk_delay_taps = lvds_clk_delay,
+            rx_delay_taps  = lvds_rx_delay,
         )
 
         # Core.
@@ -152,10 +154,12 @@ class SerWBTestSoC(SoCMini):
         # PHY.
         # ----
         self.serwb_slave_phy = serwb_slave_phy = ClockDomainsRenamer("rx_sys")(SERWBPHY(
-            device       = self.platform.device,
-            pads         = self.platform.request("serwb_slave"),
-            mode         = "slave",
-            clk_ratio    = clk_ratio,
+            device         = self.platform.device,
+            pads           = self.platform.request("serwb_slave"),
+            mode           = "slave",
+            clk_ratio      = clk_ratio,
+            clk_delay_taps = lvds_clk_delay,
+            rx_delay_taps  = lvds_rx_delay,
         ))
 
         # Core.
