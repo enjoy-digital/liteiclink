@@ -99,7 +99,7 @@ quotes every record of the table.
 | UltraScale GTH | Validated on hardware | Not recorded publicly | None |
 | UltraScale+ GTH | Validated on hardware | Not recorded publicly | None |
 | UltraScale+ GTY | Validated on hardware | Alibaba XCKU3P, 10 and 5 Gbps, PRBS31; Kintex UltraScale+ board, 2.5 and 5 Gbps on 1 lane, 8 Gbps up to 8 lanes (LitePCIe soft PHY) | `107782b`, LitePCIe doc |
-| Lattice ECP5-5G DCU | Validated on hardware | 2.5 Gbps (board not stated); ECPIX-5, 5 Gbps, 40-bit words | `37d45f3`, `939f4ad` |
+| Lattice ECP5-5G DCU | Validated on hardware | 2.5 Gbps (board not stated); ECPIX-5, 5 Gbps, 40-bit words; Versa, 2.5 Gbps, PCI Express mode (LitePCIe soft PHY) | `37d45f3`, `939f4ad`, LitePCIe doc |
 | Gowin GTR12, up to 5 Gbps | Validated on hardware | Tang Mega 138K Pro and GW5AT-15, 5 Gbps (USB3-PIPE) | `16f1e31`, `5d098d2` |
 | Gowin GTR12, above 5 Gbps | In development | None | None |
 | SerWB 7-Series PHY | Validated on hardware | UltraScale link master to 7-Series link slave, rate not stated | `816996a` |
@@ -170,7 +170,9 @@ closed-source designs.
 LiteICLink is used by the ARTIQ project. The file headers of the clock aligner and of the GTP,
 7-Series GTH and UltraScale GTH wrappers carry a 2017 copyright line with an M-Labs address. The
 parameters and signals
-of the ECP5 DCU primitive come from the documentation of the Yumewatari project. The other
+of the ECP5 DCU primitive come from the documentation of the Yumewatari project. The attributes of
+the PCI Express mode and its receiver detection sequence come from the same project, and katsuo-pcie,
+a PCI Express stack in Amaranth by Vegard Storheil Eriksen, confirmed them. The other
 contributors are listed in `CONTRIBUTORS` and in the history of the repository.
 
 ## How to read this manual {#intro-reading}

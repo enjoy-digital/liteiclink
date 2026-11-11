@@ -41,7 +41,7 @@ The tests are in `test/`, one file per area, and run with pytest.
 | `test_serdes_xilinx.py` | Six Xilinx families with CPLL and QPLL to Verilog: widths, registers, external clocks, clock dividers, GTP fabric reference clock, GTY raw symbols and rate |
 | `test_serdes_init.py` | Init state machines of every Xilinx family: done, restart, watchdog, GTP DRP sequence |
 | `test_serdes_clock_aligner.py` | Clock aligner: aligned, no comma, errors after ready, disable |
-| `test_serdes_ecp5.py` | ECP5: OOB opt-in, word aligner, 5 Gbps PLL, 40-bit mode and gearboxes |
+| `test_serdes_ecp5.py` | ECP5: OOB opt-in, word aligner, 5 Gbps PLL, 40-bit mode and gearboxes, PCI Express mode |
 | `test_serdes_gtr12.py` | GTR12: primitives, tie-offs, lane wiring, quad configuration, decoder, UPAR nets, Verilog |
 | `test_serwb_init.py` | SerWB init: delay and shift scans, Efinix phase search, generic PHY, control registers |
 | `test_serwb_health.py` | SerWB link health: PRBS link test, link drops, auto retrain |
