@@ -223,23 +223,10 @@ of both cores; its slave side increments its 32-bit SerIO input word as a counte
 | `--build`, `--load` | All | Run the toolchain, load the bitstream |
 | `--low-speed` | `nexys_video.py` | Generic PHY instead of the 7-Series PHY |
 | `--with-analyzer` | All but `icebreaker.py` | LiteScope analyzer on both PHYs |
-| `--loopback` | `trellisboard.py`, `ulx3s.py` | Link inside the FPGA, no pins |
+| `--loopback` | `icebreaker.py`, `trellisboard.py`, `ulx3s.py` | Link inside the FPGA, no pins |
 | `--flash` | Efinix targets | Write the bitstream to the flash |
-| `--lvds-rx-delay` | `t120_bga576_dev_kit.py` | Static delay of the data input (see below) |
-| `--lvds-clk-delay` | `t120_bga576_dev_kit.py` | Static delay of the clock input (see below) |
-
-The SerWB targets below have known limitations:
-
-- `icebreaker.py` accepts `--loopback` but does not pass it to its design, which always uses the
-  pins.
-- `icebreaker.py` and `demo/icebreaker.py` write the SPI flash with `--load`, although its help
-  says "to SRAM": the bitstream stays on the board.
-- `t120_bga576_dev_kit.py` accepts the two static delays but does not pass them to the PHY, so
-  they have no effect.
-- `nexys_video.py` requests a `cpu_reset` pin that the Nexys Video platform of LiteX-Boards names
-  `cpu_reset_n`, so the target stops with "Resource not found".
-- `ti60_f225_dev_kit.py` builds the slave SerIO in `sys`, while the slave core it connects to runs
-  in `rx_sys`: its stream endpoints cross the two domains without synchronization.
+| `--lvds-rx-delay` | `t120_bga576_dev_kit.py` | Static delay of the data inputs, in taps, on both PHYs |
+| `--lvds-clk-delay` | `t120_bga576_dev_kit.py` | Static delay of the clock inputs, in taps, on both PHYs |
 
 ### SerWB test: test_serwb.py {#ex-test-serwb}
 
