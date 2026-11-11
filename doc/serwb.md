@@ -1,5 +1,9 @@
 # SerWB
 
+> Short developer note. The reference is the [LiteICLink manual](manual/README.md): Part III
+> (SerWB architecture, PHYs, packets and protocol), Part IV (integration, benches, tests,
+> debugging) and the register appendix.
+
 SerWB extends a Wishbone bus to another FPGA over 3 I/Os (clock + TX + RX), using LVDS (high-speed
 PHYs) or single-ended I/Os (generic low-speed PHY). Accesses are encapsulated in a lightweight MMAP
 protocol over a small packet layer with 8b10b line coding.
