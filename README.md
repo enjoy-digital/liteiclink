@@ -70,7 +70,8 @@ enjoy-digital.fr.
 ------------------
 1. Install Python 3.7+ and FPGA vendor's development tools.
 2. Install LiteX and the cores by following the LiteX's wiki [installation guide](https://github.com/enjoy-digital/litex/wiki/Installation).
-3. You can find examples of integration of the core with LiteX in LiteX-Boards and in the examples directory.
+3. You can find examples of integration of the core with LiteX in LiteX-Boards and in the bench directory
+   (SerDes PRBS benches in bench/serdes, SerWB benches and demo in bench/serwb).
 
 [> Tests
 --------
