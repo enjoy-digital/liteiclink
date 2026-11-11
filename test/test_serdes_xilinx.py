@@ -18,6 +18,8 @@ from litex.gen import *
 
 from litex.build.xilinx import XilinxPlatform
 
+from litex.soc.interconnect.csr import CSRStatus
+
 from liteiclink.serdes.gtp_7series     import GTPQuadPLL, GTP
 from liteiclink.serdes.gtx_7series     import GTXChannelPLL, GTXQuadPLL, GTX
 from liteiclink.serdes.gth_7series     import GTHChannelPLL as GTH2ChannelPLL, GTHQuadPLL as GTH2QuadPLL, GTH as GTH2
@@ -138,6 +140,9 @@ class TestSerDesXilinx(unittest.TestCase):
         for csr in CSRS:
             self.assertIn(csr, csrs)
         self.assertEqual("clock_aligner_disable" in csrs, kwargs.get("clock_aligner", True))
+        # Clock cycles: latched by hardware, read-only.
+        self.assertIsInstance(top.serdes.clock_tx_cycles, CSRStatus)
+        self.assertIsInstance(top.serdes.clock_rx_cycles, CSRStatus)
 
     def test_configs(self):
         for family in FAMILIES:

@@ -12,6 +12,7 @@ from migen.sim import run_simulation
 
 from litex.gen import *
 
+from litex.soc.interconnect.csr import CSRStatus
 from litex.soc.cores.code_8b10b import Encoder, Decoder
 
 from liteiclink.serdes.serdes_ecp5 import SerDesECP5PLL, SerDesECP5, SerDesECP5WordAligner
@@ -136,6 +137,13 @@ class TestSerDesECP540Bit(unittest.TestCase):
         self.assertEqual((config["m"], config["d"]), (20, 1))
         with self.assertRaises(ValueError):
             SerDesECP5PLL.compute_config(100e6, 5e9) # x25 max: 2.5Gbps.
+
+    def test_clock_cycles_read_only(self):
+        # Clock cycles: latched by hardware, read-only.
+        serdes = TestSerDesECP5.serdes()
+        serdes.add_clock_cycles()
+        self.assertIsInstance(serdes.clock_tx_cycles, CSRStatus)
+        self.assertIsInstance(serdes.clock_rx_cycles, CSRStatus)
 
     def test_40bit_requires_oob(self):
         with self.assertRaises(AssertionError):
