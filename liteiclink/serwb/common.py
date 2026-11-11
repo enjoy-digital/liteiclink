@@ -19,7 +19,8 @@ from litex.soc.cores.prbs import PRBS31Generator, PRBS31Checker
 class SerdesControl(LiteXModule):
     """SerDes Init Control/Status CSRs (shared by all SerWB PHYs).
 
-    ``with_delay`` exposes the sampling window calibration results (PHYs with dynamic delays).
+    ``with_delay`` exposes the sampling window calibration results (PHYs with dynamic delays), and
+    the selected RX phase for the PHYs with a phase selection (``serdes.rx.phase_sel``, Efinix).
     ``with_prbs`` adds real PRBS31 TX/RX test CSRs (prbs_tx/prbs_rx, see SERWBPHYBase).
     ``with_auto_retrain`` (Master): restarts link initialization when ``retrain_threshold`` invalid
     8b10b words are received within ``retrain_window`` cycles while the link is ready.
@@ -43,7 +44,8 @@ class SerdesControl(LiteXModule):
             self.delay_max_found = CSRStatus()
             self.delay_max       = CSRStatus(9)
         self.shift = CSRStatus(6)
-        if with_delay:
+        with_phase = with_delay and hasattr(serdes.rx, "phase_sel")
+        if with_phase:
             self.phase = CSRStatus(2)
 
         # PRBS.
@@ -135,7 +137,7 @@ class SerdesControl(LiteXModule):
                 self.delay_max.status.eq(init.delay_max),
             ]
         self.comb += self.shift.status.eq(init.shift)
-        if with_delay:
+        if with_phase:
             self.comb += self.phase.status.eq(init.phase_sel)
 
         # PRBS.

@@ -12,7 +12,7 @@ from migen import *
 
 from litex.gen.sim import *
 
-from liteiclink.serwb.phy    import _SerdesInit
+from liteiclink.serwb.phy    import _SerdesInit, SERWBPHY
 from liteiclink.serwb.genphy import _SerdesInit as _GenSerdesInit
 from liteiclink.serwb.common import SerdesControl
 
@@ -306,3 +306,29 @@ class TestSERWBControl(unittest.TestCase):
             results["invalid_errors_cleared"] = (yield control.invalid_errors.status)
         run_simulation(dut, generator())
         self.assertEqual(results, dict(reset=1, ready=1, shift=5, prbs_errors=3, invalid_errors=3, invalid_errors_cleared=0))
+
+    def test_phase_csr(self):
+        # The phase CSR is only meaningful on the PHYs with a RX phase selection (Efinix).
+        def control(with_phase_sel):
+            serdes = Module()
+            serdes.rx, serdes.rx.datapath = Module(), Module()
+            serdes.rx.datapath.invalid    = Signal()
+            if with_phase_sel:
+                serdes.rx.phase_sel = Signal(2)
+            init = Module()
+            for name in ["ready", "error", "reset", "delay_min_found", "delay_max_found"]:
+                setattr(init, name, Signal())
+            for name in ["delay", "delay_min", "delay_max", "shift", "phase_sel"]:
+                setattr(init, name, Signal(9))
+            return SerdesControl(serdes, init, mode="master")
+        self.assertTrue(hasattr(control(with_phase_sel=True),  "phase"))
+        self.assertFalse(hasattr(control(with_phase_sel=False), "phase"))
+
+    def test_phase_csr_xilinx(self):
+        # 7-Series/UltraScale PHYs: no phase selection, no phase CSR.
+        pads = Record([(name, 1) for name in ["clk_p", "clk_n", "tx_p", "tx_n", "rx_p", "rx_n"]])
+        for device in ["xc7a35t", "xcku040"]:
+            with self.subTest(device=device):
+                phy = SERWBPHY(device, pads, mode="master")
+                self.assertFalse(hasattr(phy.control, "phase"))
+                self.assertTrue(hasattr(phy.control,  "delay"))
