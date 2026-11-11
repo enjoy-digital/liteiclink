@@ -1390,8 +1390,8 @@ class GTY(LiteXModule):
 
     def add_clock_cycles(self):
         self.clock_latch    = CSRStorage(description="Write to latch TX/RX clock cycles.")
-        self.clock_tx_cycles = CSRStorage(32, description="TX clock cycles.")
-        self.clock_rx_cycles = CSRStorage(32, description="RX clock cycles.")
+        self.clock_tx_cycles = CSRStatus(32, description="TX clock cycles.")
+        self.clock_rx_cycles = CSRStatus(32, description="RX clock cycles.")
 
         tx_cycles = Signal(32)
         rx_cycles = Signal(32)
@@ -1399,8 +1399,8 @@ class GTY(LiteXModule):
         self.sync.rx += rx_cycles.eq(rx_cycles + 1)
 
         self.sync += If(self.clock_latch.wr_stb,
-            self.clock_tx_cycles.storage.eq(tx_cycles),
-            self.clock_rx_cycles.storage.eq(rx_cycles),
+            self.clock_tx_cycles.status.eq(tx_cycles),
+            self.clock_rx_cycles.status.eq(rx_cycles),
         )
 
     def do_finalize(self):
