@@ -20,8 +20,10 @@ python3 -m pytest -v                                                # what CI ru
 
 - Transceiver wrappers are shared by several cores: a parameter change can affect LiteEth,
   LiteSATA, LiteJESD204 and USB3-PIPE users; say which families and rates were rebuilt or run.
-- Reference clocks: routing a reference clock through the fabric into a GTP common can give
-  build-dependent RX quality; prefer the dedicated clock paths (`refclk_from_fabric` options).
+- Reference clocks: use a dedicated transceiver reference clock pin when the board has one. A
+  reference clock from the fabric must use `refclk_from_fabric=True` (GTP/GTH4/GTY QPLLs): it drives
+  GTGREFCLK from the clock network, while GTREFCLK fed from the fabric is routed through general
+  interconnect and gave build-dependent RX quality on GTP.
 - GW5 GTR12 UPAR accesses need the CSR mode used by the vendor wrappers; GTY DRP access goes through
   a single DRP interface (debug tools must select it).
 
