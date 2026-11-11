@@ -76,7 +76,7 @@ passes them to the base and PRBS groups. With `auto_enable=False`, `tx_enable` a
 ## ECP5 wrapper {#opt-ecp5}
 
 | Parameter | Default | Meaning |
-|--------------------------------------|------------------|------------------------------------------------------------------------------------|
+|--------------------------------|----------------------|------------------------------------------------------------------------------------|
 | `pll` | required | `SerDesECP5PLL` object |
 | `tx_pads`, `rx_pads` | required | Differential pads, with `p` and `n` |
 | `dual` | `0` | DCU: 0 or 1 |
@@ -85,6 +85,8 @@ passes them to the base and PRBS groups. With `auto_enable=False`, `tx_enable` a
 | `tx_polarity` | `0` | TX P/N swap, applied through SCI |
 | `rx_polarity` | `0` | RX P/N swap, applied through SCI |
 | `with_oob` | `False` | Init sequence and OOB signalling for SATA |
+| `pcie` | `False` | PCI Express mode, 2.5 Gbps at most: DCU settings and receiver detection ports |
+| `pcie_analog` | `"wizard"` | Analog attribute set with `pcie`: `"wizard"` or `"default"` |
 
 `SerDesECP5` has the same `add_stream_endpoints()`, `add_controls()` and `add_clock_cycles()`
 methods; `add_controls()` adds the base, PRBS and loopback registers only.

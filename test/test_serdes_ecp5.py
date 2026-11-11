@@ -224,3 +224,59 @@ class TestSerDesECP540Bit(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSerDesECP5PCIe(unittest.TestCase):
+    @staticmethod
+    def serdes(linerate=2.5e9, **kwargs):
+        class PLL:
+            refclk = Signal()
+            config = {
+                "m":        25,
+                "d":        1,
+                "linerate": linerate,
+            }
+
+        class Pads:
+            p = Signal()
+            n = Signal()
+
+        return SerDesECP5(
+            pll        = PLL(),
+            tx_pads    = Pads(),
+            rx_pads    = Pads(),
+            with_oob   = True,
+            data_width = 40,
+            **kwargs
+        )
+
+    def test_pcie_is_opt_in(self):
+        serdes = self.serdes()
+        for name in ["p_CHX_PCIE_MODE", "i_CHX_FFC_PCIE_DET_EN", "i_CHX_FFC_PCIE_CT", "o_CHX_FFS_PCIE_DONE", "o_CHX_FFS_PCIE_CON"]:
+            self.assertNotIn(name, serdes.serdes_params)
+
+    def test_pcie_mode_and_detection_ports(self):
+        serdes = self.serdes(pcie=True)
+        params = serdes.serdes_params
+        self.assertEqual(params["p_CHX_PCIE_MODE"],    "0b1")
+        self.assertEqual(params["p_D_TX_MAX_RATE"],    "2.5")
+        self.assertEqual(params["p_CHX_CDR_MAX_RATE"], "2.5")
+        self.assertIs(params["i_CHX_FFC_PCIE_DET_EN"], serdes.pcie_det_en)
+        self.assertIs(params["i_CHX_FFC_PCIE_CT"],     serdes.pcie_ct)
+        self.assertIs(params["o_CHX_FFS_PCIE_DONE"],   serdes.pcie_done)
+        self.assertIs(params["o_CHX_FFS_PCIE_CON"],    serdes.pcie_con)
+        self.assertIs(params["o_CHX_FFS_RLOS"],        serdes.rx_los)
+
+    def test_pcie_is_gen1_only(self):
+        with self.assertRaises(AssertionError):
+            self.serdes(linerate=3e9, pcie=True)
+
+    def test_pcie_analog_options(self):
+        with self.assertRaises(AssertionError):
+            self.serdes(pcie=True, pcie_analog="unknown")
+        default = self.serdes(pcie=True, pcie_analog="default").serdes_params
+        wizard  = self.serdes(pcie=True, pcie_analog="wizard").serdes_params
+        # "wizard" (the default option) replaces the 10BSER sample code attributes.
+        self.assertEqual(self.serdes(pcie=True).serdes_params["p_CHX_RTERM_RX"], wizard["p_CHX_RTERM_RX"])
+        self.assertEqual(wizard["p_CHX_RTERM_RX"], "0d22")
+        self.assertNotEqual(default["p_CHX_RTERM_RX"], "0d22")

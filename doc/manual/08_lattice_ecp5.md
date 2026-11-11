@@ -12,11 +12,12 @@ The common interface of all wrappers is in [SerDes wrapper architecture](#serdes
 |------------------------|----------------------------------------------------------------|
 | Classes | `SerDesECP5PLL`, `SerDesECP5` |
 | Placement | `dual` 0 or 1 (DCU0, DCU1), `channel` 0 or 1; one wrapper per DCU |
-| Line rate | Up to 5 Gbps (DCU maximum rate setting) |
+| Line rate | Up to 5 Gbps (DCU maximum rate setting); 2.5 Gbps in the PCI Express mode |
 | Data width | 20 bits, or 40 bits with `with_oob=True` |
 | User clocks | Line rate / 20, or line rate / 40 in the 40-bit mode |
 | Line coding | 8b/10b in the fabric, DCU in raw 10-bit mode |
 | Comma alignment | Fabric (OOB and 40-bit modes); DCU state machine enabled in the default mode, not validated |
+| PCI Express mode | `pcie=True`: Gen1 rate, receiver detection ports, analog attributes for PCI Express |
 | Test patterns | Square wave, fixed pattern, PRBS7/15/31 |
 | Runtime controls | Enables, PRBS, 1-bit loopback, raw register access (SCI) |
 | Not provided | Swing and de-emphasis registers, runtime polarity registers |
@@ -249,6 +250,57 @@ LiteSATA (`litesata/phy/ecp5sataphy.py`) uses the OOB mode at 20 bits for SATA. 
 40-bit mode, with OOB, for LFPS at 5 Gbps. The protocol logic that generates and detects the
 bursts belongs to those cores.
 
+## PCI Express mode {#ecp5-pcie}
+
+PCI Express asks more of a transceiver than a plain serial link. The transmitter must find out
+whether a receiver is connected before training starts, and the analog settings must suit the
+PCI Express electrical rules. `pcie=True` configures the DCU for this at 2.5 Gbps, the Gen1 rate.
+
+The option changes the DCU configuration and adds ports; the datapath stays the one described
+above. The soft PHY of LitePCIe uses it with the 40-bit mode and `with_oob=True`, so that the
+fabric aligns the commas and drives the electrical idle input directly.
+
+| Item | With `pcie=True` |
+|------------------------|-----------------------------------------------------------------|
+| Line rate | At most 2.5 Gbps; the constructor rejects a faster PLL |
+| Mode and rates | PCI Express mode, 2.5 Gbps transmit and clock recovery rates |
+| Receiver detection | Four ports, see below |
+| Loss of signal | The raw output of the DCU as `rx_los`, not synchronized |
+| Analog attributes | The set chosen by `pcie_analog` |
+
+### Receiver detection {#ecp5-detect}
+
+Before link training, a PCI Express transmitter checks whether a receiver is connected (PCIe
+section 4.2.6, Detect). The DCU makes the measurement in hardware. The wrapper exposes the four
+handshake ports of the DCU and leaves the sequence to the user.
+
+| Port | Direction | Meaning |
+|---------------------|-----------|--------------------------------------------------------------|
+| `pcie_det_en` | Input | Puts the transmit driver in detection mode |
+| `pcie_ct` | Input | Starts the detection |
+| `pcie_done` | Output | Low while the detection runs, high when it has finished |
+| `pcie_con` | Output | One if a receiver is connected, valid once `pcie_done` is high |
+
+The sequence runs on the DCU transmit clock, with the transmitter in electrical idle. Raise
+`pcie_det_en`, wait at least 120 ns, then hold `pcie_ct` for four clock cycles. Wait until
+`pcie_done` has fallen and risen, read `pcie_con`, then lower `pcie_det_en`. The steps are those
+of the SERDES/PCS usage guide of Lattice. LitePCIe implements them in `ECP5PCIeDetect`.
+
+### Analog attribute sets {#ecp5-analog}
+
+Analog attributes of the DCU set the currents and the termination of the PLL, of the clock
+recovery oscillator, of the transmit driver and of the receiver. The generic values of the wrapper
+come from sample code for 5 Gbps links, and PCI Express has values of its own.
+
+| `pcie_analog` | Attributes |
+|--------------------|------------------------------------------------------------------------|
+| `"wizard"` | Output of the PCI Express wizard of Lattice at 2.5 Gbps (default) |
+| `"default"` | The values of the wrapper without `pcie` |
+
+The wizard set changes the bias of the PLL and of the oscillator and enables the regulator. It
+sets the transmit driver slice currents to 3200 µA and the receiver termination to the code that
+the wizard gives for 50 Ω.
+
 ## Register access through the SCI {#ecp5-sci}
 
 The DCU registers are reachable at runtime through its serial control interface (SCI): 6-bit
@@ -314,6 +366,8 @@ does for its receive settings.
 ## Limitations {#ecp5-limits}
 
 - 5 Gbps at most; the PLL solver does not check the VCO range of the DCU.
+- The PCI Express mode is Gen1 only, and it configures no transmit de-emphasis.
+- The receiver termination code of the wizard set is not the one that the datasheet table lists for 50 Ω.
 - The loopback register is not known to give a working loopback, and `tx_inhibit` has no effect.
 - The raw transmit words are used only with `with_oob=True`.
 - The 40-bit mode needs `with_oob=True`; its symbol aligner pauses while PRBS is checked.
@@ -329,6 +383,10 @@ does for its receive settings.
 
 Commit `939f4ad`, which added the 40-bit mode, records a 40-bit loopback and a USB 3 device run at
 5 Gbps on the LambdaConcept ECPIX-5 ([Results recorded on hardware](#perf-recorded)).
+
+The PCI Express mode runs in the soft PHY of LitePCIe on the Lattice ECP5 Versa (LFE5UM-45F). The
+link trains to L0 against an x86 root port with the wizard set, the host enumerates the card, and
+register and DMA loopback tests pass. The measurements are in the manual of LitePCIe.
 
 ## In the code {#ecp5-code}
 
@@ -346,7 +404,8 @@ Commit `939f4ad`, which added the 40-bit mode, records a 40-bit loopback and a U
 | `SerDesECP5SCIReconfig` | SCI loop and software access registers |
 
 All are in `liteiclink/serdes/serdes_ecp5.py`. The bench targets are `bench/serdes/ecpix5.py` and
-`bench/serdes/versa_ecp5.py`; the unit tests are in `test/test_serdes_ecp5.py`.
+`bench/serdes/versa_ecp5.py`; the unit tests are in `test/test_serdes_ecp5.py`. The detection
+sequence that uses the PCI Express ports is `ECP5PCIeDetect` in LitePCIe.
 
 Where to go next: [Gowin GW5 GTR12](#gowin-gw5) for the other non-Xilinx transceiver,
 [Benches and examples](#examples) for the ECP5 bench targets, [Debugging](#debugging) for PRBS
