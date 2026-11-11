@@ -101,7 +101,7 @@ def prbs_test(csr_csv="csr.csv", port=1234,
     square_wave = False,
     loopback    = False,
     duration    = 60,
-    linerate    = 5e9,
+    linerate    = 2.5e9,
 ):
     wb = RemoteClient(csr_csv=csr_csv, port=port)
     wb.open()
@@ -122,6 +122,7 @@ def prbs_test(csr_csv="csr.csv", port=1234,
     errors_last      = 0
     errors_total     = 0
     duration_current = 0
+    duration_counted = 0
     interval         = 0.5
     try:
         while duration_current < duration:
@@ -134,13 +135,16 @@ def prbs_test(csr_csv="csr.csv", port=1234,
             serdes.rx_prbs_config.write(prbs_modes[mode])
             if errors < errors_last:
                 errors_last -= 1 << 32
+            # First interval not counted (errors before/at the checker synchronization).
             if not first:
-                errors_total += (errors - errors_last)
-            # Log
-            print("Errors: {:10d} / Duration: {:5.2f}s / BER: {:1.3e} ".format(
+                errors_total    += (errors - errors_last)
+                duration_counted = duration_current - interval
+            # Log: errors are errored words (one or more bit errors per word), the BER computed
+            # from them is a lower bound.
+            print("Errors: {:10d} / Duration: {:5.2f}s / BER (lower bound): {:1.3e} ".format(
                 errors - errors_last,
                 duration_current,
-                errors_total/(duration_current*linerate)))
+                errors_total/(duration_counted*linerate) if not first else 0))
             first       = False
             errors_last = errors
     except KeyboardInterrupt:
@@ -161,7 +165,7 @@ def main():
     parser.add_argument("--mode",        default="prbs7",     help="PRBS mode: prbs7 (default), prbs15 or prbs31")
     parser.add_argument("--square-wave", action="store_true", help="Generate Square-wave on TX")
     parser.add_argument("--duration",    default="60",        help="Test duration in seconds (default=60)")
-    parser.add_argument("--linerate",    default="5e9",       help="Linerate, for BER computation (default=5e9)")
+    parser.add_argument("--linerate",    default="2.5e9",     help="Linerate, for BER computation (default=2.5e9, as the benches)")
     parser.add_argument("--loopback",    action="store_true", help="Enable internal loopback")
     args = parser.parse_args()
 
