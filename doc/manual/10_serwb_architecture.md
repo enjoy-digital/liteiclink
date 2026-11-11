@@ -98,7 +98,8 @@ buffer is empty, and the receiving PHY forwards every word it decodes. A full RX
 and the `rx_overflows` register of the core counts these events.
 
 Link flow control, described in [Flow control](#swb-phy-flow), prevents them. Without flow control, the lost words can be idle
-words: `rx_overflows` then counts although no data is lost ([Buffer sizes](#swb-buffers)).
+words, which carry no data: `rx_overflows` only counts the lost words that belong to a packet,
+found from the preamble and the length of each header ([Buffer sizes](#swb-buffers)).
 
 ## Ports {#swb-ports}
 

@@ -70,8 +70,8 @@ invalid 8b10b words are received while the link is ready (by default 16 within 2
 it, a master stays ready after a link degradation until `control_reset` is written.
 
 The core also has:
-- `rx_overflows`: RX buffer overflows (received words lost, should stay at 0, use flow control
-  otherwise);
+- `rx_overflows`: RX buffer overflows (received packet words lost, idle words are not counted,
+  should stay at 0, use flow control otherwise);
 - `crc_errors` (`with_crc=True`): packets dropped on CRC error.
 
 ## Protocol

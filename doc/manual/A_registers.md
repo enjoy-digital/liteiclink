@@ -367,8 +367,9 @@ Bank `serwb_phy_gen`.
 Defined by `SERWBCore` (`liteiclink/serwb/core.py`).
 
 `crc_errors` exists only with `with_crc=True`, the option enabled here.
-`rx_overflows` counts the events where a received word was lost because the RX buffer
-of the core was full, which flow control avoids ([SerWB architecture](#serwb-architecture)).
+`rx_overflows` counts the events where a received packet word was lost because the RX
+buffer of the core was full, which flow control avoids; lost idle words are not counted
+([SerWB architecture](#serwb-architecture)).
 
 Bank `serwb_core`.
 

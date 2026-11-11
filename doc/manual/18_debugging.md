@@ -227,7 +227,7 @@ Once the link is up, four counters tell what happens to the words.
 |-----------------------------------------------------|--------------------------------------------|-------------------------------------------|
 | `control_invalid_errors` | Words with a symbol of an invalid ones count, while ready | Marginal sampling: see above |
 | `control_link_drops` | Transitions from ready to not ready | Resets, retrains, unstable clock |
-| `rx_overflows` (core) | Words lost on a full RX buffer, idle words included | Enable flow control on both sides |
+| `rx_overflows` (core) | Packet words lost on a full RX buffer, idle words excluded | Enable flow control on both sides |
 | `crc_errors` (core) | Packets dropped on a bad CRC | Bit errors on the line |
 
 `control_invalid_errors` restarts from 0 at each initialization. With `with_auto_retrain=True` on
@@ -235,10 +235,9 @@ the master, 16 invalid words within one window of 2^16 cycles (fixed windows, no
 restart the initialization, which `control_link_drops` then counts.
 
 Without flow control, a link has no backpressure: a remote side slower than the requests loses
-words, which `rx_overflows` reveals. The idle words fill the RX buffer too, so `rx_overflows` can
-count while no data is lost; a non-zero count says that the buffer filled up, not that an access
-was lost. When the link is down, the SoC-side core answers every access
-with a bus error instead of stalling the bus.
+words, which `rx_overflows` reveals. The idle words fill the RX buffer too, but their loss is not
+counted: a non-zero count says that words of a packet were lost. When the link is down, the
+SoC-side core answers every access with a bus error instead of stalling the bus.
 
 ### PRBS link test {#dbg-serwb-prbs}
 
