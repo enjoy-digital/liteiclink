@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="320" viewBox="0 0 760 320">
+<defs>
+  <marker id="arrow-ctrl" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 Z" fill="#5b5b5b"/></marker>
+  <marker id="arrow-ctrl-rev" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="1" refY="4" orient="auto">
+    <path d="M8,0 L0,4 L8,8 Z" fill="#5b5b5b"/></marker>
+  <marker id="arrow-stream" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="9" refY="4.5" orient="auto">
+    <path d="M0,0 L9,4.5 L0,9 Z" fill="#606060"/></marker>
+  <marker id="arrow-accent" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="9" refY="4.5" orient="auto">
+    <path d="M0,0 L9,4.5 L0,9 Z" fill="#2eaadc"/></marker>
+  <marker id="arrow-accent-rev" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="0" refY="4.5" orient="auto">
+    <path d="M9,0 L0,4.5 L9,9 Z" fill="#2eaadc"/></marker>
+  <marker id="arrow-stream-rev" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="0" refY="4.5" orient="auto">
+    <path d="M9,0 L0,4.5 L9,9 Z" fill="#606060"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<polyline points="15,55 170,55" fill="none" stroke="#606060" stroke-width="2.0" marker-end="url(#arrow-stream)"/>
+<text x="90" y="45" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="90" dy="0">sink</tspan></text>
+<polyline points="15,135 170,135" fill="none" stroke="#2eaadc" stroke-width="2.0" marker-end="url(#arrow-accent)"/>
+<text x="90" y="125" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="90" dy="0">tx_raw</tspan></text>
+<polyline points="290,55 360,55" fill="none" stroke="#606060" stroke-width="2.0" marker-end="url(#arrow-stream)"/>
+<polyline points="290,135 360,135" fill="none" stroke="#2eaadc" stroke-width="2.0" marker-end="url(#arrow-accent)"/>
+<polyline points="470,95 600,95" fill="none" stroke="#2eaadc" stroke-width="2.0" marker-end="url(#arrow-accent)"/>
+<text x="535" y="85" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="535" dy="0">TXDATA</tspan></text>
+<polyline points="600,210 470,210" fill="none" stroke="#606060" stroke-width="2.0" marker-end="url(#arrow-stream)"/>
+<text x="535" y="200" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="535" dy="0">RXDATA</tspan></text>
+<polyline points="600,280 470,280" fill="none" stroke="#2eaadc" stroke-width="2.0" marker-end="url(#arrow-accent)"/>
+<polyline points="360,210 15,210" fill="none" stroke="#606060" stroke-width="2.0" marker-end="url(#arrow-stream)"/>
+<text x="90" y="200" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="90" dy="0">source</tspan></text>
+<polyline points="360,280 15,280" fill="none" stroke="#2eaadc" stroke-width="2.0" marker-end="url(#arrow-accent)"/>
+<text x="90" y="270" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="12" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="90" dy="0">rx_raw</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M171.2,32 L279.2,32 L291.2,44 L291.2,82 Q291.2,82 291.2,82 L183.2,82 L171.2,70 L171.2,32 Q171.2,32 171.2,32 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M171.2,32 L279.2,32 L291.2,44 L291.2,82 Q291.2,82 291.2,82 L183.2,82 L171.2,70 L171.2,32 Q171.2,32 171.2,32 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M171,31.5 L279,31.5 L291,43.5 L291,81.5 Q291,81.5 291,81.5 L183,81.5 L171,69.5 L171,31.5 Q171,31.5 171,31.5 Z"/>
+</g>
+<g fill="#e6f5fb" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M170,30 L278,30 L290,42 L290,80 Q290,80 290,80 L182,80 L170,68 L170,30 Q170,30 170,30 Z"/>
+</g>
+<text x="230" y="55" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="230" dy="0">Encoder</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M171.2,112 L279.2,112 L291.2,124 L291.2,162 Q291.2,162 291.2,162 L183.2,162 L171.2,150 L171.2,112 Q171.2,112 171.2,112 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M171.2,112 L279.2,112 L291.2,124 L291.2,162 Q291.2,162 291.2,162 L183.2,162 L171.2,150 L171.2,112 Q171.2,112 171.2,112 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M171,111.5 L279,111.5 L291,123.5 L291,161.5 Q291,161.5 291,161.5 L183,161.5 L171,149.5 L171,111.5 Q171,111.5 171,111.5 Z"/>
+</g>
+<g fill="#bfe6f5" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M170,110 L278,110 L290,122 L290,160 Q290,160 290,160 L182,160 L170,148 L170,110 Q170,110 170,110 Z"/>
+</g>
+<text x="230" y="126" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="230" dy="0">Raw TX</tspan><tspan x="230" dy="18">symbols</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M361.2,32 L459.2,32 L471.2,44 L471.2,162 Q471.2,162 471.2,162 L373.2,162 L361.2,150 L361.2,32 Q361.2,32 361.2,32 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M361.2,32 L459.2,32 L471.2,44 L471.2,162 Q471.2,162 471.2,162 L373.2,162 L361.2,150 L361.2,32 Q361.2,32 361.2,32 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M361,31.5 L459,31.5 L471,43.5 L471,161.5 Q471,161.5 471,161.5 L373,161.5 L361,149.5 L361,31.5 Q361,31.5 361,31.5 Z"/>
+</g>
+<g fill="#e6f5fb" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M360,30 L458,30 L470,42 L470,160 Q470,160 470,160 L372,160 L360,148 L360,30 Q360,30 360,30 Z"/>
+</g>
+<text x="415" y="86" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="415" dy="0">TX source</tspan><tspan x="415" dy="18">mux</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M361.2,187 L459.2,187 L471.2,199 L471.2,237 Q471.2,237 471.2,237 L373.2,237 L361.2,225 L361.2,187 Q361.2,187 361.2,187 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M361.2,187 L459.2,187 L471.2,199 L471.2,237 Q471.2,237 471.2,237 L373.2,237 L361.2,225 L361.2,187 Q361.2,187 361.2,187 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M361,186.5 L459,186.5 L471,198.5 L471,236.5 Q471,236.5 471,236.5 L373,236.5 L361,224.5 L361,186.5 Q361,186.5 361,186.5 Z"/>
+</g>
+<g fill="#e6f5fb" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M360,185 L458,185 L470,197 L470,235 Q470,235 470,235 L372,235 L360,223 L360,185 Q360,185 360,185 Z"/>
+</g>
+<text x="415" y="210" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="415" dy="0">Decoders</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M361.2,257 L459.2,257 L471.2,269 L471.2,307 Q471.2,307 471.2,307 L373.2,307 L361.2,295 L361.2,257 Q361.2,257 361.2,257 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M361.2,257 L459.2,257 L471.2,269 L471.2,307 Q471.2,307 471.2,307 L373.2,307 L361.2,295 L361.2,257 Q361.2,257 361.2,257 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M361,256.5 L459,256.5 L471,268.5 L471,306.5 Q471,306.5 471,306.5 L373,306.5 L361,294.5 L361,256.5 Q361,256.5 361,256.5 Z"/>
+</g>
+<g fill="#bfe6f5" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M360,255 L458,255 L470,267 L470,305 Q470,305 470,305 L372,305 L360,293 L360,255 Q360,255 360,255 Z"/>
+</g>
+<text x="415" y="271" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="415" dy="0">Raw RX</tspan><tspan x="415" dy="18">symbols</tspan></text>
+<g fill="#000000" stroke="#000000" stroke-width="3.0" opacity="0.05" stroke-linejoin="round" aria-hidden="true">
+<path d="M601.2,32 L734.2,32 L746.2,44 L746.2,307 Q746.2,307 746.2,307 L613.2,307 L601.2,295 L601.2,32 Q601.2,32 601.2,32 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="1.5" opacity="0.08" stroke-linejoin="round" aria-hidden="true">
+<path d="M601.2,32 L734.2,32 L746.2,44 L746.2,307 Q746.2,307 746.2,307 L613.2,307 L601.2,295 L601.2,32 Q601.2,32 601.2,32 Z"/>
+</g>
+<g fill="#000000" stroke="#000000" stroke-width="0" opacity="0.12" stroke-linejoin="round" aria-hidden="true">
+<path d="M601,31.5 L734,31.5 L746,43.5 L746,306.5 Q746,306.5 746,306.5 L613,306.5 L601,294.5 L601,31.5 Q601,31.5 601,31.5 Z"/>
+</g>
+<g fill="#b8b8b8" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<path d="M600,30 L733,30 L745,42 L745,305 Q745,305 745,305 L612,305 L600,293 L600,30 Q600,30 600,30 Z"/>
+</g>
+<text x="672.5" y="158.5" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="15" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="672.5" dy="0">GTYE4_CHANNEL</tspan><tspan x="672.5" dy="18">8b/10b bypassed</tspan></text>
+</svg>
