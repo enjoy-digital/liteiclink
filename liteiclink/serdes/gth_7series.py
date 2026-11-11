@@ -1230,14 +1230,13 @@ class GTH(LiteXModule):
         self.clock_tx_cycles = CSRStatus(32, description="TX clock cycles.")
         self.clock_rx_cycles = CSRStatus(32, description="RX clock cycles.")
 
-        tx_cycles = Signal(32)
-        rx_cycles = Signal(32)
-        self.sync.tx += tx_cycles.eq(tx_cycles + 1)
-        self.sync.rx += rx_cycles.eq(rx_cycles + 1)
+        # TX/RX clocks cycles counters (resynchronized to sys).
+        self.clock_tx_counter = tx_counter = ClockCycles("tx")
+        self.clock_rx_counter = rx_counter = ClockCycles("rx")
 
         self.sync += If(self.clock_latch.wr_stb,
-            self.clock_tx_cycles.status.eq(tx_cycles),
-            self.clock_rx_cycles.status.eq(rx_cycles),
+            self.clock_tx_cycles.status.eq(tx_counter.value),
+            self.clock_rx_cycles.status.eq(rx_counter.value),
         )
 
     def do_finalize(self):
