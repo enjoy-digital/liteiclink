@@ -268,10 +268,9 @@ three in the OOB modes. It applies the signals that the DCU primitive has no por
 The loop is held in reset until TX is ready. The polarity parameters of the constructor accept a
 constant or a signal; a change of the signal is applied by the next pass of the loop.
 
-The wrapper also drives the dual select of the SCI port with the `dual` index, in parallel with
-the state machine. Outside the software accesses, the select is therefore 1 on DCU1: the loop
-accesses then assert the dual select together with the channel select. Their effect on hardware is
-not recorded ([Limitations](#ecp5-limits)).
+The SCI port belongs to the DCU of the wrapper, placed at `LOC DCU<dual>`, so the `dual` index
+does not select it. The dual select only reaches the dual registers, for software accesses with
+`sel` set to 1; the loop accesses select the channel registers only.
 
 When software sets the `pause` register, the loop stops and the registers below give direct access
 to the SCI. The constructor always adds them, so they appear under `<serdes>_sci_reconfig_` in the
@@ -322,8 +321,6 @@ does for its receive settings.
   says the DCU aligner is inactive on the raw path ([Three datapath modes](#ecp5-modes)).
 - One wrapper per DCU: each wrapper instantiates the whole `DCUA` at `LOC DCU<dual>`, so the two
   channels of a DCU cannot be used by two wrappers. The TX PLL and its reset are per DCU.
-- On DCU1 (`dual=1`), the SCI dual select is driven by both the `dual` index and the loop state
-  machine ([Register access through the SCI](#ecp5-sci)).
 
 ## Recorded results {#ecp5-results}
 
