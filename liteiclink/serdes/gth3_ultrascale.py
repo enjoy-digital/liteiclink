@@ -325,6 +325,8 @@ class GTH3(LiteXModule):
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
+        self.linerate    = pll.config["linerate"] # Line rate (bps).
+        self.data_width  = data_width
         self.tx_clk_freq = pll.config["linerate"]/data_width
         self.rx_clk_freq = pll.config["linerate"]/data_width
 

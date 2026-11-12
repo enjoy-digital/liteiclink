@@ -11,7 +11,7 @@ maintainer knows what to update when the code changes.
 | 02 Serial links primer | `liteiclink/serdes/{gtx_7series,clock_aligner,serdes_ecp5,gtr12_gw5}.py`, `bench/serdes/test_prbs.py`; LiteX `litex/soc/cores/{prbs,code_8b10b}.py` |
 | 03 FPGA transceivers | `liteiclink/serdes/*_init.py`, `liteiclink/serdes/{gtp_7series,gty_ultrascale,gth4_ultrascale,common,serdes_ecp5,gtr12_gw5}.py`, `bench/serdes/{kc705,sqrl_acorn}.py`; LiteICLink history (Acorn reference clock) |
 | 04 Wishbone over serial | `liteiclink/serwb/{phy,s7serdes,kuserdes,genphy,datapath,common,core,mmap}.py`, `doc/serwb.md` |
-| 05 SerDes architecture | `liteiclink/serdes/{common,clock_aligner,gtx_7series,gtp_7series,gty_ultrascale}.py`, `liteiclink/serdes/*_init.py`, `bench/serdes/test_prbs.py`, `test/test_serdes_xilinx.py`; LiteX `litex/soc/cores/{prbs,code_8b10b}.py` |
+| 05 SerDes architecture | `liteiclink/serdes/{common,clock_aligner,gtx_7series,gtp_7series,gty_ultrascale}.py`, `liteiclink/serdes/*_init.py`, `bench/serdes/test_prbs.py`, `test/test_serdes_xilinx.py`, `test/test_serdes_interface.py`; LiteX `litex/soc/cores/{prbs,code_8b10b}.py` |
 | 06 Xilinx 7-Series | `liteiclink/serdes/{gtp,gtx,gth}_7series.py` and `*_7series_init.py`, `bench/serdes/{sqrl_acorn,kc705}.py`, `test/test_serdes_{xilinx,init}.py` |
 | 07 Xilinx UltraScale | `liteiclink/serdes/{gth3,gth4,gth,gty}_ultrascale.py` and `*_ultrascale_init.py`, `bench/serdes/{kcu105,xcu1525}.py`, `test/test_gty_qpll_config.py`, `test/test_serdes_xilinx.py` |
 | 08 Lattice ECP5 | `liteiclink/serdes/serdes_ecp5.py`, `bench/serdes/{ecpix5,versa_ecp5}.py`, `test/test_serdes_ecp5.py`; USB3-PIPE `usb3_pipe/serdes.py`, LiteSATA `litesata/phy/ecp5sataphy.py` |

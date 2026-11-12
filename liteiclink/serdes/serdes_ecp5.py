@@ -715,6 +715,9 @@ class SerDesECP5(LiteXModule):
     with fabric gearboxes on the DCU clocks ("tx_full"/"rx_full", linerate/20, reset-less): for
     the line rates where the fabric logic doesn't reach linerate/20 (ex: 5Gbps, 250MHz). Requires
     with_oob (fabric comma alignment). The txoutclk/rxoutclk period constraints are at linerate/20.
+
+    Raw words: tx_raw_enable/tx_raw (TX, with_oob) and rx_raw (RX), the names of the other wrappers;
+    tx_raw_data/rx_raw_data are the same signals, kept for compatibility (deprecated names).
     """
     def __init__(self, pll, tx_pads, rx_pads,
         dual        = 0,
@@ -741,6 +744,7 @@ class SerDesECP5(LiteXModule):
         self.tx_idle                = Signal()
         self.tx_raw_enable          = Signal()
         self.tx_raw_data            = Signal(data_width)
+        self.tx_raw                 = self.tx_raw_data # Common name (same signal).
 
         # RX controls.
         self.rx_enable              = Signal(reset=1)
@@ -752,6 +756,7 @@ class SerDesECP5(LiteXModule):
         self.rx_idle                = Signal()
         self.rx_cdr_hold            = Signal()
         self.rx_raw_data            = Signal(data_width)
+        self.rx_raw                 = self.rx_raw_data # Common name (same signal).
 
         # Loopback.
         self.loopback               = Signal() # FIXME: reconfigure lb_ctl to 0b0001 but does not seem enough
@@ -768,6 +773,8 @@ class SerDesECP5(LiteXModule):
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
+        self.linerate    = pll.config["linerate"] # Line rate (bps).
+        self.data_width  = data_width
         self.tx_clk_freq = pll.config["linerate"]/data_width
         self.rx_clk_freq = pll.config["linerate"]/data_width
 
