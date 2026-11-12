@@ -53,7 +53,8 @@ class DRPMux(LiteXModule, DRPInterface):
 
 class DRPControl(LiteXModule):
     def __init__(self, drp):
-        self._addr  = CSRStorage(9,  description="DRP Address (9 bits).")
+        aw = len(drp.addr)
+        self._addr  = CSRStorage(aw, description=f"DRP Address ({aw} bits).")
         self._di    = CSRStorage(16, description="DRP Data In (16 bits) for write operation.")
         self._do    = CSRStatus(16,  description="DRP Data Out (16 bits) for read operation.")
         self._we    = CSRStorage(1,  description="DRP Write Enable.")

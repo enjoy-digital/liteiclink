@@ -336,8 +336,8 @@ class GTH4(LiteXModule):
         self.rx_prbs_pause  = Signal()
         self.rx_prbs_errors = Signal(32)
 
-        # DRP.
-        self.drp = DRPInterface()
+        # DRP (10-bit channel DRP address on GTHE4).
+        self.drp = DRPInterface(address_width=10)
 
         # Loopback.
         self.loopback = Signal(3)
@@ -411,7 +411,7 @@ class GTH4(LiteXModule):
             self.comb += pll.reset.eq(tx_init.pllreset)
 
         # DRP mux ----------------------------------------------------------------------------------
-        self.drp_mux = drp_mux = DRPMux()
+        self.drp_mux = drp_mux = DRPMux(address_width=10)
         drp_mux.add_interface(self.drp)
 
         # GTHE4_CHANNEL instance -------------------------------------------------------------------
