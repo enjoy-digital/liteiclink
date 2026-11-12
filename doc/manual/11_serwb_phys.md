@@ -202,7 +202,7 @@ PHY enables.
 | `delay_max_found` | Read | 1 | End of the window found |
 | `delay_max` | Read | 9 | Last tap of the window |
 | `shift` | Read | 6 | Word boundary, 0 to 39 |
-| `phase` | Read | 2 | Efinix phase in use; meaningless after an error (1 on Xilinx) |
+| `phase` | Read | 2 | Efinix phase in use; the last phase tried after an error |
 | `prbs_start` | Write | 1 | Start a link test |
 | `prbs_cycles` | Write | 32 | Length of the link test, in `sys` cycles |
 | `prbs_errors` | Read | 32 | Errored words counted by the last link test |
