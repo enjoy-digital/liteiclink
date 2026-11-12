@@ -134,7 +134,7 @@ def sram_test(port):
     print("")
 
     print("Dump SRAM:")
-    mem_dump(bus.mems.serwb.base, 128)
+    mem_dump(bus.mems.serwb.base, 4*128)
     print("")
 
     print("Fill SRAM with 4 32-bit words:")
@@ -142,7 +142,7 @@ def sram_test(port):
     print("")
 
     print("Dump SRAM:")
-    mem_dump(bus.mems.serwb.base, 128)
+    mem_dump(bus.mems.serwb.base, 4*128)
     print("")
 
     bus.close()

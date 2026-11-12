@@ -237,9 +237,9 @@ followed by the build date and time, then `Success.` when the initialization end
 `error: 0` for both sides.
 
 The generic PHY has no delay
-element, so only the `bitslip` line comes before them. The SRAM test writes a 128-word counter through the link and dumps its first 32
-words, then writes four patterns and dumps the same 32 words: each dump must match what was
-written.
+element, so only the `bitslip` line comes before them. The SRAM test writes a 128-word counter
+through the link and dumps the 128 words, then writes four patterns and dumps the same 128 words:
+each dump must match what was written.
 
 **If not.** `Failed.` comes after a 4 s timeout; the script then stops without printing the
 state of each side. `Success.` only means that the sequence ended: `error: 1` on a side means it
