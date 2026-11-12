@@ -167,7 +167,8 @@ differences. The PLL reset lasts at least 2 µs. The watchdog is 10 ms, for the 
 rates. In buffer bypass, the TX waits for two rising edges of the phase alignment done output, the
 RX for the sync done output.
 
-The TX user clock comes from a BUFG_GT.
+The TX user clock comes from a BUFG_GT. In buffer bypass, TXOUTCLK is the reference clock on the
+three wrappers (`TXOUTCLKSEL=0b011`), with the TX buffer the PMA output clock (`0b010`).
 
 In buffer bypass, its divider is the ratio of the reference clock to the user clock and must be an
 integer; the wrapper asserts it. For example, a 156.25 MHz reference clock at 5 Gbps and 40 bits
@@ -177,9 +178,8 @@ buffer enabled.
 The ratio must also be 8 or less, the range of the 3-bit BUFG_GT divider; the wrapper
 asserts it too.
 
-In buffer bypass, the GTY selects its program divider output as TXOUTCLK, not the reference clock
-as the GTH does, while the BUFG_GT divider is computed for the reference clock. No run records
-this path: use the GTY with `tx_buffer_enable=True`, as the XCU1525 bench does.
+No run records the GTY in buffer bypass; the XCU1525 bench enables the TX buffer. The test
+`test_ultrascale_tx_outclk_sel` checks the clock selection and the divider.
 
 ## Electrical defaults {#us-electrical}
 

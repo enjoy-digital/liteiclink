@@ -55,6 +55,7 @@ differences listed after the table.
 | `rx_polarity` | `0` | Static RX P/N swap |
 | `pll_master` | `True` | The TX init drives the PLL reset (not on GTP) |
 | `qpll_reset` | `True` | GTP: the TX init drives the quad PLL reset |
+| `tx_usrclk`, `rx_usrclk` | `None` | GTP, 40-bit words with `tx_clk`/`rx_clk`: line rate / 20 clock for `TXUSRCLK`/`RXUSRCLK` |
 
 The words carry `data_width/10` bytes on the stream endpoints. Set `pll_master` or `qpll_reset` to
 `False` when another lane drives the reset of a shared PLL.
