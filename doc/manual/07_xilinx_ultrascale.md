@@ -23,10 +23,9 @@ wrapper for line codes other than 8b/10b. The hardware status of each one is in 
 | Raw symbols, rate change | No | No | Yes |
 | User guide cited | UG576 | UG576 | UG578 |
 
-`gth3_ultrascale.py` and `gth4_ultrascale.py` each define their own `GTHChannelPLL`, and each
-wrapper accepts only the class of its own file. The module `gth_ultrascale` re-exports the GTH3 and
-GTH4 wrappers and quad PLLs, but only the GTH3 channel PLL. A GTH4 on its channel PLL therefore
-imports `GTHChannelPLL` from `gth4_ultrascale`; the re-exported class fails at elaboration.
+The GTH3 and GTH4 share one channel PLL class, `GTHChannelPLL`, defined in `gth3_ultrascale.py`
+and imported by `gth4_ultrascale.py`. The module `gth_ultrascale` re-exports it with the GTH3 and
+GTH4 wrappers and quad PLLs, and both wrappers accept it.
 
 The three wrappers share one init FSM design (`gth_ultrascale_init.py`,
 `gty_ultrascale_init.py`) and the clocking of the UltraScale column of [Clocking](#sd-clocking).
@@ -209,8 +208,6 @@ default ([DRP](#sd-drp)). Debug tools reach the channel registers through it, fo
 - On GTH3 and GTH4, the RX clock select of the channel (`RXSYSCLKSEL`) is fixed to the CPLL value,
   whatever the PLL; the TX side and the GTY follow the selected PLL. Receiving with a quad PLL on
   GTH has no recorded result. With a quad PLL, the CPLL also stays powered (`CPLLPD` at 0).
-- `gth_ultrascale` re-exports the GTH3 channel PLL, which the GTH4 wrapper rejects
-  ([At a glance](#us-glance)).
 - The GTY quad PLL attributes carry several comments with alternative values, and its fraction is
   not rounded in the solver.
 - The DRP interfaces have a 9-bit address, as on 7-Series. Check the DRP address width of the GTH4

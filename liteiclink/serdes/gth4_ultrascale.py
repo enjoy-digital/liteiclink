@@ -22,69 +22,9 @@ from liteiclink.serdes.common              import *
 from liteiclink.serdes.gth_ultrascale_init import GTHTXInit, GTHRXInit
 from liteiclink.serdes.clock_aligner       import BruteforceClockAligner
 
-# GTH Channel PLL ----------------------------------------------------------------------------------
-
-class GTHChannelPLL(LiteXModule):
-    def __init__(self, refclk, refclk_freq, linerate):
-        self.refclk = refclk
-        self.reset  = Signal()
-        self.lock   = Signal()
-        self.config = self.compute_config(refclk_freq, linerate)
-
-    @staticmethod
-    def compute_config(refclk_freq, linerate):
-        for n1 in [4, 5]:
-            for n2 in [1, 2, 3, 4, 5]:
-                for m in [1, 2]:
-                    vco_freq = refclk_freq*(n1*n2)/m
-                    if 2.0e9 <= vco_freq <= 6.25e9:
-                        for d in [1, 2, 4, 8, 16]:
-                            current_linerate = vco_freq*2/d
-                            if current_linerate == linerate:
-                                return {"n1": n1, "n2": n2, "m": m, "d": d,
-                                        "vco_freq": vco_freq,
-                                        "clkin": refclk_freq,
-                                        "linerate": linerate}
-        msg = "No config found for {:3.2f} MHz refclk / {:3.2f} Gbps linerate."
-        raise ValueError(msg.format(refclk_freq/1e6, linerate/1e9))
-
-    def __repr__(self):
-        config = self.config
-        r = """
-GTHChannelPLL
-==============
-  overview:
-  ---------
-       +--------------------------------------------------+
-       |                                                  |
-       |   +-----+  +---------------------------+ +-----+ |
-       |   |     |  | Phase Frequency Detector  | |     | |
-CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
-       |   |     |  |       Loop Filter         | |     | |
-       |   +-----+  +---------------------------+ +--+--+ |
-       |              ^                              |    |
-       |              |    +-------+    +-------+    |    |
-       |              +----+  /N2  <----+  /N1  <----+    |
-       |                   +-------+    +-------+         |
-       +--------------------------------------------------+
-                            +-------+
-                   CLKOUT +->  2/D  +-> LINERATE
-                            +-------+
-  config:
-  -------
-    CLKIN    = {clkin}MHz
-    CLKOUT   = CLKIN x (N1 x N2) / M = {clkin}MHz x ({n1} x {n2}) / {m}
-             = {vco_freq}GHz
-    LINERATE = CLKOUT x 2 / D = {vco_freq}GHz x 2 / {d}
-             = {linerate}GHz
-""".format(clkin    = config["clkin"]/1e6,
-           n1       = config["n1"],
-           n2       = config["n2"],
-           m        = config["m"],
-           vco_freq = config["vco_freq"]/1e9,
-           d        = config["d"],
-           linerate = config["linerate"]/1e9)
-        return r
+# GTH Channel PLL: same CPLL on GTHE3/GTHE4, shared with GTH3 (a single GTHChannelPLL class accepted
+# by both wrappers, also re-exported by liteiclink.serdes.gth_ultrascale).
+from liteiclink.serdes.gth3_ultrascale import GTHChannelPLL
 
 # GTH Quad PLL Base --------------------------------------------------------------------------------
 
