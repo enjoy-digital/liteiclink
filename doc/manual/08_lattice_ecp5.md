@@ -103,12 +103,13 @@ The 8b/10b encoder and decoders are the LiteX ones, in the fabric, as on the oth
 front of the DCU, the transmit word comes from one source, in this priority order:
 
 1. A square wave at the word rate (`tx_produce_square_wave`), for a scope.
-2. Raw words (`tx_raw_enable`, `tx_raw_data`), only when `with_oob=True`.
+2. Raw words (`tx_raw_enable`, `tx_raw`), only when `with_oob=True`.
 3. A fixed pattern (`tx_produce_pattern`, `tx_pattern`).
 4. The PRBS generator, which passes the encoder output when PRBS is off.
 
 On the receive side, the PRBS checker and the decoders both take the received word. The aligned
-raw word is also available on `rx_raw_data`. `add_stream_endpoints()` gives the `sink` and
+raw word is also available on `rx_raw`. `tx_raw_data` and `rx_raw_data` are older names of the
+two raw signals, kept as aliases. `add_stream_endpoints()` gives the `sink` and
 `source` endpoints of the common interface: 8 data bits and one K flag per symbol, no flow control.
 
 ### Three datapath modes {#ecp5-modes}
@@ -241,7 +242,7 @@ alignment and the TX-first initialization:
 
 - The TX electrical idle input of the channel (`CHX_FFC_EI_EN`) is driven directly by `tx_idle`,
   resynchronized to `tx`, instead of through the SCI loop described below.
-- The raw transmit words (`tx_raw_enable`, `tx_raw_data`) bypass the encoder; electrical idle is
+- The raw transmit words (`tx_raw_enable`, `tx_raw`) bypass the encoder; electrical idle is
   released while they are sent, so that the bursts stay on the line.
 - The transmit word is registered before the DCU, for timing.
 

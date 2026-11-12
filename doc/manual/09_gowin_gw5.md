@@ -19,7 +19,7 @@ The common interface of all wrappers is in [SerDes wrapper architecture](#serdes
 | | GW5AT-15 (`GTR12_QUADB`, quad Q0 only) |
 | Lanes | 0 to 3 of the quad, one per wrapper |
 | Configuration | Hardware-validated register writes given by the caller (`csr_config`) |
-| Line rate | Set by the configuration; `line_rate` only sets the clock values |
+| Line rate | Set by the configuration; `linerate` only sets the clock values |
 | Data width | 20, 40 or 80 bits; raw words up to 80 bits (`raw_width`) |
 | User clocks | Line rate / data width, from the PCS fabric clocks |
 | Line coding | 8b/10b in the fabric, decoders in logic lookups |
@@ -59,7 +59,7 @@ set up:
 
 | Parameter | Must match |
 |--------------|------------------------------------------------------------------|
-| `line_rate` | The configured line rate (used for `tx_clk_freq`, `rx_clk_freq`) |
+| `linerate` | The configured line rate (used for `tx_clk_freq`, `rx_clk_freq`) |
 | `data_width` | The fabric data width of the TX and RX buffers |
 | `raw_width` | The widest fabric word used on the lane |
 | `position` | The quad of the configuration, `Q0` or `Q1` |
@@ -74,7 +74,7 @@ from liteiclink.serdes.gtr12_gw5 import GTR12
 
 # csr_config: hardware-validated register writes of the lane, held by the user core.
 self.serdes0 = serdes0 = GTR12(platform,
-    line_rate  = 5e9,
+    linerate   = 5e9,
     csr_config = csr_config,
     data_width = 40,
     position   = "Q1",
@@ -143,7 +143,7 @@ same clocks feed back to the fabric clock inputs of the lane.
 
 The clock signals carry a `syn_keep`
 attribute so that their names survive synthesis for the timing constraints. Their frequency is
-`line_rate / data_width`, 125 MHz for 5 Gbps and 40-bit words.
+`linerate / data_width`, 125 MHz for 5 Gbps and 40-bit words.
 
 The reset logic is simple:
 
@@ -220,7 +220,7 @@ The other parts of the Xilinx wrappers are missing or different:
 | TX swing, de-emphasis | Registers | Configuration, UPAR |
 | Clock measurement | `add_clock_cycles()` | None |
 | Init | State machines, watchdog | PLL lock only |
-| Line rate parameter | `linerate` | `line_rate` |
+| Line rate parameter | `linerate` | `linerate` (`line_rate` also accepted) |
 | Raw words | `tx_raw`, `rx_raw` (GTY) | `tx_raw`, `rx_raw` |
 
 ## Recorded results {#gw5-results}

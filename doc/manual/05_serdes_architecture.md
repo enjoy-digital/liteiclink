@@ -84,6 +84,7 @@ The wrapper then exposes the following attributes.
 | Attribute | Domain | Role |
 |------------------------------|--------|--------------------------------------------------|
 | `cd_tx`, `cd_rx` | | `tx` and `rx` clock domains, created by the wrapper |
+| `linerate`, `data_width` | | Line rate in bit/s and word width in bits |
 | `tx_clk_freq`, `rx_clk_freq` | | Line rate divided by the data width, in Hz |
 | `tx_enable`, `rx_enable` | `sys` | Deasserting one restarts its init sequence |
 | `tx_ready`, `rx_ready` | `sys` | Init done; RX: aligned, with the clock aligner (then in `tx`) |
@@ -92,6 +93,11 @@ The wrapper then exposes the following attributes.
 | `encoder`, `decoders` | `tx`, `rx` | The LiteX 8b/10b modules, for direct access |
 | `txoutclk`, `rxoutclk` | | Clock outputs of the channel, for constraints |
 | `drp`, `drp_mux` | `sys` | Register access to the channel ([DRP](#sd-drp)) |
+
+These names are the same on every wrapper, the ECP5 and GTR12 ones included, and the test
+`test_serdes_interface.py` checks them. The raw words are `tx_raw_enable`, `tx_raw` and `rx_raw` on
+the wrappers that have them ([Raw symbols](#integ-raw)). Older names stay as aliases of the same
+objects: `tx_raw_data` and `rx_raw_data` on the ECP5, `line_rate` on the GTR12.
 
 The endpoints have no flow control. The sink is always ready and the source always valid: one
 word goes out and one word comes in on every cycle of the user clock. A user core that has

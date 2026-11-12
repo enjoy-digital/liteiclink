@@ -168,7 +168,9 @@ replaces the encoder output on every user clock cycle.
 |-------------------|------------------|------------------|-------------------------------|
 | GTY | `tx_raw` | `rx_raw` | `tx_raw_enable` |
 | Gowin GTR12 | `tx_raw` | `rx_raw` | `tx_raw_enable`, `raw_width` |
-| ECP5 DCU | `tx_raw_data` | `rx_raw_data` | `tx_raw_enable` (only with `with_oob=True`) |
+| ECP5 DCU | `tx_raw` | `rx_raw` | `tx_raw_enable` (only with `with_oob=True`) |
+
+On the ECP5, `tx_raw_data` and `rx_raw_data` are the older names of the same signals.
 
 The other families have `tx_pattern` with `tx_produce_pattern`, which replaces the encoder output
 too, but through a synchronizer (`MultiReg`) meant for control signals.
