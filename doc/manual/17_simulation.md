@@ -40,6 +40,7 @@ The tests are in `test/`, one file per area, and run with pytest.
 | `test_gty_qpll_config.py` | GTY QPLL0 or QPLL1 choice, fractional feedback, `qpll_params` |
 | `test_serdes_xilinx.py` | Six Xilinx families with CPLL and QPLL to Verilog: widths, registers, external clocks, clock dividers, GTP fabric reference clock, GTY raw symbols and rate |
 | `test_serdes_init.py` | Init state machines of every Xilinx family: done, restart, watchdog, GTP DRP sequence |
+| `test_serdes_gtp_drp.py` | GTP user DRP: `DRPControl` accesses with the default mux select, shared with the RX init DRP sequence |
 | `test_serdes_clock_aligner.py` | Clock aligner: aligned, no comma, errors after ready, disable |
 | `test_serdes_ecp5.py` | ECP5: OOB opt-in, word aligner, 5 Gbps PLL, 40-bit mode and gearboxes |
 | `test_serdes_gtr12.py` | GTR12: primitives, tie-offs, lane wiring, quad configuration, decoder, UPAR nets, Verilog |

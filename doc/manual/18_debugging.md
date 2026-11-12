@@ -155,12 +155,11 @@ attribute the bitstream set, or to try a value before changing the code.
 **Xilinx DRP.** `DRPControl(serdes.drp)` adds the registers of the [DRP access](#reg-serdes-drp)
 bank. Software writes `addr`, `di` and `we`, then any value to `start`, polls `done` and reads `do`.
 
-The channel's DRP port goes through a multiplexer, `drp_mux`, whose select input the design drives.
-On the GTP, input 0 belongs to the RX init sequence, which uses the DRP for a reset workaround, and
-the user port is input 1. On the other Xilinx wrappers the user port is input 0.
-
-The GTP wrapper never drives `drp_mux.sel`, so it stays at 0. A `DRPControl` access on a GTP whose
-design does not select input 1 never completes: `done` stays at 0, which looks like a dead DRP.
+The channel's DRP port goes through a multiplexer, `drp_mux`, whose select input stays at 0 unless
+the design drives it. Input 0 reaches the user port on every Xilinx wrapper. On the GTP, it is
+shared with the RX init sequence, which uses the DRP for a reset workaround: an access issued during
+that sequence completes after it. A `DRPControl` access whose `done` stays at 0 on a GTP points to a
+select left on another input of the design (or to a stopped `sys` clock), not to a dead DRP.
 
 **ECP5 SCI.** The `sci_reconfig_` registers of the ECP5 wrapper read and write one byte of the
 channel (`sel` = 0) or dual (`sel` = 1) configuration.
@@ -287,8 +286,6 @@ register.
 
 - On ECP5, the `tx_inhibit` and `loopback` registers drive signals marked FIXME in the code.
 - `rx_prbs_errors` wraps at 2^32; read it periodically on long runs, as `test_prbs.py` does.
-- On the GTP, the wrapper never drives `drp_mux.sel`, so the user DRP port is unreachable until the
-  design drives it ([DRP](#dbg-drp)).
 - The ECPIX-5 demo maps the remote peripherals as a cached region: firmware that polls a remote
   register through the data cache can read a stale value.
 

@@ -403,15 +403,14 @@ and write the configuration of the primitive at run time. The wrappers expose it
 `DRPInterface`: 9-bit address (10-bit on the GTH4 and GTY channels), 16-bit data, enable, write
 enable and ready.
 
-The channel port sits behind a mux (`drp_mux`, a `DRPMux` of up to 16 interfaces selected by its
+The channel port sits behind a mux (`drp_mux`, a `DRPMux`, `GTPDRPMux` on GTP, of up to 16 interfaces selected by its
 4-bit `sel`).
 
 On GTX, GTH and GTY the mux has one input, the `drp` attribute of the wrapper. On GTP it has two:
-input 0 is the RX init FSM, input 1 the user `drp`.
-
-The GTP wrapper never drives the select, so
-the user `drp` is reachable only when the design drives it ([GTP RX init](#s7-gtp-rx-init)). The
-quad PLL classes have their own `drp`.
+input 0 is shared by the RX init FSM, during its DRP sequence, and the user `drp`, the rest of the
+time; input 1 is the user `drp` alone ([GTP RX init](#s7-gtp-rx-init)). The wrappers do not drive
+the select: it stays at 0, where the user `drp` reaches the channel on every family, unless the
+design drives it to reach other inputs it adds. The quad PLL classes have their own `drp`.
 
 `DRPControl(drp)` turns a DRP interface into registers for software, clocked by `sys`:
 
@@ -427,8 +426,6 @@ quad PLL classes have their own `drp`.
 ```python
 self.drp = DRPControl(serdes.drp)  # drp_addr, drp_di, drp_do, drp_we, drp_start, drp_done.
 ```
-
-On the GTP, this example also needs `serdes.drp_mux.sel` set to 1 during the accesses.
 
 A write to `start` restarts its state machine, which performs one access and then holds `done`.
 The state machine also performs one read at address 0 after reset.

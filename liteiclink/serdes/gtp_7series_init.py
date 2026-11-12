@@ -194,6 +194,8 @@ class GTPRXInit(LiteXModule):
 
         # DRP.
         self.drp             = DRPInterface()
+        self.drp_req         = Signal()        # o: DRP needed (RX PMA reset workaround sequence).
+        self.drp_grant       = Signal(reset=1) # i: DRP granted (when shared with other DRP users).
 
         # # #
 
@@ -263,15 +265,20 @@ class GTPRXInit(LiteXModule):
         fsm.act("WAIT-INIT-DELAY",
             gtrxreset.eq(1),
             If(plllock & init_delay.done,
-                NextState("DRP_READ_ISSUE")
+                self.drp_req.eq(1),
+                If(self.drp_grant,
+                    NextState("DRP_READ_ISSUE")
+                )
             )
         )
         fsm.act("DRP_READ_ISSUE",
+            self.drp_req.eq(1),
             gtrxreset.eq(1),
             self.drp.en.eq(1),
             NextState("DRP_READ_WAIT")
         )
         fsm.act("DRP_READ_WAIT",
+            self.drp_req.eq(1),
             gtrxreset.eq(1),
             If(self.drp.rdy,
                 drpcapture.eq(1),
@@ -279,6 +286,7 @@ class GTPRXInit(LiteXModule):
             )
         )
         fsm.act("DRP_MOD_ISSUE",
+            self.drp_req.eq(1),
             gtrxreset.eq(1),
             drpmask.eq(1),
             self.drp.en.eq(1),
@@ -286,24 +294,28 @@ class GTPRXInit(LiteXModule):
             NextState("DRP_MOD_WAIT")
         )
         fsm.act("DRP_MOD_WAIT",
+            self.drp_req.eq(1),
             gtrxreset.eq(1),
             If(self.drp.rdy,
                 NextState("WAIT_PMARST_FALL")
             )
         )
         fsm.act("WAIT_PMARST_FALL",
+            self.drp_req.eq(1),
             rxuserrdy.eq(1),
             If(rxpmaresetdone_r & ~rxpmaresetdone,
                 NextState("DRP_RESTORE_ISSUE")
             )
         )
         fsm.act("DRP_RESTORE_ISSUE",
+            self.drp_req.eq(1),
             rxuserrdy.eq(1),
             self.drp.en.eq(1),
             self.drp.we.eq(1),
             NextState("DRP_RESTORE_WAIT")
         )
         fsm.act("DRP_RESTORE_WAIT",
+            self.drp_req.eq(1),
             rxuserrdy.eq(1),
             If(self.drp.rdy,
                 NextState("WAIT-GTP-RESET")
