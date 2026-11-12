@@ -1041,7 +1041,9 @@ class GTY(LiteXModule):
             o_TXOUTCLK        = self.txoutclk,
             i_TXSYSCLKSEL     = 0b00 if use_cpll else 0b10 if use_qpll0 else 0b11,
             i_TXPLLCLKSEL     = 0b00 if use_cpll else 0b11 if use_qpll0 else 0b10,
-            i_TXOUTCLKSEL     = 0b010 if tx_buffer_enable else 0b101,
+            # TXOUTCLK: TXOUTCLKPMA with TX buffer, TXPLLREFCLK_DIV1 without (the BUFG_GT divider is
+            # computed from the reference clock, TXPROGDIVCLK is not used: TX_PROGDIV_CFG=0).
+            i_TXOUTCLKSEL     = 0b010 if tx_buffer_enable else 0b011,
 
             # TX Startup/Reset.
             i_GTTXRESET       = tx_init.gtXxreset,
