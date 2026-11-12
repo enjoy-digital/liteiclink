@@ -157,7 +157,7 @@ def main():
     platform = icebreaker.Platform()
     platform.add_extension(Pmod1BitSquaredBreakOff("PMOD2"))
     platform.add_extension(serwb_io)
-    soc     = SerWBTestSoC(platform)
+    soc     = SerWBTestSoC(platform, loopback=args.loopback)
     builder = Builder(soc, csr_csv="csr.csv")
     builder.build(run=args.build)
 
