@@ -264,9 +264,11 @@ port and the link master.
 The iCEBreaker runs a peripheral SoC without CPU, clocked by the link clock it receives, with 1 KiB
 of RAM and the link slave as its bus master.
 
-The ECPIX-5 maps the link at `0x40000000`, with a size of 512 MiB. The iCEBreaker keeps the
-offset of each access in its 512 MiB master region, then remaps the offsets from `0x10000000` to
-its RAM at `0x40000000`, so its RAM appears at `0x50000000` on the ECPIX-5
+The ECPIX-5 maps the link at `0x80000000`, with a size of 512 MiB, as an uncached region inside
+the IO region of the CPU: the firmware reads the remote registers, not a cached copy. The
+iCEBreaker keeps the offset of each access in its 512 MiB master region, so the origin is a
+multiple of the size. It then remaps the offsets from `0x10000000` to its RAM at `0x40000000`, so
+its RAM appears at `0x90000000` on the ECPIX-5
 ([Addresses and register maps](#integ-serwb-map)). Two SerIOs, on ports 1 and 2, carry counters of the iCEBreaker to two
 red LEDs of the ECPIX-5.
 
@@ -282,8 +284,8 @@ litex_server --udp
 # Registers of both boards, prefixed with icebreaker_soc_ for the iCEBreaker.
 litex_cli --regs
 # RAM of the iCEBreaker, over Ethernet then SerWB.
-litex_cli --write 0x50000000 0x12345678
-litex_cli --read 0x50000000
+litex_cli --write 0x90000000 0x12345678
+litex_cli --read 0x90000000
 ```
 
 The link is up when `serwb_master_phy_control_ready` and

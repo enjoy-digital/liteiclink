@@ -286,8 +286,6 @@ register.
 
 - On ECP5, the `tx_inhibit` and `loopback` registers drive signals marked FIXME in the code.
 - `rx_prbs_errors` wraps at 2^32; read it periodically on long runs, as `test_prbs.py` does.
-- The ECPIX-5 demo maps the remote peripherals as a cached region: firmware that polls a remote
-  register through the data cache can read a stale value.
 
 ## Where to go next {#dbg-next}
 

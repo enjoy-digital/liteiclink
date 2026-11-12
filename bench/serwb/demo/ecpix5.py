@@ -41,6 +41,14 @@ serwb_io = [
     ),
 ]
 
+# SerWB Region -------------------------------------------------------------------------------------
+
+# Remote (iCEBreaker) peripherals: uncached region (remote registers), so inside the VexRiscv IO
+# region (0x80000000-0xffffffff), aligned on its size (the iCEBreaker keeps the address offsets in
+# its 512MB master region).
+serwb_origin = 0x80000000
+serwb_size   = 0x20000000
+
 # SerWBDemoSoC ------------------------------------------------------------------------------------
 
 class SerWBDemoSoC(SoCCore):
@@ -89,7 +97,7 @@ class SerWBDemoSoC(SoCCore):
 
         # Add SerWB as Slave to SoC.
         # --------------------------
-        self.bus.add_slave("serwb", self.serwb_master_core.bus, SoCRegion(origin=0x40000000, size=0x20000000))
+        self.bus.add_slave("serwb", self.serwb_master_core.bus, SoCRegion(origin=serwb_origin, size=serwb_size, cached=False))
 
         # SerIO ------------------------------------------------------------------------------------
 
@@ -137,7 +145,7 @@ def main():
     platform.add_extension(serwb_io)
     soc     = SerWBDemoSoC(platform, with_analyzer=args.with_analyzer)
     builder = Builder(soc, csr_csv="csr.csv")
-    builder.add_json("icebreaker_soc.json", 0x40000000, "icebreaker_soc")
+    builder.add_json("icebreaker_soc.json", serwb_origin, "icebreaker_soc")
     builder.build(run=args.build)
 
     if args.load:
