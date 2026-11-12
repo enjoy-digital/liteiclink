@@ -82,7 +82,16 @@ class SERWBCore(LiteXModule):
             from liteiclink.serwb.etherbone import Etherbone
             self.etherbone = etherbone = ResetInserter()(Etherbone(mode, etherbone_buffer_depth))
             self.add_downstream_endpoint(port=port, endpoint=etherbone.source)
-            self.add_upstream_endpoint(  port=port, endpoint=etherbone.sink)
+            # Error words (packets cut by the depacketizer timeout) are not forwarded to Etherbone.
+            etherbone_sink = stream.Endpoint(packet_description(32))
+            self.comb += [
+                etherbone_sink.connect(etherbone.sink, keep={"valid", "ready", "last", "data", "length"}),
+                If(etherbone_sink.error,
+                    etherbone.sink.valid.eq(0),
+                    etherbone_sink.ready.eq(1),
+                )
+            ]
+            self.add_upstream_endpoint(port=port, endpoint=etherbone_sink)
             bus = etherbone.wishbone.bus
 
         # Native MMAP.
@@ -243,7 +252,7 @@ class SERWBCore(LiteXModule):
             master  = self.depacketizer.source,
             slaves  = [ep for _, ep in self.upstream_endpoints.items()] + [drop_endpoint],
             one_hot = False,
-            keep    = {"valid", "ready", "last", "data", "length"},
+            keep    = {"valid", "ready", "last", "data", "length", "error"},
         )
         self.comb += self.dispatcher.sel.eq(len(self.upstream_endpoints))
         for i, (k, v) in enumerate(self.upstream_endpoints.items()):
@@ -299,7 +308,7 @@ class SERIODepacketizer(LiteXModule):
         # Generate Outputs.
         # -----------------
         self.comb += sink.ready.eq(1)
-        self.sync += If(sink.valid & sink.last, self.o.eq(sink.data))
+        self.sync += If(sink.valid & sink.last & ~sink.error, self.o.eq(sink.data))
 
 class SERIOCore(LiteXModule):
     def __init__(self, serwb_core, port=1):

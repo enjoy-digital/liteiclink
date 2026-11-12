@@ -217,6 +217,10 @@ class SERWBMMAPSlave(LiteXModule):
         fsm.act("RECEIVE-DATA",
             If(sink.valid,
                 NextValue(dat_r, sink.data),
+                # Packet cut by the depacketizer timeout: error.
+                If(sink.error,
+                    NextValue(err, 1)
+                ),
                 If(sink.last,
                     NextState("ACK")
                 )
@@ -307,7 +311,9 @@ class SERWBMMAPMaster(LiteXModule):
             sink.ready.eq(1),
             If(sink.valid,
                 NextValue(adr, sink.data),
-                If(op == MMAP_OP_READ,
+                If(sink.error,
+                    NextState("RECEIVE-CMD") # Packet cut by the depacketizer timeout.
+                ).Elif(op == MMAP_OP_READ,
                     If(~sink.last,
                         NextState("DRAIN") # Malformed request.
                     ).Elif(count <= burst_depth,
@@ -325,8 +331,8 @@ class SERWBMMAPMaster(LiteXModule):
             )
         )
         fsm.act("WRITE",
-            bus.stb.eq(sink.valid),
-            bus.cyc.eq(sink.valid),
+            bus.stb.eq(sink.valid & ~sink.error),
+            bus.cyc.eq(sink.valid & ~sink.error),
             bus.we.eq(1),
             bus.adr.eq(adr + index),
             bus.sel.eq(sel),
@@ -339,6 +345,11 @@ class SERWBMMAPMaster(LiteXModule):
                 ).Elif(index == (count - 1),
                     NextState("DRAIN") # Malformed request (extra words).
                 )
+            ),
+            # Packet cut by the depacketizer timeout: the error word is not written.
+            If(sink.valid & sink.error,
+                sink.ready.eq(1),
+                NextState("RECEIVE-CMD")
             )
         )
         fsm.act("DRAIN",
