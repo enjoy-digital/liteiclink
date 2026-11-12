@@ -262,7 +262,9 @@ class GTP(LiteXModule):
         clock_aligner       = True,
         clock_aligner_comma = 0b0101111100,
         tx_polarity         = 0,
-        rx_polarity         = 0):
+        rx_polarity         = 0,
+        tx_usrclk           = None,
+        rx_usrclk           = None):
         assert data_width in [20, 40]
 
         # TX controls.
@@ -305,6 +307,14 @@ class GTP(LiteXModule):
 
         self.tx_clk_freq = qpll.config["linerate"]/data_width
         self.rx_clk_freq = qpll.config["linerate"]/data_width
+
+        # User clocks: the GTP internal datapath is 2-byte only, so TXUSRCLK/RXUSRCLK run at
+        # linerate/20 and TXUSRCLK2/RXUSRCLK2 ("tx"/"rx" domains) at linerate/data_width: equal with
+        # the 2-byte interface (data_width=20), TXUSRCLK2 = TXUSRCLK/2 with the 4-byte interface
+        # (data_width=40), see UG482 (TX/RX Interface, FPGA TX/RX Interface Clocking).
+        self.usrclk_freq = qpll.config["linerate"]/20
+        self.tx_usrclk   = Signal() # TXUSRCLK.
+        self.rx_usrclk   = Signal() # RXUSRCLK.
 
         # Control/Status CDC.
         tx_produce_square_wave = Signal()
@@ -780,7 +790,7 @@ class GTP(LiteXModule):
 
             # Receive Ports - FPGA RX Interface Ports.
             o_RXDATA               = Cat(*[rxdata[10*i:10*i+8] for i in range(nwords)]),
-            i_RXUSRCLK             = ClockSignal("rx"),
+            i_RXUSRCLK             = self.rx_usrclk,
             i_RXUSRCLK2            = ClockSignal("rx"),
 
             # Receive Ports - Pattern Checker Ports.
@@ -946,7 +956,7 @@ class GTP(LiteXModule):
 
             # Transmit Ports - FPGA TX Interface Ports.
             i_TXDATA               = Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
-            i_TXUSRCLK             = ClockSignal("tx"),
+            i_TXUSRCLK             = self.tx_usrclk,
             i_TXUSRCLK2            = ClockSignal("tx"),
 
             # Transmit Ports - PCI Express Ports.
@@ -1052,37 +1062,50 @@ class GTP(LiteXModule):
                 o_O = txoutclk_bufg,
             )
 
-            if not tx_buffer_enable:
-                txoutclk_div = qpll.config["clkin"]/self.tx_clk_freq
+            # TXOUTCLK: reference clock without TX buffer (TXPLLREFCLK_DIV1), TXOUTCLKPMA (linerate/20)
+            # with TX buffer.
+            txoutclk_freq = qpll.config["clkin"] if not tx_buffer_enable else self.usrclk_freq
+
+            # 4-byte interface: TXUSRCLK and TXUSRCLK2 (2:1) from a PLL (phase aligned).
+            if data_width == 40:
+                cd_tx_usrclk = ClockDomain("tx_usrclk")
+                self.tx_usrclk_pll = tx_usrclk_pll = S7PLL()
+                self.comb += tx_usrclk_pll.reset.eq(tx_init.gttxreset)
+                tx_usrclk_pll.register_clkin(txoutclk_bufg, txoutclk_freq)
+                tx_usrclk_pll.create_clkout(cd_tx_usrclk, self.usrclk_freq, with_reset=False)
+                tx_usrclk_pll.create_clkout(self.cd_tx,   self.tx_clk_freq, with_reset=False)
+                self.comb += self.tx_usrclk.eq(cd_tx_usrclk.clk)
+                self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched | ~tx_usrclk_pll.locked)
             else:
-                txoutclk_div = 1
-            # Use txoutclk_bufg when divider is 1
-            if txoutclk_div == 1:
-                self.comb += self.cd_tx.clk.eq(txoutclk_bufg)
-                self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
-            # Use a BUFR when integer divider (with BUFR_DIVIDE)
-            elif txoutclk_div == int(txoutclk_div):
-                txoutclk_bufr = Signal()
-                self.specials += [
-                    Instance("BUFR",
-                        p_BUFR_DIVIDE = str(int(txoutclk_div)),
-                        i_CE = 1,
-                        i_I  = txoutclk_bufg,
-                        o_O  = txoutclk_bufr,
-                    ),
-                    Instance("BUFG",
-                        i_I = txoutclk_bufr,
-                        o_O = self.cd_tx.clk,
-                    ),
-                    AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
-                ]
-            # Use a PLL when non-integer divider
-            else:
-                txoutclk_pll = S7PLL()
-                self.comb += txoutclk_pll.reset.eq(tx_reset_deglitched)
-                self.submodules += txoutclk_pll
-                txoutclk_pll.register_clkin(txoutclk_bufg, qpll.config["clkin"])
-                txoutclk_pll.create_clkout(self.cd_tx, self.tx_clk_freq)
+                self.comb += self.tx_usrclk.eq(ClockSignal("tx"))
+                txoutclk_div = txoutclk_freq/self.tx_clk_freq
+                # Use txoutclk_bufg when divider is 1
+                if txoutclk_div == 1:
+                    self.comb += self.cd_tx.clk.eq(txoutclk_bufg)
+                    self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
+                # Use a BUFR when integer divider (with BUFR_DIVIDE)
+                elif txoutclk_div == int(txoutclk_div):
+                    txoutclk_bufr = Signal()
+                    self.specials += [
+                        Instance("BUFR",
+                            p_BUFR_DIVIDE = str(int(txoutclk_div)),
+                            i_CE = 1,
+                            i_I  = txoutclk_bufg,
+                            o_O  = txoutclk_bufr,
+                        ),
+                        Instance("BUFG",
+                            i_I = txoutclk_bufr,
+                            o_O = self.cd_tx.clk,
+                        ),
+                        AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
+                    ]
+                # Use a PLL when non-integer divider
+                else:
+                    txoutclk_pll = S7PLL()
+                    self.comb += txoutclk_pll.reset.eq(tx_reset_deglitched)
+                    self.submodules += txoutclk_pll
+                    txoutclk_pll.register_clkin(txoutclk_bufg, qpll.config["clkin"])
+                    txoutclk_pll.create_clkout(self.cd_tx, self.tx_clk_freq)
 
         # Use provided/shared tx_clk.
         # ---------------------------
@@ -1090,6 +1113,9 @@ class GTP(LiteXModule):
             assert tx_buffer_enable
             self.cd_tx.clk = tx_clk # Override instead of assign to only keep one real clk.
             self.specials += AsyncResetSynchronizer(self.cd_tx, tx_reset_deglitched)
+            # TXUSRCLK: tx_usrclk (linerate/20, phase aligned with tx_clk) with the 4-byte interface.
+            # Without it, TXUSRCLK is tx_clk as before, which only matches UG482 for data_width=20.
+            self.comb += self.tx_usrclk.eq(ClockSignal("tx") if tx_usrclk is None else tx_usrclk)
 
         # RX clocking ------------------------------------------------------------------------------
         rx_reset_deglitched = Signal()
@@ -1100,19 +1126,38 @@ class GTP(LiteXModule):
         # Use/generate local rx_clk.
         # --------------------------
         if rx_clk is None:
-            self.specials += [
-                Instance("BUFG",
+            # 4-byte interface: RXUSRCLK (RXOUTCLKPMA, linerate/20) and RXUSRCLK2 (2:1) from a PLL.
+            if data_width == 40:
+                rxoutclk_bufg = Signal()
+                self.specials += Instance("BUFG",
                     i_I = self.rxoutclk,
-                    o_O = self.cd_rx.clk,
-                ),
-                AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
-            ]
+                    o_O = rxoutclk_bufg,
+                )
+                cd_rx_usrclk = ClockDomain("rx_usrclk")
+                self.rx_usrclk_pll = rx_usrclk_pll = S7PLL()
+                self.comb += rx_usrclk_pll.reset.eq(rx_init.gtrxreset)
+                rx_usrclk_pll.register_clkin(rxoutclk_bufg, self.usrclk_freq)
+                rx_usrclk_pll.create_clkout(cd_rx_usrclk, self.usrclk_freq, with_reset=False)
+                rx_usrclk_pll.create_clkout(self.cd_rx,   self.rx_clk_freq, with_reset=False)
+                self.comb += self.rx_usrclk.eq(cd_rx_usrclk.clk)
+                self.specials += AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched | ~rx_usrclk_pll.locked)
+            else:
+                self.comb += self.rx_usrclk.eq(ClockSignal("rx"))
+                self.specials += [
+                    Instance("BUFG",
+                        i_I = self.rxoutclk,
+                        o_O = self.cd_rx.clk,
+                    ),
+                    AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
+                ]
         # Use provided/shared rx_clk.
         # ---------------------------
         else:
             assert rx_buffer_enable
             self.cd_rx.clk = rx_clk # Override instead of assign to only keep one real clk.
             self.specials += AsyncResetSynchronizer(self.cd_rx, rx_reset_deglitched)
+            # RXUSRCLK: rx_usrclk (linerate/20, phase aligned with rx_clk) with the 4-byte interface.
+            self.comb += self.rx_usrclk.eq(ClockSignal("rx") if rx_usrclk is None else rx_usrclk)
 
         # TX Datapath and PRBS ---------------------------------------------------------------------
         self.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, reverse=True))
