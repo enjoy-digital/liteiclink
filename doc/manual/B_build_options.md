@@ -166,7 +166,7 @@ settings. Other names raise a `NotImplementedError`.
 | `etherbone_buffer_depth` | `4` | Etherbone: record buffer, at least 2 |
 | `tx_buffer_depth` | `None` | TX buffer, words; `None` sizes it from the largest packet |
 | `rx_buffer_depth` | `None` | RX buffer, words; `None` adds 16 words with flow control |
-| `depacketizer_timeout` | `1e-3` | Seconds before an incomplete packet is dropped |
+| `depacketizer_timeout` | `1e-3` | Seconds without a word inside a packet before it ends with an error word |
 | `with_crc` | `False` | CRC16 on every packet; on both sides of the link |
 | `crc_max_words` | `None` | Largest payload accepted with the CRC, in words |
 

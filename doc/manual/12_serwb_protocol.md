@@ -65,8 +65,10 @@ timeout, and packets whose preamble is corrupted, are not counted. Corrupted dat
 bus; a dropped write is lost, and a dropped read ends with a bus error after the response
 timeout (see [Reads](#swb-reads)).
 
-The CRC engine is the `LiteEthMACCRCEngine` of LiteEth, imported by `liteiclink/serwb/packet.py`.
-SerWB therefore needs the LiteEth package installed, whatever the protocol and even without CRC.
+The CRC engine is built in `liteiclink/serwb/packet.py` (`_CRC16`), from the LFSR equations of the
+polynomial, and gives the same values on the link as the LiteEth engine used before, so links
+between older and newer bitstreams keep working. The native protocol and the CRC do not need
+LiteEth.
 
 ## Native MMAP protocol {#swb-mmap}
 
@@ -163,7 +165,9 @@ turns these counts into throughputs.
 ## Etherbone protocol (deprecated) {#swb-etherbone}
 
 The Etherbone protocol carries each access as an Etherbone record, with the Etherbone modules of
-LiteEth. `protocol="etherbone"` emits a `FutureWarning`, and the protocol will be removed.
+LiteEth. `protocol="etherbone"` emits a `FutureWarning`, and the protocol will be removed. LiteEth
+is imported only with `protocol="etherbone"`; it is the `etherbone` extra of the package
+(`pip install liteiclink[etherbone]`).
 
 | Item | Etherbone over SerWB |
 |------------------|-----------------------------------------------------------|
@@ -249,7 +253,7 @@ Two behaviours come from the bridges:
 | `CRCDepacketizer` | `packet.py` | Store, check and forward, `crc_error` |
 | `SERWBMMAPSlave` | `mmap.py` | SoC side native protocol, write coalescing |
 | `SERWBMMAPMaster` | `mmap.py` | Remote side native protocol |
-| `Etherbone` | `etherbone.py` | Deprecated protocol on LiteEth Etherbone |
+| `Etherbone` | `etherbone.py` | Deprecated protocol on LiteEth Etherbone (needs LiteEth) |
 | `SERIOCore` | `core.py` | 32 inputs and outputs on one port |
 
 The files are in `liteiclink/serwb/`. The end-to-end tests, with both protocols, flow control,

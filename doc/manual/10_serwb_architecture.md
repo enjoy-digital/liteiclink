@@ -142,9 +142,9 @@ Without flow control, the receiving PHY pushes one word, data or idle, into the 
 word slot. When the remote bus holds a request for more word slots than the buffer has free
 entries, the next words are lost.
 
-The lost words may be idle words, which `rx_overflows` counts although no data is lost. They may
-also be the words of the next request, which is then lost or corrupted while the SoC side has
-already acknowledged it. Larger buffers or flow control avoid this with a slow remote bus.
+The lost words may be idle words, which carry no data and which `rx_overflows` does not count.
+They may also be the words of the next request, which is then lost or corrupted while the SoC side
+has already acknowledged it. Larger buffers or flow control avoid this with a slow remote bus.
 
 ## Link down {#swb-link-down}
 
@@ -153,9 +153,8 @@ default, the bus protocol module, the packetizer, the depacketizer and both buff
 reset while the link is not ready. A link loss therefore discards the packets in flight.
 
 While the link is not ready, the SoC side core flags every bus access with an error instead of
-leaving the bus waiting. With the native protocol, a write also sees an acknowledge in the same
-cycle (the protocol module, held in reset, accepts it), so the bus master must check the error
-first.
+leaving the bus waiting. The access is not forwarded to the protocol module, so it gets the error
+alone, without an acknowledge, with both protocols.
 
 A CPU or a host tool sees a bus error and can retry after the link comes back.
 

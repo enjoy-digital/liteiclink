@@ -72,7 +72,7 @@ DESCRIPTIONS = {
     ("serwb_phy", "control_delay_max_found") : "1: the upper edge of the sampling window was found.",
     ("serwb_phy", "control_delay_max")       : "Upper edge of the sampling window (taps).",
     ("serwb_phy", "control_shift")           : "Word alignment found by the initialization (bitslip).",
-    ("serwb_phy", "control_phase")           : "Sampling phase found by the initialization (Efinix PHY).",
+    ("serwb_phy", "control_phase")           : "Sampling phase found by the initialization, the last one tried after an error (Efinix PHY).",
     ("serwb_phy", "control_prbs_start")      : "Write strobe: clear `control_prbs_errors` and count errors for `control_prbs_cycles` cycles.",
     ("serwb_phy", "control_prbs_cycles")     : "Duration of a link test, in `sys` cycles.",
     ("serwb_phy", "control_prbs_errors")     : "Errors counted by the last link test.",
@@ -92,7 +92,7 @@ NOTES = {
         "wrapper except the electrical controls (see the notes of the other banks).",
         "`clock_aligner_disable` exists only with `clock_aligner=True`, the default; the bench",
         "targets build without the clock aligner. `clock_tx_cycles` and `clock_rx_cycles` are",
-        "written by the hardware when software writes `clock_latch`: read them, never write them.",
+        "read-only and take the counts of the TX and RX user clocks when software writes `clock_latch`.",
         "Bit 2 of `rx_prbs_config` (`pause`) freezes `rx_prbs_errors` for a coherent read.",
     ],
     "serdes_gtx": [
@@ -132,7 +132,7 @@ NOTES = {
     "serwb_phy_s7": [
         "The `control_` registers of a high-speed SerWB PHY, here a 7-Series link master built",
         "with `with_prbs=True` and `with_auto_retrain=True`. The UltraScale and Efinix PHYs have",
-        "the same bank; `control_phase` is meaningful on Efinix only. A link slave has no",
+        "the same bank; the Efinix PHY adds `control_phase`, its RX phase selection. A link slave has no",
         "`control_reset`: the master resets it through the link. `control_prbs_tx` and",
         "`control_prbs_rx` exist only with `with_prbs=True`; without them, a link test counts the",
         "received idle words that are not zero, which measures the link only without flow control",

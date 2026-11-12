@@ -51,8 +51,8 @@ The wrappers count the cycles of their TX and RX user clocks. Writing `clock_lat
 counters into `clock_tx_cycles` and `clock_rx_cycles`; two latches some seconds apart give the
 frequencies, which `test_prbs.py` prints first ([PRBS test](#ex-test-prbs)).
 
-The two frequencies must equal the line rate divided by the word width. Read the two counters only: they are
-written by the hardware and a software write is overwritten at the next latch.
+The two frequencies must equal the line rate divided by the word width. Both counters are
+read-only status registers, Gray coded in their user clock and resynchronized to `sys`.
 
 ```sh
 litex_server --uart --uart-port=/dev/ttyUSBX
@@ -118,8 +118,8 @@ error can mark one or two words. It is cleared when the checker is disabled (`rx
 `test_prbs.py` does: the count stops a few cycles later, well before a read through a bridge.
 
 Errors in near-end loopback point to the wrapper, its clocks or its constraints, not to the board.
-On ECP5, `test_prbs.py --loopback` requests the DCU loopback, a reconfiguration marked FIXME in
-the code ([Control registers](#ecp5-controls)).
+On ECP5, `test_prbs.py --loopback` selects the DCU serial TX to RX loopback, through the SCI
+([Control registers](#ecp5-controls)).
 
 ### The line: polarity, swing and cursors {#dbg-line}
 

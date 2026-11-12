@@ -34,22 +34,44 @@ wrapper elaborates and sequences its resets, not that the link carries bits
 The tests are in `test/`, one file per area, and run with pytest.
 
 | File | What it checks |
-|-----------------------------------------------------------------|---------------------------------------------------------------------------|
+|---------------------------------------------------------------------------|---------------------------------------------------------------------------|
 | `test_serdes_pll.py` | Xilinx PLL dividers give the line rate with the VCO in range; impossible rates are rejected; `print(pll)` works |
 | `test_serdes_qpll.py` | Reference input of the GTH4 and GTY quad PLLs, dedicated or from the fabric |
 | `test_gty_qpll_config.py` | GTY QPLL0 or QPLL1 choice, fractional feedback, `qpll_params` |
 | `test_serdes_xilinx.py` | Six Xilinx families with CPLL and QPLL to Verilog: widths, registers, external clocks, clock dividers, GTP fabric reference clock, GTY raw symbols and rate |
+| `test_serdes_xilinx_rx_reset.py` | Xilinx wrappers: reset of the `rx` domain registered in `sys` |
+| `test_serdes_xilinx_bufg_gt.py` | UltraScale(+) BUFG_GT TX divider in its 1 to 8 range |
+| `test_serdes_gth_ultrascale.py` | GTH3 and GTH4 accept the shared `GTHChannelPLL` |
+| `test_serdes_gty_cdrhold.py` | GTY `RXCDRHOLD` follows the near-end PCS loopback |
+| `test_serdes_drp_addr.py` | 10-bit channel DRP address on GTH4 and GTY |
+| `test_serdes_clock_cycles.py` | Clock counters resynchronized to `sys` (Gray code), Xilinx and ECP5 |
+| `test_serdes_interface.py` | Common interface names (`linerate`, `data_width`, `tx_raw`, `rx_raw`) and older aliases on every wrapper |
 | `test_serdes_init.py` | Init state machines of every Xilinx family: done, restart, watchdog, GTP DRP sequence |
 | `test_serdes_gtp_drp.py` | GTP user DRP: `DRPControl` accesses with the default mux select, shared with the RX init DRP sequence |
 | `test_serdes_clock_aligner.py` | Clock aligner: aligned, no comma, errors after ready, disable |
 | `test_serdes_ecp5.py` | ECP5: OOB opt-in, word aligner, 5 Gbps PLL, 40-bit mode and gearboxes |
+| `test_serdes_ecp5_loopback.py` | ECP5 loopback register (3-bit encoding) and its DCU loopbacks, far-end parallel loopback |
+| `test_serdes_ecp5_sci.py` | ECP5 SCI: dual select not driven by the DCU index, reconfiguration loop on the channel registers |
 | `test_serdes_gtr12.py` | GTR12: primitives, tie-offs, lane wiring, quad configuration, decoder, UPAR nets, Verilog |
 | `test_serwb_init.py` | SerWB init: delay and shift scans, Efinix phase search, generic PHY, control registers |
+| `test_serwb_init_phase_error.py` | Efinix PHY keeps the last RX phase tried after a failed initialization |
+| `test_serwb_phy.py`, `test_serwb_phy_devices.py` | SerDes chosen from the device name (Xilinx, Titanium, every Trion, Artix UltraScale+), unknown names rejected |
+| `test_serwb_phy_rx_drop.py` | PHY drops whole RX words when its consumer is not ready, with and without flow control |
 | `test_serwb_health.py` | SerWB link health: PRBS link test, link drops, auto retrain |
 | `test_serwb_packet.py` | Packetizer and depacketizer: CRC, oversized and zero-length packets, timeout |
+| `test_serwb_packet_timeout.py` | A write request cut by the depacketizer timeout is lost, and the next accesses go through |
 | `test_serwb_core.py` | Scrambler, and Wishbone accesses through a core and a fake PHY |
+| `test_serwb_rx_overflows.py` | `rx_overflows` counts lost packet words, not lost idle words |
+| `test_serwb_link_down.py` | Link down: SoC side accesses end with an error, without acknowledge, both protocols |
+| `test_serwb_mmap_timeout.py` | Native reads: lost request or response, abandoned read, no timeout |
 | `test_serwb_link.py` | Both cores end to end: native and Etherbone protocols, flow control, CRC, SerIO, AXI-Lite, recovery, bit errors |
 | `test_serwb_sim.py` | `bench/serwb/sim.py --test` in six configurations, with Verilator |
+| `test_serwb_sim_min.py` | `bench/serwb/sim.py --min`: two generic PHYs, counters checked both ways, with Verilator |
+| `test_bench_prbs.py`, `test_bench_prbs_ber.py`, `test_bench_prbs_clocks.py` | `test_prbs.py` with fake registers: clock aligner disable, BER over the counted intervals, stopped and wrapped clocks |
+| `test_bench_serwb.py`, `test_bench_serwb_sram.py` | `test_serwb.py` with fake registers: init success and error, SRAM dump length |
+| `test_bench_serwb_region.py` | SerWB region uncached in the simulation, the benches and the ECPIX-5 demo |
+| `test_bench_serwb_targets.py` | SerWB bench targets: T120 LVDS delays, Ti60 SerIO domain, CSR data width, iCEBreaker loopback; Efinix cases skipped without Efinity |
+| `test_bench_serwb_resources.py` | `resources.py` synthesis and the two Yosys statistics formats |
 
 The init tests run each state machine against a behavioural model of the transceiver signals: the
 PLL locks some cycles after its reset is released, reset done follows the channel reset, and the
@@ -73,7 +95,7 @@ LITEICLINK_QUICK_TESTS=1 python3 -m pytest -v
 
 `LITEICLINK_QUICK_TESTS=1` skips the tests marked slow in `test_serwb_link.py`. `test_serwb_sim.py`
 needs Verilator and is skipped when it is not installed; the other tests need only LiteX and its
-dependencies, LiteEth included.
+dependencies, plus LiteEth for the tests of the Etherbone protocol.
 
 ## SerWB Verilator simulation {#sim-serwb}
 
@@ -165,7 +187,7 @@ default parameter reaches all of them. Before merging such a change:
 ## In the code {#sim-code}
 
 | Path | Content |
-|-----------------------------------------------------------------|---------------------------------------------------------------------------|
+|---------------------------------------------------------------------------|---------------------------------------------------------------------------|
 | `test/test_serdes_*.py` | SerDes tests |
 | `test/test_gty_qpll_config.py` | GTY QPLL configuration tests |
 | `test/test_serwb_*.py` | SerWB tests |
