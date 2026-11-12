@@ -219,10 +219,11 @@ class SERWBPHYBase(LiteXModule):
                     If(sink.valid,
                         sink.connect(serdes.tx.sink),
                     ),
-                    serdes.rx.source.connect(source)
-                ).Else(
-                    serdes.rx.source.ready.eq(1)
+                    serdes.rx.source.connect(source, omit={"ready"}),
                 ),
+                # The link has no backpressure: received words are dropped (whole words) when source
+                # is not ready, stalling the RX datapath would lose bits and the word alignment.
+                serdes.rx.source.ready.eq(1),
                 serdes.tx.sink.valid.eq(1) # Always transmitting.
             ]
 

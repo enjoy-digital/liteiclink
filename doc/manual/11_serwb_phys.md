@@ -254,7 +254,8 @@ line.
 ## Flow control {#swb-phy-flow}
 
 The link has no backpressure: without flow control, words that arrive when the RX buffer of the
-core is full are lost. With `with_flow_control=True` on both PHYs, the receiving side pauses the
+core is full are lost. The PHY drops them as whole words and keeps receiving, so the word alignment
+of the link is kept. With `with_flow_control=True` on both PHYs, the receiving side pauses the
 sending side with XOFF and XON words. The figure below shows an exchange.
 
 ![SerWB flow control: side B sends XOFF when its RX buffer is almost full, side A sends K28.1 fill

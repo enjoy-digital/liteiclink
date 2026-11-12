@@ -301,9 +301,10 @@ class FlowControl(LiteXModule):
                     sink.connect(tx_sink),
                 ),
                 tx.wait.eq(~sink.valid | paused),
-                rx_source.connect(source),
-            ).Else(
-                rx_source.ready.eq(1),
+                rx_source.connect(source, omit={"ready"}),
             ),
+            # No backpressure on the link: received words are dropped (whole words) when source is
+            # not ready, stalling the RX datapath would lose bits and the word alignment.
+            rx_source.ready.eq(1),
             tx_sink.valid.eq(1), # Always transmitting.
         ]

@@ -116,23 +116,34 @@ class SerWBMinSoC(SoCMini):
         # --------------
         class EndpointCounterGenerator(Module):
             def __init__(self, name, ready, endpoint):
-                counter = Signal(32)
+                # Counter starting at 1 (idle words are 0).
+                counter = Signal(32, reset=1)
+                self.comb += endpoint.data.eq(counter)
                 self.sync += [
                     endpoint.valid.eq(ready),
                     If(endpoint.valid & endpoint.ready,
-                        endpoint.data.eq(endpoint.data + 1)
+                        counter.eq(counter + 1)
                     )
                 ]
 
         class EndpointCounterChecker(Module):
             def __init__(self, name, ready, endpoint):
-                last_data = Signal(32, reset=2**32-1)
+                # Check from the first counter word (1): the words received before it are the last
+                # commas of the initialization and idle words.
+                started   = Signal()
+                last_data = Signal(32)
                 self.sync += [
                     endpoint.ready.eq(ready),
                     If(endpoint.valid & endpoint.ready,
                         #Display("[%08d] {} %08x".format(name), timer, endpoint.data),
-                        If((endpoint.data - 1) != last_data,
-                            Display("[%08d] {} check error.".format(name), timer)
+                        If(started,
+                            If((endpoint.data - 1) != last_data,
+                                Display("[%08d] {} check error.".format(name), timer)
+                            )
+                        ),
+                        If(~started & (endpoint.data == 1),
+                            Display("[%08d] {} check started.".format(name), timer),
+                            started.eq(1)
                         ),
                         last_data.eq(endpoint.data),
                     )
