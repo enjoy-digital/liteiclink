@@ -117,11 +117,11 @@ NOTES = {
     "serdes_ecp5": [
         "The base, PRBS and clock-cycle registers have the layout of the Xilinx banks, without",
         "polarity and electrical controls; `loopback` takes the 3-bit modes of the Xilinx banks,",
-        "any non-zero value requesting the DCU loopback. The `sci_reconfig_` registers",
+        "mapped to the DCU loopbacks, and `tx_inhibit` puts the TX output in electrical idle",
+        "([Lattice ECP5 DCU](#ecp5-controls)). The `sci_reconfig_` registers",
         "are always present: they give software byte access to the SCI configuration registers",
         "of the DCU (`sel` 0 for the channel, 1 for the dual), and `pause` stops the hardware",
-        "reconfiguration sequence while software uses them. The `tx_inhibit` and `loopback`",
-        "registers drive signals marked FIXME in the code ([Lattice ECP5 DCU](#lattice-ecp5)).",
+        "reconfiguration sequence while software uses them.",
     ],
     "serdes_gtr12": [
         "The GTR12 wrapper has no `add_controls()`: `add_status_csr()` adds `status` and",

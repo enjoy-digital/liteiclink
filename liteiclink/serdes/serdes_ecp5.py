@@ -342,7 +342,11 @@ class SerDesECP5SCI(LiteXModule):
 @ResetInserter()
 class SerDesECP5SCIReconfig(LiteXModule):
     def __init__(self, serdes, tx_idle_via_sci=True):
-        self.loopback    = Signal()
+        # Loopback mode, encoding of the other wrappers: 0b000: Disabled, 0b001/0b010: Near-End
+        # serial (TX to RX), 0b100: Far-End serial (RX equalizer to TX), 0b110: Far-End parallel
+        # (DCU FFC_SB_PFIFO_LP input, not handled here).
+        self.loopback    = Signal(3)
+        self.pden_sel    = Signal(reset=1) # CHX_PDEN_SEL attribute value (restored out of loopback).
         self.rx_polarity = Signal()
         self.tx_idle     = Signal()
         self.tx_polarity = Signal()
@@ -363,6 +367,24 @@ class SerDesECP5SCIReconfig(LiteXModule):
 
         first = Signal()
         data  = Signal(8)
+
+        # Loopback decoding (TN1261: CH_15 lb_ctl, only one bit set; CH_1A pden_sel).
+        near_end = Signal()
+        far_end  = Signal()
+        lb_ctl   = Signal(4)
+        pden_sel = Signal()
+        self.comb += [
+            near_end.eq((self.loopback == 0b001) | (self.loopback == 0b010)),
+            far_end.eq(self.loopback == 0b100),
+            If(near_end,
+                lb_ctl.eq(0b0001)  # slb_t2r_en: serial TX to RX.
+            ).Elif(far_end,
+                lb_ctl.eq(0b0010)  # slb_eq2t_en: serial RX equalizer to TX driver.
+            ),
+            # CDR phase detector kept enabled in Near-End loopback: the LOS detector watches the RX
+            # pins, not the looped data.
+            pden_sel.eq(self.pden_sel & ~near_end),
+        ]
 
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
@@ -460,9 +482,33 @@ class SerDesECP5SCIReconfig(LiteXModule):
             sci.we.eq(1),
             sci.adr.eq(0x15),
             sci.dat_w.eq(data),
-            If(self.loopback,
-                sci.dat_w[0:4].eq(0b0001) # lb_ctl
-            ),
+            sci.dat_w[0:4].eq(lb_ctl), # lb_ctl (cleared out of loopback).
+            If(~first & sci.done,
+                sci.we.eq(0),
+                NextState("READ-CH-1A")
+            )
+        )
+        fsm.act("READ-CH-1A",
+            sci.chan_sel.eq(1),
+            sci.re.eq(1),
+            sci.adr.eq(0x1a),
+            If(~first & sci.done,
+                sci.re.eq(0),
+                NextValue(data, sci.dat_r),
+                # Only write pden_sel when it changes (CH_1A also holds the DCO calibration triggers).
+                If(sci.dat_r[3] != pden_sel,
+                    NextState("WRITE-CH-1A")
+                ).Else(
+                    NextState("READ-CH-18")
+                )
+            )
+        )
+        fsm.act("WRITE-CH-1A",
+            sci.chan_sel.eq(1),
+            sci.we.eq(1),
+            sci.adr.eq(0x1a),
+            sci.dat_w.eq(data),
+            sci.dat_w[3].eq(pden_sel), # pden_sel
             If(~first & sci.done,
                 sci.we.eq(0),
                 NextState("READ-CH-18")
@@ -491,7 +537,7 @@ class SerDesECP5SCIReconfig(LiteXModule):
         )
         fsm.finalize()
 
-        last_fsm_state = Signal(4)
+        last_fsm_state = Signal.like(fsm.state)
         self.sync += last_fsm_state.eq(fsm.state)
         self.comb += first.eq(fsm.state != last_fsm_state)
 
@@ -736,7 +782,7 @@ class SerDesECP5(LiteXModule):
         # TX controls.
         self.tx_enable              = Signal(reset=1)
         self.tx_ready               = Signal()
-        self.tx_inhibit             = Signal() # FIXME
+        self.tx_inhibit             = Signal() # TX electrical idle (as tx_idle, also with tx_raw_enable).
         self.tx_produce_square_wave = Signal()
         self.tx_produce_pattern     = Signal()
         self.tx_pattern             = Signal(data_width)
@@ -758,8 +804,10 @@ class SerDesECP5(LiteXModule):
         self.rx_raw_data            = Signal(data_width)
         self.rx_raw                 = self.rx_raw_data # Common name (same signal).
 
-        # Loopback.
-        self.loopback               = Signal() # FIXME: reconfigure lb_ctl to 0b0001 but does not seem enough
+        # Loopback (encoding of the other wrappers, 1 also selects the Near-End serial loopback):
+        # 0b000: Disabled, 0b001/0b010: Near-End serial (TX to RX), 0b100: Far-End serial (RX to TX),
+        # 0b110: Far-End parallel (RX to TX through the DCU parallel loopback FIFO).
+        self.loopback               = Signal(3)
 
         # # #
 
@@ -874,8 +922,12 @@ class SerDesECP5(LiteXModule):
             self.comb += self.rx_raw_data.eq(Cat(rx_bus[0:10], rx_bus[12:22]))
 
         # DCU init ---------------------------------------------------------------------------------
+        # In Near-End serial loopback, the RX loss of signal (RX pins) is not seen by the init: the
+        # CDR receives the TX serial data, the RX pins can be unconnected.
+        init_rx_los = Signal()
+        self.comb += init_rx_los.eq(rx_los & ~((self.loopback == 0b001) | (self.loopback == 0b010)))
         if with_oob:
-            self.init = init = SerdesInitOOB(tx_lol, rx_lol, rx_los)
+            self.init = init = SerdesInitOOB(tx_lol, rx_lol, init_rx_los)
             tx_ready   = init.tx_ready
             rx_ready   = init.rx_ready
             tx_pll_rst = init.tx_pll_rst
@@ -883,7 +935,7 @@ class SerDesECP5(LiteXModule):
             rx_cdr_rst = init.rx_cdr_rst
             rx_pcs_rst = init.rx_pcs_rst
         else:
-            self.init = init = SerdesInit(tx_lol, rx_lol, rx_los)
+            self.init = init = SerdesInit(tx_lol, rx_lol, init_rx_los)
             tx_ready   = init.ready
             rx_ready   = init.ready
             tx_pll_rst = init.tx_rst
@@ -1091,6 +1143,11 @@ class SerDesECP5(LiteXModule):
             p_CHX_TPWDNB            = "0b1",
             i_CHX_FFC_TXPWDNB       = 1,
 
+            # CHX TX - Far-End parallel loopback (RX to TX, DCU parallel loopback FIFO, TN1261
+            # sb_felb_c).
+            i_CHX_FFC_SB_PFIFO_LP   = (self.loopback == 0b110),
+            i_CHX_FFC_PFIFO_CLR     = 0,
+
             # CHX TX — reset
             i_D_FFC_TRST            = ~self.tx_enable | tx_pll_rst,
             i_CHX_FFC_LANE_TX_RST   = ~self.tx_enable | tx_pcs_rst,
@@ -1147,16 +1204,19 @@ class SerDesECP5(LiteXModule):
         # Note: The SCI port belongs to the DCU of the instance (LOC DCU<dual>): dual_sel selects
         # the DCU registers (instead of the channel ones), only driven by user accesses (sel=1).
         self.comb += sci_reconfig.loopback.eq(self.loopback)
-        self.comb += sci_reconfig.tx_idle.eq(self.tx_idle if not with_oob else 0)
+        self.comb += sci_reconfig.tx_idle.eq((self.tx_idle | self.tx_inhibit) if not with_oob else 0)
         self.comb += sci_reconfig.rx_polarity.eq(rx_polarity)
         self.comb += sci_reconfig.tx_polarity.eq(tx_polarity)
         self.comb += sci_reconfig.rx_cdr_hold.eq(self.rx_cdr_hold)
 
         if with_oob:
-            tx_idle = Signal()
-            self.specials += MultiReg(self.tx_idle, tx_idle, "tx")
-            # Raw OOB data must remain driven while the normal serializer output is in idle.
-            self.serdes_params["i_CHX_FFC_EI_EN"] = tx_idle & ~self.tx_raw_enable
+            tx_idle    = Signal()
+            tx_inhibit = Signal()
+            self.specials += MultiReg(self.tx_idle,    tx_idle,    "tx")
+            self.specials += MultiReg(self.tx_inhibit, tx_inhibit, "tx")
+            # Raw OOB data must remain driven while the normal serializer output is in idle;
+            # tx_inhibit always idles the TX output.
+            self.serdes_params["i_CHX_FFC_EI_EN"] = (tx_idle & ~self.tx_raw_enable) | tx_inhibit
 
         # TX Datapath and PRBS ---------------------------------------------------------------------
         self.tx_prbs = ClockDomainsRenamer("tx")(PRBSTX(data_width, reverse=True))
@@ -1305,10 +1365,10 @@ class SerDesECP5(LiteXModule):
         ]
 
     def add_loopback_control(self):
-        # 3-bit, as on the other wrappers (same software, ex: test_prbs.py --loopback writing the
-        # Near-End PMA Loopback mode 0b010): any non-zero value requests the DCU loopback.
-        self._loopback = CSRStorage(3, description="Loopback: 0: Disabled / Non-zero: DCU loopback (lb_ctl=0b0001).")
-        self.comb += self.loopback.eq(self._loopback.storage != 0)
+        # 3-bit, encoding of the other wrappers (same software, ex: test_prbs.py --loopback writing
+        # the Near-End PMA Loopback mode 0b010), mapped to the DCU loopbacks of TN1261.
+        self._loopback = CSRStorage(3, description="Loopback: 0b000: Disabled / 0b001, 0b010: Near-End serial (TX to RX) / 0b100: Far-End serial (RX to TX) / 0b110: Far-End parallel (RX to TX).")
+        self.comb += self.loopback.eq(self._loopback.storage)
 
 
     def add_controls(self, auto_enable=True, rx_prbs_errors_width=32):
@@ -1331,6 +1391,9 @@ class SerDesECP5(LiteXModule):
         )
 
     def do_finalize(self):
+        # CDR phase detector setting restored by the SCI reconfiguration out of Near-End loopback
+        # (attribute value, can be overridden through serdes_params).
+        self.comb += self.sci_reconfig.pden_sel.eq(self.serdes_params.get("p_CHX_PDEN_SEL", "0b1") == "0b1")
         serdes_params = dict()
         for k, v in self.serdes_params.items():
             k = k.replace("CHX", "CH{}".format(self.channel))
