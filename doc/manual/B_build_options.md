@@ -114,7 +114,8 @@ The wrapper has `add_stream_endpoints()` and `add_status_csr()`; the UPAR regist
 
 `DRPControl(drp)` (`liteiclink/serdes/common.py`) takes the `drp` interface of a Xilinx channel or
 quad PLL and adds the registers of the [DRP access](#reg-serdes-drp) bank. `DRPInterface` has a
-9-bit address and 16-bit data by default (`address_width`, `data_width`).
+9-bit address and 16-bit data by default (`address_width`, `data_width`); the GTH4 and GTY
+channels use a 10-bit address, and the `addr` register takes the width of the interface.
 
 ## SerWB PHYs {#opt-serwb-phy}
 
