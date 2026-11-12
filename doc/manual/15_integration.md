@@ -239,8 +239,11 @@ self.serwb_core = SERWBCore(self.serwb_phy, sys_clk_freq, mode="master")
 self.bus.add_master("serwb", self.serwb_core.bus)
 ```
 
-`SoCRegion` is cached by default: `cached=False` keeps a CPU from caching remote registers. The
-generic PHY (`liteiclink.serwb.genphy.SERWBPHY`) takes the same arguments and runs on any FPGA.
+`SoCRegion` is cached by default: `cached=False` keeps a CPU from caching remote registers. With
+a CPU, LiteX only accepts an uncached region inside the IO region of the CPU, from `0x80000000` on
+VexRiscv, so the origin moves there.
+
+The generic PHY (`liteiclink.serwb.genphy.SERWBPHY`) takes the same arguments and runs on any FPGA.
 Three settings change the wire format and must match on both sides: `protocol`,
 `with_flow_control` and `with_crc`. Their effects are in [SerWB architecture](#serwb-architecture).
 
