@@ -52,8 +52,9 @@ class SerDes:
             self.clock_latch.write(1)
             tx_end = self.clock_tx_cycles.read()
             rx_end = self.clock_rx_cycles.read()
-            tx_cycles = (tx_end - tx_start) if tx_end > tx_start else (2**32 - tx_start) + tx_end
-            rx_cycles = (rx_end - rx_start) if rx_end > rx_start else (2**32 - rx_start) + rx_end
+            # 32-bit counters: modulo 2^32 for the wrap (a stopped clock gives 0).
+            tx_cycles = (tx_end - tx_start) % 2**32
+            rx_cycles = (rx_end - rx_start) % 2**32
             print("TX freq: {:10.3f}MHz".format((tx_cycles)/(duration*1e6)))
             print("RX freq: {:10.3f}MHz".format((rx_cycles)/(duration*1e6)))
 

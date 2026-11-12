@@ -62,7 +62,7 @@ litex_cli --csr-csv kc705.csv --regs --filter serdes0
 
 | Observation | Meaning | Next step |
 |-----------------------------------------|-----------------------------------------------|----------------------------------------------------|
-| TX clock stopped (two equal `clock_tx_cycles` reads; `test_prbs.py` prints 2147.484 MHz) | No PLL lock, or TX held in reset | Reference clock, `tx_enable` |
+| TX clock stopped (two equal `clock_tx_cycles` reads; `test_prbs.py` prints 0 MHz) | No PLL lock, or TX held in reset | Reference clock, `tx_enable` |
 | TX right, `tx_ready` 0 | TX init loops on its watchdog | Reference clock quality, PLL choice |
 | `tx_ready` 1, `rx_ready` 0 | RX init or clock aligner not done | Signal at the RX, clock aligner |
 | Both ready, RX clock off by ppm | Normal without a common reference | Nothing |
