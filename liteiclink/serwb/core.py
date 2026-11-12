@@ -16,7 +16,7 @@ from litex.soc.interconnect        import wishbone
 from litex.soc.interconnect.csr    import CSRStatus
 from litex.soc.interconnect.packet import Arbiter, Dispatcher
 
-from liteiclink.serwb.packet    import packet_description
+from liteiclink.serwb.packet    import PREAMBLE, packet_description
 from liteiclink.serwb.packet    import Packetizer, Depacketizer, CRCDepacketizer
 from liteiclink.serwb.mmap      import SERWBMMAPSlave, SERWBMMAPMaster
 
@@ -158,12 +158,34 @@ class SERWBCore(LiteXModule):
         # RX Overflows.
         # -------------
         # The link has no backpressure: received words are lost when the RX buffer is full (without
-        # PHY flow control). Count overflow events.
+        # PHY flow control). Count overflow events on packet words only: idle words between packets
+        # are also valid words on the link, and losing them loses no data. Packet words are tracked
+        # at the RX buffer input from the preamble and the header length (+ CRC word).
         self.rx_overflows = CSRStatus(32, description="Number of RX overflows (received words lost).")
+        rx_sink    = rx_fifo.sink
+        rx_header  = Signal()   # Current word is a header word.
+        rx_words   = Signal(16) # Packet words to receive after the current one.
+        rx_packet  = Signal()   # Current word belongs to a packet.
         overflow   = Signal()
         overflow_d = Signal()
-        self.comb += overflow.eq(rx_fifo.sink.valid & ~rx_fifo.sink.ready)
+        self.comb += [
+            rx_packet.eq((rx_sink.data == PREAMBLE) | rx_header | (rx_words != 0)),
+            overflow.eq(rx_sink.valid & ~rx_sink.ready & rx_packet),
+        ]
         self.sync += [
+            If(~phy.init.ready,
+                rx_header.eq(0),
+                rx_words.eq(0),
+            ).Elif(rx_sink.valid,
+                If(rx_header,
+                    rx_header.eq(0),
+                    rx_words.eq(rx_sink.data[8+2:24] + int(with_crc)),
+                ).Elif(rx_words != 0,
+                    rx_words.eq(rx_words - 1),
+                ).Elif(rx_sink.data == PREAMBLE,
+                    rx_header.eq(1),
+                )
+            ),
             overflow_d.eq(overflow),
             If(overflow & ~overflow_d & (self.rx_overflows.status != (2**32 - 1)),
                 self.rx_overflows.status.eq(self.rx_overflows.status + 1)
