@@ -52,19 +52,19 @@ following commands:
     0x00001810 : 0x00000000 serwb_master_phy_control_prbs_start
     0x00001814 : 0x00000000 serwb_master_phy_control_prbs_cycles
     0x00001818 : 0x00000000 serwb_master_phy_control_prbs_errors
-    0x40000000 : 0x00000000 icebreaker_soc_ctrl_reset
-    0x40000004 : 0x12345678 icebreaker_soc_ctrl_scratch
-    0x40000008 : 0x00000000 icebreaker_soc_ctrl_bus_errors
-    0x40001000 : 0x00000001 icebreaker_soc_serwb_slave_phy_control_ready
-    0x40001004 : 0x00000000 icebreaker_soc_serwb_slave_phy_control_error
-    0x40001008 : 0x00000018 icebreaker_soc_serwb_slave_phy_control_shift
-    0x4000100c : 0x00000000 icebreaker_soc_serwb_slave_phy_control_prbs_start
-    0x40001010 : 0x00000000 icebreaker_soc_serwb_slave_phy_control_prbs_cycles
+    0x80000000 : 0x00000000 icebreaker_soc_ctrl_reset
+    0x80000004 : 0x12345678 icebreaker_soc_ctrl_scratch
+    0x80000008 : 0x00000000 icebreaker_soc_ctrl_bus_errors
+    0x80001000 : 0x00000001 icebreaker_soc_serwb_slave_phy_control_ready
+    0x80001004 : 0x00000000 icebreaker_soc_serwb_slave_phy_control_error
+    0x80001008 : 0x00000018 icebreaker_soc_serwb_slave_phy_control_shift
+    0x8000100c : 0x00000000 icebreaker_soc_serwb_slave_phy_control_prbs_start
+    0x80001010 : 0x00000000 icebreaker_soc_serwb_slave_phy_control_prbs_cycles
 
     # Test Access to SRAM through SerWB
-    litex_cli --write 0x50000000 0x12345678
-    litex_cli --write 0x50000004 0x5aa55aa5
-    litex_cli --read 0x50000000
-    0x50000000 : 0x12345678
-    litex_cli --read 0x50000004
-    0x50000004 : 0x5aa55aa5
+    litex_cli --write 0x90000000 0x12345678
+    litex_cli --write 0x90000004 0x5aa55aa5
+    litex_cli --read 0x90000000
+    0x90000000 : 0x12345678
+    litex_cli --read 0x90000004
+    0x90000004 : 0x5aa55aa5
