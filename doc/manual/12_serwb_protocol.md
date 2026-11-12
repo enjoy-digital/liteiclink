@@ -62,8 +62,8 @@ packet. It drops a packet with a wrong CRC, a payload larger than `crc_max_words
 
 The `crc_errors` register of the core counts the CRC failures. Packets dropped for their size or a
 timeout, and packets whose preamble is corrupted, are not counted. Corrupted data never reaches a
-bus; a dropped write is lost, and a dropped read leaves the SoC side waiting (see
-[Native protocol limits](#swb-mmap-limits)).
+bus; a dropped write is lost, and a dropped read ends with a bus error after the response
+timeout (see [Reads](#swb-reads)).
 
 The CRC engine is the `LiteEthMACCRCEngine` of LiteEth, imported by `liteiclink/serwb/packet.py`.
 SerWB therefore needs the LiteEth package installed, whatever the protocol and even without CRC.
@@ -117,6 +117,14 @@ The SoC side returns the data with an acknowledge, or a bus error when the statu
 reports an error, when the response has no data word, or when its magic is wrong. The SoC side
 handles one access at a time, so reads and writes keep their order.
 
+A read request or response can be lost while the link stays up, for example dropped by the CRC
+check or by an RX overflow. The SoC side then ends the read with a bus error after
+`response_timeout` seconds, 1 ms by default, shorter than the LiteX bus timeout.
+
+A response that arrives after the timeout is dropped: the SoC side waits for it up to one more
+timeout before it serves the next read. A response to a read that the bus master gave up, for
+example after the LiteX bus timeout, is dropped too, and never acknowledges the next access.
+
 ### Remote side {#swb-mmap-remote}
 
 The remote side core checks the magic of each request. A request with another magic, such as an
@@ -149,15 +157,8 @@ turns these counts into throughputs.
 - Reads are single words: the remote side accepts multi-word read requests, but the SoC side does
   not send them.
 - Errors of remote writes are not reported, since writes are posted.
-- The SoC side waits for each read response without a timeout of its own. If a read request or its
-  response is lost while the link stays up, for example dropped by the CRC check or by an RX
-  overflow, the LiteX bus timeout ends the access with an acknowledge and all-ones data, not an
-  error.
-- The core then keeps waiting and serves no other access until the link initialization restarts:
-  the `reset` register of the link master, which is on the other FPGA when the SoC side is the
-  link slave, or automatic retraining.
-- A response that arrives after the bus timeout acknowledges the next access: a read then gets
-  the data of the earlier read.
+- Responses carry no request tag. A response delayed by more than twice `response_timeout`, by a
+  remote bus slower than that, can still be taken as the response of a later read.
 
 ## Etherbone protocol (deprecated) {#swb-etherbone}
 
@@ -177,8 +178,8 @@ Both sides of a link must use the same protocol. A pair built with Etherbone mov
 protocol by rebuilding both sides together, or keeps `protocol="etherbone"` on both sides.
 
 A mismatched pair does not execute any access: the magic checks on each side drop the requests. A
-native SoC side then waits for the first read response forever
-([Native protocol limits](#swb-mmap-limits)).
+native SoC side then ends every read with a bus error after the response timeout
+([Reads](#swb-reads)).
 
 ## SerIO and user ports {#swb-serio}
 

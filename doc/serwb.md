@@ -95,7 +95,7 @@ Without CRC, bit errors on the link corrupt accesses silently. `with_crc=True` (
 CRC-16 (CCITT) word, zero-extended to 32-bit, to each packet. SerWB packets are short (a few words),
 so CRC-16 detects all 1/2/3-bit errors and bursts up to 16-bit on them, at about half the logic of a
 CRC-32. The receiver stores each packet, checks it, and forwards it only when valid. A dropped
-write is lost and a dropped read times out on the SoC bus, but corrupted data never reaches the bus.
+write is lost and a dropped read ends with an error after `response_timeout`, but corrupted data never reaches the bus.
 
 ### Native protocol (`protocol="native"`, default)
 
@@ -142,6 +142,7 @@ rebuilt together, or keep `protocol="etherbone"` on both sides until they can be
 | `protocol`               | "native" | `"native"` or `"etherbone"` (deprecated), both sides.        |
 | `burst_depth`            | 4       | Native: max words per request (write coalescing, buffers).    |
 | `coalescing_timeout`     | 4       | Native: idle cycles before sending pending writes (0: none).  |
+| `response_timeout`       | 1e-3    | Native: read response timeout (seconds, access ends with err; None: none). |
 | `with_crc`               | False   | Per-packet CRC16. Invalid packets are dropped (both sides).   |
 | `crc_max_words`          | auto    | Largest payload accepted with CRC (default: one full packet, min 16). |
 

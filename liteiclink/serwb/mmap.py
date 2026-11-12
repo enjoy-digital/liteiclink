@@ -25,6 +25,10 @@ A single 32-bit write takes 5 words on the link (vs 7 with Etherbone) and a read
 a single request (up to `burst_depth` words). Requests/responses are fully buffered before being
 sent (no bubbles inside packets). Remote Wishbone errors are reported on reads.
 
+Reads without response (lost request or response) end with an error after `response_timeout`
+cycles. Responses that no longer match a pending read (late responses, abandoned accesses) are
+dropped instead of being given to the next access.
+
 The magic identifies the protocol: requests with an invalid magic (for example Etherbone packets
 from a remote side built with protocol="etherbone") are dropped instead of being executed, and read
 responses with an invalid magic return an error on the bus.
@@ -53,8 +57,11 @@ class SERWBMMAPSlave(LiteXModule):
 
     ``coalescing_timeout``: idle cycles (no consecutive write) before sending a pending write
     request (0: send writes immediately, no coalescing).
+
+    ``response_timeout``: cycles to wait for a read response before ending the access with an error
+    (None: wait forever). A response arriving after the timeout is dropped.
     """
-    def __init__(self, burst_depth=4, coalescing_timeout=4):
+    def __init__(self, burst_depth=4, coalescing_timeout=4, response_timeout=None):
         assert 1 <= burst_depth <= 256
         self.bus    = bus    = wishbone.Interface(data_width=32, adr_width=30)
         self.source = source = stream.Endpoint(packet_description(32))
@@ -106,9 +113,27 @@ class SERWBMMAPSlave(LiteXModule):
         err   = Signal()
         dat_r = Signal(32)
 
+        # Abandoned Read.
+        # ---------------
+        # The read access is abandoned when the master releases it (or presents another access)
+        # before the response, for example after a SoC bus timeout: the response is then dropped.
+        abandoned = Signal()
+        rd_access = Signal()
+        self.comb += rd_access.eq(access & ~bus.we & (bus.adr == adr) & ~abandoned)
+
+        # Response Timeout.
+        # -----------------
+        timeout = Signal()
+        if response_timeout:
+            self.timer = timer = WaitTimer(response_timeout)
+            self.comb += timeout.eq(timer.done)
+
         # FSM.
         # ----
         self.fsm = fsm = FSM(reset_state="IDLE")
+        # Responses are always accepted: outside RECEIVE-STATUS/RECEIVE-DATA, they do not match a
+        # pending read and are dropped.
+        self.comb += sink.ready.eq(1)
         fsm.act("IDLE",
             If(wr_send,
                 NextValue(op,    MMAP_OP_WRITE),
@@ -128,6 +153,7 @@ class SERWBMMAPSlave(LiteXModule):
                 NextValue(wr_next,  bus.adr + 1),
                 NextValue(wr_count, wr_count + 1),
             ).Elif(access & ~bus.we,
+                NextValue(abandoned, 0),
                 NextValue(op,    MMAP_OP_READ),
                 NextValue(adr,   bus.adr),
                 NextValue(sel,   bus.sel),
@@ -176,7 +202,6 @@ class SERWBMMAPSlave(LiteXModule):
             )
         )
         fsm.act("RECEIVE-STATUS",
-            sink.ready.eq(1),
             If(sink.valid,
                 # Truncated response (no data) or invalid magic: error.
                 NextValue(err, sink.data[0] | sink.last | (sink.data[16:32] != MMAP_MAGIC)),
@@ -185,22 +210,46 @@ class SERWBMMAPSlave(LiteXModule):
                 ).Else(
                     NextState("RECEIVE-DATA")
                 )
+            ).Elif(timeout,
+                NextState("TIMEOUT")
             )
         )
         fsm.act("RECEIVE-DATA",
-            sink.ready.eq(1),
             If(sink.valid,
                 NextValue(dat_r, sink.data),
                 If(sink.last,
                     NextState("ACK")
                 )
+            ).Elif(timeout,
+                NextState("TIMEOUT")
             )
         )
+        if response_timeout:
+            self.comb += timer.wait.eq(fsm.ongoing("RECEIVE-STATUS") | fsm.ongoing("RECEIVE-DATA") | fsm.ongoing("FLUSH"))
+        for state in ["RECEIVE-STATUS", "RECEIVE-DATA"]:
+            fsm.act(state,
+                If(~rd_access,
+                    NextValue(abandoned, 1)
+                )
+            )
         fsm.act("ACK",
             bus.dat_r.eq(dat_r),
-            bus.ack.eq(~err),
-            bus.err.eq(err),
+            bus.ack.eq(rd_access & ~err),
+            bus.err.eq(rd_access &  err),
             NextState("IDLE")
+        )
+        fsm.act("TIMEOUT",
+            bus.err.eq(rd_access),
+            NextState("FLUSH")
+        )
+        fsm.act("FLUSH",
+            # Wait for the late response (or the rest of it) and drop it, to not give it to the
+            # next read.
+            If(sink.valid & sink.last,
+                NextState("IDLE")
+            ).Elif(timeout,
+                NextState("IDLE")
+            )
         )
 
 # MMAP Master --------------------------------------------------------------------------------------

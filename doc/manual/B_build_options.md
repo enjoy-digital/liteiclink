@@ -161,6 +161,7 @@ start with `T1` or `T2` (T4, T8, T35, T55, T85).
 | `protocol` | `"native"` | `"native"` or `"etherbone"` (deprecated); same on both sides |
 | `burst_depth` | `4` | Native: most writes merged in one request; remote read buffer, words |
 | `coalescing_timeout` | `4` | Native, SoC side: idle cycles before a pending write is sent; 0 sends at once |
+| `response_timeout` | `1e-3` | Native, SoC side: seconds before a read without response ends with a bus error; `None` waits forever |
 | `etherbone_buffer_depth` | `4` | Etherbone: record buffer, at least 2 |
 | `tx_buffer_depth` | `None` | TX buffer, words; `None` sizes it from the largest packet |
 | `rx_buffer_depth` | `None` | RX buffer, words; `None` adds 16 words with flow control |
