@@ -1043,7 +1043,7 @@ class GTH4(LiteXModule):
         # RX clocking ------------------------------------------------------------------------------
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
-        self.sync.tx += rx_reset_deglitched.eq(~rx_init.done)
+        self.sync += rx_reset_deglitched.eq(~rx_init.done)
         self.cd_rx = ClockDomain()
 
         # Use/generate local rx_clk.

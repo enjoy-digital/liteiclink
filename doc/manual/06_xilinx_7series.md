@@ -191,8 +191,6 @@ descriptions cite them.
   divided by 40. Check the 4-byte interface clocking of UG482 before using it; no run records it.
 - **GTP user DRP.** The wrapper never drives the DRP mux select ([RX init and the DRP
   workaround](#s7-gtp-rx-init)).
-- **RX domain reset.** The reset of the `rx` domain passes through a register clocked by `tx`.
-  While `tx` is in reset or its clock stops, the `rx` domain leaves reset whatever the RX init says.
 - **Init delay.** The 500 ns delay of the GTP and GTX runs once after the `sys` reset, not after
   each restart.
 - **Virtex-7 GTH ranges.** The GTH solvers use ranges of other families ([PLLs and line
