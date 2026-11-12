@@ -113,9 +113,9 @@ sequence is done. Logic in those domains therefore starts on a running, stable c
 With the clock aligner, `rx_ready` is the ready output of the aligner, which runs in `tx`; a `sys`
 consumer must synchronize it.
 
-On the Xilinx wrappers, the reset of the `rx` domain passes through
-a register clocked by `tx`. While the `tx` domain is in reset, or its clock stops, that register
-holds 0 and the `rx` domain leaves reset whatever the RX init says.
+On the Xilinx wrappers, the resets of the `tx` and `rx` domains are both registered in `sys`
+before their synchronizer, so the `rx` domain leaves reset only when the RX init is done, whatever
+the state of the `tx` domain.
 
 ## PLL solver {#sd-pll}
 
@@ -398,8 +398,7 @@ gets a coherent count, a few cycles late.
 `tx_enable` and `rx_enable` reset to 1; `auto_enable=False` keeps the channel idle until software
 enables it.
 
-`clock_tx_cycles` and `clock_rx_cycles` are storage registers written by the hardware: read them,
-never write them. The fields and reset values of every register are in the
+`clock_tx_cycles` and `clock_rx_cycles` are read-only status registers. The fields and reset values of every register are in the
 [Register reference](#registers).
 
 ## Register access to the channel: DRP {#sd-drp}

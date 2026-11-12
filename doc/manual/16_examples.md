@@ -66,7 +66,7 @@ Three boards need a word of explanation:
 - **SQRL Acorn.** The board has no dedicated transceiver reference clock. A fabric PLL derives
   125 MHz from the 200 MHz oscillator, and the quad PLL takes it through the clock network with
   `refclk_from_fabric=True`. The target lowers the Vivado design rule REQP-49 to a warning for this
-  path ([Xilinx 7-Series](#xilinx-7series)). Its identifier string reads "LiteSATA bench".
+  path ([Xilinx 7-Series](#xilinx-7series)).
 - **XCU1525.** With `qsfp0+1`, the target builds two lanes, `serdes0` and `serdes1`, from the
   same reference clock; the test pattern goes to `serdes0` only.
 
@@ -175,21 +175,22 @@ The script runs four steps:
 | `--mode` | `prbs7` | `prbs7`, `prbs15` or `prbs31` |
 | `--square-wave` | off | Send the square wave instead of data, for a scope |
 | `--duration` | `60` | Test duration in seconds |
-| `--linerate` | `5e9` | Line rate used in the BER column only |
+| `--linerate` | `2.5e9` | Line rate used in the BER column only |
 | `--loopback` | off | Enable the near-end PMA loopback during the test |
 
-The BER column divides the total errors, without the first interval, by the elapsed time, first
-interval included, and by `--linerate`. It is indicative only. Give the line rate of the design,
-since the default is 5 Gbps.
+The BER column, printed as `BER (lower bound)`, divides the total errors by the time of the
+counted intervals and by `--linerate`. The first interval is printed but not counted: its errors
+date from before the checker synchronized. The default line rate is 2.5 Gbps, the rate of the
+benches; give the line rate of the design otherwise.
 
 The error register counts the words that hold at least one wrong bit, not the bits ([PRBS and bit
 error ratio](#primer-prbs)). A run without error prints 0: what it proves is the bound computed in
 the primer, below 3 divided by the number of bits tested.
 
-The script has two limitations:
+Notes on the script:
 
-- It prints "Disabling Clock Aligner" but writes 0, which keeps the clock aligner enabled. The
-  benches build without the clock aligner, so this matters only for a design that has one.
+- With a clock aligner, it disables it during the test (`clock_aligner_disable` at 1), since PRBS
+  data has no commas, and enables it again at the end.
 - On ECP5, the `0b010` that `--loopback` writes selects the DCU serial TX to RX loopback, with
   the loss of signal ignored, so the receive pins can be left unconnected
   ([Control registers](#ecp5-controls)).
@@ -223,7 +224,7 @@ of both cores; its slave side increments its 32-bit SerIO input word as a counte
 | `--low-speed` | `nexys_video.py` | Generic PHY instead of the 7-Series PHY |
 | `--with-analyzer` | All but `icebreaker.py` | LiteScope analyzer on both PHYs |
 | `--loopback` | `icebreaker.py`, `trellisboard.py`, `ulx3s.py` | Link inside the FPGA, no pins |
-| `--flash` | Efinix targets | Write the bitstream to the flash |
+| `--flash` | Efinix targets, `icebreaker.py` | Write the bitstream to the flash (`--load` loads it into the FPGA, volatile) |
 | `--lvds-rx-delay` | `t120_bga576_dev_kit.py` | Static delay of the data inputs, in taps, on both PHYs |
 | `--lvds-clk-delay` | `t120_bga576_dev_kit.py` | Static delay of the clock inputs, in taps, on both PHYs |
 
@@ -248,8 +249,8 @@ python3 bench/serwb/test_serwb.py --ident --init --sram --access
 | `--port` | Port of `litex_server` (default `1234`) |
 
 A working link prints "Success." after `--init`, then `ready: 1` and `error: 0` for both sides.
-"Success." only means that the master left its wait: a master in error also prints it, and a
-timeout prints "Failed." without the state of the PHYs. The
+A master in error prints "Failed (error)." followed by the state of both PHYs, and a timeout
+prints "Failed (timeout)." without the state of the PHYs. The
 dumps of `--sram` and the read of `--access` match what was written.
 
 The generic PHY has no delay registers, so `--init` prints only its shift (`bitslip`).

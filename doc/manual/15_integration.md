@@ -301,8 +301,8 @@ example `icebreaker_soc_serwb_slave_phy_control_ready`. Build the remote side fi
 ### Link down and AXI {#integ-serwb-axi}
 
 While the link is down, the core holds its logic in reset, and the SoC side core answers bus
-accesses with a Wishbone error instead of stalling the bus. With the native protocol, a write
-also sees an acknowledge in the same cycle, so a bus master must check the error first.
+accesses with a Wishbone error instead of stalling the bus. The access is not forwarded to the
+protocol, so it ends with the error alone, without an acknowledge.
 
 In a LiteX SoC with an AXI or AXI-Lite main bus, `add_slave` and `add_master` insert the LiteX
 bridges. `AXILite2Wishbone` returns a Wishbone error as `SLVERR`, and the full AXI bridge goes

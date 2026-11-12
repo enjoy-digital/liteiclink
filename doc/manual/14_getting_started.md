@@ -12,8 +12,9 @@ not.
 
 LiteICLink is a Python package built on Migen and LiteX. Install LiteX by following the
 installation page of its wiki: the `standard` configuration of `litex_setup.py` installs Migen,
-LiteX, LiteX-Boards and the cores, LiteICLink included. LiteICLink imports LiteEth for the SerWB
-packet CRC and the Etherbone protocol, and LiteScope for the bench analyzers, both part of the
+LiteX, LiteX-Boards and the cores, LiteICLink included. LiteICLink needs LiteEth only for the
+deprecated Etherbone protocol of SerWB (the `etherbone` extra, `pip install liteiclink[etherbone]`),
+the SerWB simulation and the ECPIX-5 demo, and LiteScope for the bench analyzers, both part of the
 same installation.
 
 ```sh
@@ -165,13 +166,13 @@ the checker, and prints the error count every half second.
 ```
 
 `--csr-csv` must name the register map of the target, since the Xilinx targets do not write
-`csr.csv`. `--linerate` only feeds the BER computation and defaults to 5 Gbps: give
-the line rate of the bitstream. `--loopback` selects the near-end PMA loopback (`0b010`).
+`csr.csv`. `--linerate` only feeds the BER computation and defaults to 2.5 Gbps, the
+rate of the benches: give the line rate of the bitstream. `--loopback` selects the near-end PMA loopback (`0b010`).
 
 **What you should see.** The script prints `TX freq` and `RX freq`, then one line per interval:
 
 ```text
-Errors: <count> / Duration: <seconds>s / BER: <ber>
+Errors: <count> / Duration: <seconds>s / BER (lower bound): <ber>
 ```
 
 Both clocks run at the line rate divided by the data width: 2.5 Gbps / 20 = 125 MHz here. Every
@@ -182,9 +183,8 @@ PRBS and the loopback.
 clock. A clock that does not run is printed as `0.000MHz`. Errors in near-end loopback point to the clocking inside the FPGA, not to the board:
 [Debugging](#debugging) covers both cases.
 
-On ECP5, `--loopback` requests the DCU loopback: any non-zero value of the `loopback` register
-does. This ECP5 loopback is not validated: the code marks it `FIXME` (`serdes_ecp5.py`). If the
-test fails with it, use an external loopback.
+On ECP5, the `0b010` that `--loopback` writes selects the DCU serial TX to RX loopback
+([Control registers](#ecp5-controls)). If the test fails with it, use an external loopback.
 
 ## Step 6: PRBS through the connector {#gs-serdes-cable}
 
@@ -200,8 +200,8 @@ and the receiver equalization to the path.
 
 **Reading the result.** The test checks about `duration x linerate` bits. The count is the number
 of errored words (user clock cycles with at least one wrong bit), not of bit errors. The errors of
-the first interval are printed but not added to the total, while its time stays in the BER
-column, so that column is indicative only.
+the first interval are printed but not counted, nor is its time: the BER column covers the
+counted intervals. Since a word error may hide several bit errors, the column is a lower bound.
 
 A run without error does not give a BER of zero: it
 bounds it. With 0 errors in N bits, the BER is below 3/N with 95 % confidence. For 60 s at
@@ -240,9 +240,9 @@ element, so only the `bitslip` line comes before them. The SRAM test writes a 12
 through the link and dumps the 128 words, then writes four patterns and dumps the same 128 words:
 each dump must match what was written.
 
-**If not.** `Failed.` comes after a 4 s timeout; the script then stops without printing the
-state of each side. `Success.` only means that the sequence ended: `error: 1` on a side means it
-found no valid alignment.
+**If not.** `Failed (timeout).` comes after a 4 s timeout; the script then stops without printing
+the state of each side. `Failed (error).` means that the master found no valid alignment; the
+script still prints the state of both sides, where `error: 1` shows the side in error.
 Without `--loopback`, check the three wires: clock to clock, master TX to slave RX, slave TX to
 master RX. [Debugging](#debugging) covers the SerWB registers.
 

@@ -214,8 +214,6 @@ default ([DRP](#sd-drp)). Debug tools reach the channel registers through it, fo
   bypass has no recorded run ([Init and clocking](#us-init)).
 - With 80-bit GTY words, the comma aligner aligns on 4-byte boundaries, so the comma lands on
   symbol 0 or 4 ([Receive](#sd-rx)).
-- The reset of the `rx` domain passes through a register clocked by `tx`, as on 7-Series
-  ([Limitations](#s7-limitations)).
 
 ## Users {#us-users}
 
