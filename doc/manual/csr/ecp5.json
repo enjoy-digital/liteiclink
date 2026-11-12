@@ -327,7 +327,7 @@
    },
    {
     "access": "rw",
-    "description": "Loopback: 0: Disabled / Non-zero: DCU loopback (lb_ctl=0b0001).",
+    "description": "Loopback: 0b000: Disabled / 0b001, 0b010: Near-End serial (TX to RX) / 0b100: Far-End serial (RX to TX) / 0b110: Far-End parallel (RX to TX).",
     "fields": [],
     "name": "loopback",
     "offset": 68,

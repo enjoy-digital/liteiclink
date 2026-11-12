@@ -452,13 +452,16 @@ to a common block instantiated elsewhere. Sharing user clocks between channels u
 | Feature | GTP | GTX, GTH | GTH3, GTH4 | GTY | ECP5 DCU | GTR12 |
 |---------------|-----------|-----------|------------|-----------|-------------|-------------|
 | PRBS | Yes | Yes | Yes | Yes | Yes | No |
-| Loopback | 4 modes | 4 modes | 4 modes | 4 modes | On or off | No |
+| Loopback | 4 modes | 4 modes | 4 modes | 4 modes | 3 modes (1) | No |
 | Polarity | Register | Register | Register | Register | Static | Static |
 | Electrical | Yes | Yes | Yes | Yes | No | No |
 | Raw symbols | No | No | No | Yes | Yes | Yes |
 | Rate change | No | No | No | Yes | No | No |
 | Register access | DRP | DRP | DRP | DRP | SCI | UPAR |
 | Clock aligner | Yes | Yes | Yes | Yes | No | No |
+
+(1) Near-end serial, far-end serial and far-end parallel; the near-end PCS value selects the near-end
+serial loopback ([Control registers](#ecp5-controls)).
 
 *Static* means a constructor parameter only. The ECP5 has its own alignment logic and reaches its
 configuration through the SCI bus. The GTR12 takes hardware-validated settings from the caller

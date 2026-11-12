@@ -285,7 +285,8 @@ litescope_cli --csv analyzer.csv --list
 The points below are limitations of the code as it stands; they are worth knowing before reading a
 register.
 
-- On ECP5, the `tx_inhibit` and `loopback` registers drive signals marked FIXME in the code.
+- On ECP5, `tx_inhibit` and the far-end loopbacks have no recorded run
+  ([Control registers](#ecp5-controls)).
 - `rx_prbs_errors` wraps at 2^32; read it periodically on long runs, as `test_prbs.py` does.
 - On the GTP, the wrapper never drives `drp_mux.sel`, so the user DRP port is unreachable until the
   design drives it ([DRP](#dbg-drp)).

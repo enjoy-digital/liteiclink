@@ -190,8 +190,9 @@ The script has two limitations:
 
 - It prints "Disabling Clock Aligner" but writes 0, which keeps the clock aligner enabled. The
   benches build without the clock aligner, so this matters only for a design that has one.
-- On ECP5, the `0b010` that `--loopback` writes requests the DCU loopback, which is not known to
-  give a working loopback ([Control registers](#ecp5-controls)).
+- On ECP5, the `0b010` that `--loopback` writes selects the DCU serial TX to RX loopback, with
+  the loss of signal ignored, so the receive pins can be left unconnected
+  ([Control registers](#ecp5-controls)).
 - The GTR12 wrapper has no PRBS registers, so the script does not apply to it.
 
 ## SerWB benches {#ex-serwb}

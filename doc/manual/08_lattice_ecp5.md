@@ -18,7 +18,7 @@ The common interface of all wrappers is in [SerDes wrapper architecture](#serdes
 | Line coding | 8b/10b in the fabric, DCU in raw 10-bit mode |
 | Comma alignment | Fabric (OOB and 40-bit modes); DCU state machine enabled in the default mode, not validated |
 | Test patterns | Square wave, fixed pattern, PRBS7/15/31 |
-| Runtime controls | Enables, PRBS, loopback, raw register access (SCI) |
+| Runtime controls | Enables, TX inhibit, PRBS, loopback (four modes), raw register access (SCI) |
 | Not provided | Swing and de-emphasis registers, runtime polarity registers |
 
 The hardware status of the family is in the [status table](#intro-status) of the introduction.
@@ -255,15 +255,20 @@ The DCU registers are reachable at runtime through its serial control interface 
 addresses and 8-bit data, on the channel registers or on the dual registers. `SerDesECP5SCI` drives
 the SCI ports of the `DCUA` instance. `SerDesECP5SCIReconfig` uses it in two ways.
 
-In normal operation, a state machine repeats read-modify-write cycles on four channel registers,
-three in the OOB modes. It applies the signals that the DCU primitive has no port for:
+In normal operation, a state machine repeats read-modify-write cycles on five channel registers,
+four in the OOB modes. It applies the signals that the DCU primitive has no port for:
 
 | Channel register | Bits written | Signal |
 |------------------|--------------|----------------------------------------------|
 | `0x01` | 0, 1 | `rx_polarity`, `tx_polarity` |
-| `0x02` | 6 | `tx_idle` (default mode only) |
-| `0x15` | 3:0 | `0b0001` when `loopback` is set |
+| `0x02` | 6 | `tx_idle` or `tx_inhibit` (default mode only) |
+| `0x15` | 3:0 | Serial loopback field, from `loopback` |
+| `0x1a` | 3 | CDR phase detector on loss of signal, cleared in near-end loopback |
 | `0x18` | 6 | `rx_cdr_hold` |
+
+Register `0x1a` also holds the DCO calibration triggers, so the loop writes it only when bit 3
+differs from the value to apply. Out of loopback, that value is the `CHX_PDEN_SEL` parameter of
+the instance, including a change by the user core.
 
 The loop is held in reset until TX is ready. The polarity parameters of the constructor accept a
 constant or a signal; a change of the signal is applied by the next pass of the loop.
@@ -304,17 +309,31 @@ does for its receive settings.
 `add_clock_cycles()` the clock measurement registers. The full list is in the
 [Register reference](#registers); the ECP5 specifics are:
 
-- `loopback` takes the 3-bit encoding of the Xilinx wrappers, so that the same software applies:
-  any non-zero value sets the loopback field of register `0x15` through the SCI loop. The source
-  notes that this "does not seem enough" for a working loopback.
-- `tx_inhibit` exists for compatibility with the other wrappers but drives nothing.
+- `loopback` takes the 3-bit encoding of the Xilinx wrappers, so that the same software applies.
+  The table below maps the modes to the DCU loopbacks of TN1261.
+- `tx_inhibit` puts the TX output in electrical idle, as `tx_idle` does, also while raw words are
+  sent in the OOB modes.
+
+| Value | Xilinx mode | DCU loopback (TN1261) | Control |
+|------------|-------------|-------------------------------------|-------------------------------------------|
+| `0b000` | Disabled | None | Register `0x15` bits 3:0 cleared |
+| `0b001` | Near-end PCS | Serial TX to RX (no PCS loopback) | Register `0x15` bit 0 (`slb_t2r_en`) |
+| `0b010` | Near-end PMA | Serial TX to RX | Register `0x15` bit 0 (`slb_t2r_en`) |
+| `0b100` | Far-end PMA | Serial RX equalizer to TX driver | Register `0x15` bit 1 (`slb_eq2t_en`) |
+| `0b110` | Far-end PCS | Parallel RX to TX, through a FIFO | `CHX_FFC_SB_PFIFO_LP` input |
+
+In the near-end loopback, the receive pins can be left unconnected. The initialization ignores the
+loss of signal output then, and the loop keeps the CDR phase detector enabled on loss of signal,
+since that output watches the pins and not the looped data. The `0b001` value also
+selects the serial loopback, which keeps the earlier one-bit `loopback` signal working.
 - There are no polarity or electrical registers. Polarity comes from the constructor; swing and
   de-emphasis are DCU parameters, reachable at runtime only through the raw SCI access.
 
 ## Limitations {#ecp5-limits}
 
 - 5 Gbps at most; the PLL solver does not check the VCO range of the DCU.
-- The loopback register is not known to give a working loopback, and `tx_inhibit` has no effect.
+- The far-end loopbacks and `tx_inhibit` have no recorded run. In the default mode, `tx_idle` and
+  `tx_inhibit` use the PCI Express electrical idle bit of register `0x02`.
 - The raw transmit words are used only with `with_oob=True`.
 - The 40-bit mode needs `with_oob=True`; its symbol aligner pauses while PRBS is checked.
 - The SCI registers are always present, one bank per wrapper.
