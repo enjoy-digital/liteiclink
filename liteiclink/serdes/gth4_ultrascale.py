@@ -1085,6 +1085,8 @@ class GTH4(LiteXModule):
             else:
                 tx_bufg_div = 1
             assert tx_bufg_div == int(tx_bufg_div)
+            # BUFG_GT DIV is 3-bit: divide by 1 to 8.
+            assert 1 <= tx_bufg_div <= 8, f"BUFG_GT divider {tx_bufg_div:g} out of range (1 to 8)."
             self.specials += [
                 Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_tx.clk,
                     i_DIV=int(tx_bufg_div)-1),
