@@ -349,9 +349,8 @@ The `loopback` register selects the loopback mode of the Xilinx channels.
 | `0b110` | Far-end PCS loopback |
 
 A near-end PMA loopback with PRBS checks the PLL, the serializer, the clock recovery and the fabric
-datapath without a cable. `test_prbs.py --loopback` selects it. On the GTY, the wrapper means to
-hold the clock recovery in the near-end PCS loopback, but the test is evaluated at elaboration
-and always gives 0: `RXCDRHOLD` stays low in every mode.
+datapath without a cable. `test_prbs.py --loopback` selects it. On the GTY, the wrapper holds the
+clock recovery in the near-end PCS loopback (`RXCDRHOLD`).
 
 ### Polarity {#sd-polarity}
 

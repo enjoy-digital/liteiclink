@@ -1110,7 +1110,7 @@ class GTY(LiteXModule):
 
             # CDR.
             i_RXCDRFREQRESET  = 0,
-            i_RXCDRHOLD       = 1 if self.loopback == 0b001 else 0,
+            i_RXCDRHOLD       = (self.loopback == 0b001), # Hold CDR in Near-End PCS loopback.
             i_RXCDROVRDEN     = 0,
             i_RXCDRRESET      = 0,
             i_RXCHBONDEN      = 0,
