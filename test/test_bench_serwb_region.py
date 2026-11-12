@@ -46,5 +46,27 @@ class TestBenchSerWBRegion(unittest.TestCase):
                 cached = {k.arg: k.value.value for k in region.keywords}.get("cached", True)
                 self.assertFalse(cached)
 
+    def test_ecpix5_demo_region_uncached(self):
+        # The ECPIX-5 demo (VexRiscv) maps the iCEBreaker peripherals uncached: inside the CPU IO
+        # region, aligned on its size (the iCEBreaker keeps the address offsets in its 512MB master
+        # region), and the iCEBreaker register map is imported at the same origin.
+        spec = importlib.util.spec_from_file_location("serwb_demo_ecpix5", os.path.join(BENCH_DIR, "demo", "ecpix5.py"))
+        demo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(demo)
+        from litex_boards.platforms import lambdaconcept_ecpix5
+        platform = lambdaconcept_ecpix5.Platform(toolchain="trellis")
+        platform.add_extension(demo.serwb_io)
+        soc    = demo.SerWBDemoSoC(platform)
+        region = soc.bus.regions["serwb"]
+        self.assertFalse(region.cached)
+        self.assertEqual(region.origin % region.size, 0)
+        self.assertTrue(any(region.origin >= o and region.origin + region.size <= o + s
+            for o, s in soc.cpu.io_regions.items()))
+        tree  = ast.parse(open(os.path.join(BENCH_DIR, "demo", "ecpix5.py")).read())
+        calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "add_json"]
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(ast.unparse(calls[0].args[1]), "serwb_origin")
+        self.assertEqual(demo.serwb_origin, region.origin)
+
 if __name__ == "__main__":
     unittest.main()

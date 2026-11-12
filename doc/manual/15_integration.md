@@ -276,8 +276,10 @@ works as is.
 A remote SoC with its own address map translates the addresses, in two steps in the
 demonstration. The remote SoC adds the link as a bus master with a region
 (`add_master(..., SoCRegion(origin=0, size=0x20000000))`): LiteX inserts a remapper that keeps the
-offset of each access inside this 512 MiB region. A `wishbone.Remapper` then maps the offsets from
-`0x10000000` to the RAM at `0x40000000`. The explicit remapper alone does not see these offsets.
+offset of each access inside this 512 MiB region, so the SoC side origin must be a multiple of
+the size: `0x80000000` on the ECPIX-5, uncached in the IO region of its CPU. A `wishbone.Remapper`
+then maps the offsets from `0x10000000` to the RAM at `0x40000000`. The explicit remapper alone
+does not see these offsets.
 
 The demonstration also merges the register maps of the two SoCs. The remote build exports its map
 as JSON, and the SoC side build imports it at the origin of the SerWB region:
@@ -288,7 +290,7 @@ builder = Builder(soc, csr_csv="csr.csv", csr_json="icebreaker_soc.json")
 
 # SoC side (ECPIX-5): remote registers, prefixed, at the SerWB region origin.
 builder = Builder(soc, csr_csv="csr.csv")
-builder.add_json("icebreaker_soc.json", 0x40000000, "icebreaker_soc")
+builder.add_json("icebreaker_soc.json", 0x80000000, "icebreaker_soc")
 ```
 
 The generated `csr.csv`, headers and JSON of the SoC side then name the remote registers too, for
