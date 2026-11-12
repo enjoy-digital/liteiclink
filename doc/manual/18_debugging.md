@@ -118,8 +118,8 @@ error can mark one or two words. It is cleared when the checker is disabled (`rx
 `test_prbs.py` does: the count stops a few cycles later, well before a read through a bridge.
 
 Errors in near-end loopback point to the wrapper, its clocks or its constraints, not to the board.
-The ECP5 `loopback` register is 1 bit and drives a reconfiguration marked FIXME in the code;
-`test_prbs.py --loopback` does not enable it ([PRBS test](#ex-test-prbs)).
+On ECP5, `test_prbs.py --loopback` requests the DCU loopback, a reconfiguration marked FIXME in
+the code ([Control registers](#ecp5-controls)).
 
 ### The line: polarity, swing and cursors {#dbg-line}
 

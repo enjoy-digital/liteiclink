@@ -452,7 +452,7 @@ to a common block instantiated elsewhere. Sharing user clocks between channels u
 | Feature | GTP | GTX, GTH | GTH3, GTH4 | GTY | ECP5 DCU | GTR12 |
 |---------------|-----------|-----------|------------|-----------|-------------|-------------|
 | PRBS | Yes | Yes | Yes | Yes | Yes | No |
-| Loopback | 4 modes | 4 modes | 4 modes | 4 modes | 1 bit | No |
+| Loopback | 4 modes | 4 modes | 4 modes | 4 modes | On or off | No |
 | Polarity | Register | Register | Register | Register | Static | Static |
 | Electrical | Yes | Yes | Yes | Yes | No | No |
 | Raw symbols | No | No | No | Yes | Yes | Yes |

@@ -18,7 +18,7 @@ The common interface of all wrappers is in [SerDes wrapper architecture](#serdes
 | Line coding | 8b/10b in the fabric, DCU in raw 10-bit mode |
 | Comma alignment | Fabric (OOB and 40-bit modes); DCU state machine enabled in the default mode, not validated |
 | Test patterns | Square wave, fixed pattern, PRBS7/15/31 |
-| Runtime controls | Enables, PRBS, 1-bit loopback, raw register access (SCI) |
+| Runtime controls | Enables, PRBS, loopback, raw register access (SCI) |
 | Not provided | Swing and de-emphasis registers, runtime polarity registers |
 
 The hardware status of the family is in the [status table](#intro-status) of the introduction.
@@ -304,8 +304,9 @@ does for its receive settings.
 `add_clock_cycles()` the clock measurement registers. The full list is in the
 [Register reference](#registers); the ECP5 specifics are:
 
-- `loopback` is one bit. It sets the loopback field of register `0x15` through the SCI loop; the
-  source notes that this "does not seem enough" for a working loopback.
+- `loopback` takes the 3-bit encoding of the Xilinx wrappers, so that the same software applies:
+  any non-zero value sets the loopback field of register `0x15` through the SCI loop. The source
+  notes that this "does not seem enough" for a working loopback.
 - `tx_inhibit` exists for compatibility with the other wrappers but drives nothing.
 - There are no polarity or electrical registers. Polarity comes from the constructor; swing and
   de-emphasis are DCU parameters, reachable at runtime only through the raw SCI access.

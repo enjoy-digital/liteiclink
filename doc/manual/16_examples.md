@@ -186,12 +186,12 @@ The error register counts the words that hold at least one wrong bit, not the bi
 error ratio](#primer-prbs)). A run without error prints 0: what it proves is the bound computed in
 the primer, below 3 divided by the number of bits tested.
 
-The script has four limitations:
+The script has three limitations:
 
 - It prints "Disabling Clock Aligner" but writes 0, which keeps the clock aligner enabled. The
   benches build without the clock aligner, so this matters only for a design that has one.
-- On ECP5, `loopback` is a 1-bit register: the value `0b010` that `--loopback` writes is
-  truncated to 0, and the test runs without loopback.
+- On ECP5, the `0b010` that `--loopback` writes requests the DCU loopback, which is not known to
+  give a working loopback ([Control registers](#ecp5-controls)).
 - A user clock that does not run is printed as `2147.484MHz`: two equal counter reads are taken
   as a full wrap of the 32-bit counter.
 - The GTR12 wrapper has no PRBS registers, so the script does not apply to it.
