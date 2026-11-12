@@ -20,7 +20,7 @@ defaults. The hardware status of each one is in the [status table](#intro-status
 | Fabric reference clock | Yes | No | No |
 | User guide cited | UG482 | UG476 | UG476 |
 
-(1) The GTP 40-bit width elaborates but has no recorded run ([Limitations](#s7-limitations)).
+(1) The GTP 40-bit width has no recorded run ([Limitations](#s7-limitations)).
 
 The GTP has no channel PLL: its two PLLs, PLL0 and PLL1, sit in the common block of the quad. The
 GTX and GTH have one channel PLL (CPLL) per channel and one quad PLL (QPLL) per quad.
@@ -189,9 +189,12 @@ descriptions cite them.
 
 ## Limitations {#s7-limitations}
 
-- **GTP 40-bit words.** `data_width=40` elaborates (its commit says it allows compilation), but
-  the wrapper drives `TXUSRCLK` and `TXUSRCLK2`, and the RX pair, with one clock at the line rate
-  divided by 40. Check the 4-byte interface clocking of UG482 before using it; no run records it.
+- **GTP 40-bit words.** The GTP internal datapath is 2-byte only, so UG482 gives a 2:1 ratio
+  between the user clock pins with the 4-byte interface. With `data_width=40`, a `S7PLL` makes
+  `TXUSRCLK` (line rate / 20) and the `tx` domain on `TXUSRCLK2` (line rate / 40) from TXOUTCLK,
+  and the same pair for the RX from RXOUTCLK. With `tx_clk` or `rx_clk`, pass the line rate / 20
+  clock as `tx_usrclk` or `rx_usrclk`; without it, both pins take the external clock. No run
+  records this mode, and the PLLs do not follow a rate change.
 - **Init delay.** The 500 ns delay of the GTP and GTX runs once after the `sys` reset, not after
   each restart.
 - **Virtex-7 GTH ranges.** The GTH solvers use ranges of other families ([PLLs and line

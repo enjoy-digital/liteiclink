@@ -12,7 +12,8 @@ converted to Verilog for each family, PLL and main options (catches elaboration 
 import unittest
 
 from migen import *
-from migen.fhdl.specials import Instance
+from migen.fhdl.specials  import Instance
+from migen.fhdl.structure import _Assign
 
 from litex.gen import *
 
@@ -227,6 +228,74 @@ class TestSerDesXilinx(unittest.TestCase):
             with self.subTest(family=family):
                 with self.assertRaises(AssertionError):
                     self.elaborate(family, "qpll", 156.25e6, 10.3125e9, data_width=40)
+
+    def test_ultrascale_tx_outclk_sel(self):
+        # Without TX buffer, TXOUTCLK is the reference clock (TXPLLREFCLK_DIV1) since the BUFG_GT
+        # divider is computed from it (GTY used TXPROGDIVCLK with TX_PROGDIV_CFG=0); TXOUTCLKPMA
+        # (BUFG_GT /1) with TX buffer.
+        for family, channel in [("gth3", "GTHE3_CHANNEL"), ("gth4", "GTHE4_CHANNEL"), ("gty", "GTYE4_CHANNEL")]:
+            for tx_buffer_enable in [False, True]:
+                with self.subTest(family=family, tx_buffer_enable=tx_buffer_enable):
+                    top, fragment, csrs, verilog = self.elaborate(family, "qpll", 156.25e6, 6.25e9,
+                        data_width=40, tx_buffer_enable=tx_buffer_enable)
+                    gt,      = _instances(fragment, channel)
+                    bufg_gts = [b for b in _instances(fragment, "BUFG_GT") if _input(b, "I") is top.serdes.txoutclk]
+                    self.assertEqual(len(bufg_gts), 1)
+                    self.assertEqual(_input(gt, "TXOUTCLKSEL").value, 0b010 if tx_buffer_enable else 0b011)
+                    div = 1 if tx_buffer_enable else int(156.25e6/top.serdes.tx_clk_freq)
+                    self.assertEqual(_input(bufg_gts[0], "DIV").value, div - 1)
+
+    def test_gtp_user_clocks(self):
+        # GTP internal datapath is 2-byte: TXUSRCLK/RXUSRCLK at linerate/20, TXUSRCLK2/RXUSRCLK2
+        # ("tx"/"rx") at linerate/data_width (UG482: 2:1 with the 4-byte interface, data_width=40).
+        for data_width in [20, 40]:
+            for buffers in [False, True]:
+                with self.subTest(data_width=data_width, buffers=buffers):
+                    top, fragment, csrs, verilog = self.elaborate("gtp", "qpll", 125e6, 2.5e9,
+                        data_width       = data_width,
+                        tx_buffer_enable = buffers,
+                        rx_buffer_enable = buffers)
+                    serdes = top.serdes
+                    gt,    = _instances(fragment, "GTPE2_CHANNEL")
+                    for d in ["tx", "rx"]:
+                        usrclk  = _input(gt, f"{d.upper()}USRCLK")
+                        usrclk2 = _input(gt, f"{d.upper()}USRCLK2")
+                        self.assertIs(usrclk, getattr(serdes, f"{d}_usrclk"))
+                        self.assertIs(usrclk2, getattr(serdes, f"cd_{d}").clk)
+                        # USRCLK driver: the domain clock (20-bit) or a PLL output (40-bit).
+                        drivers = [st.r for st in fragment.comb if isinstance(st, _Assign) and st.l is usrclk]
+                        self.assertEqual(len(drivers), 1)
+                        is_usrclk2 = isinstance(drivers[0], ClockSignal) and drivers[0].cd == d
+                        self.assertEqual(is_usrclk2, data_width == 20)
+                        if data_width == 40:
+                            pll = getattr(serdes, f"{d}_usrclk_pll")
+                            freqs = [pll.clkouts[n].freq for n in sorted(pll.clkouts)]
+                            self.assertEqual(freqs, [2.5e9/20, 2.5e9/40])
+                    # PLLE2: CLKOUT1 (USRCLK2) divider twice CLKOUT0 (USRCLK) divider.
+                    plls = _instances(fragment, "PLLE2_ADV")
+                    self.assertEqual(len(plls), 2 if data_width == 40 else 0)
+                    for pll in plls:
+                        self.assertEqual(_parameter(pll, "CLKOUT1_DIVIDE"), 2*_parameter(pll, "CLKOUT0_DIVIDE"))
+
+    def test_gtp_external_user_clocks(self):
+        # External tx_clk/rx_clk with the 4-byte interface: TXUSRCLK/RXUSRCLK from tx_usrclk/rx_usrclk
+        # (linerate/20), tx_clk/rx_clk when not provided (previous behavior).
+        for with_usrclk in [False, True]:
+            with self.subTest(with_usrclk=with_usrclk):
+                usrclks = {"tx_usrclk": Signal(), "rx_usrclk": Signal()} if with_usrclk else {}
+                top, fragment, csrs, verilog = self.elaborate("gtp", "qpll", 125e6, 2.5e9,
+                    data_width       = 40,
+                    external_clks    = True,
+                    tx_buffer_enable = True,
+                    rx_buffer_enable = True,
+                    **usrclks)
+                self.assertEqual(_instances(fragment, "PLLE2_ADV"), [])
+                for d in ["tx", "rx"]:
+                    drivers = [st.r for st in fragment.comb if isinstance(st, _Assign) and st.l is getattr(top.serdes, f"{d}_usrclk")]
+                    if with_usrclk:
+                        self.assertIs(drivers[0], usrclks[f"{d}_usrclk"])
+                    else:
+                        self.assertEqual(drivers[0].cd, d)
 
 if __name__ == "__main__":
     unittest.main()

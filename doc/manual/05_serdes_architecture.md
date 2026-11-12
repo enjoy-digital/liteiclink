@@ -33,7 +33,7 @@ hardware status of each family is in the [status table](#intro-status) of the in
 | ECP5-5G DCU | `SerDesECP5` | `SerDesECP5PLL` | 20, 40 |
 | GW5 GTR12 | `GTR12` | None: quad configuration | 20, 40, 80 |
 
-(1) The GTP 40-bit width elaborates but has no recorded run ([Limitations](#s7-limitations)).
+(1) The GTP 40-bit width has no recorded run ([Limitations](#s7-limitations)).
 
 The data width counts the bits of one user-clock word on the transceiver side, after 8b/10b
 encoding. A 20-bit word carries two symbols, so two bytes; a 40-bit word four bytes; an 80-bit
@@ -164,8 +164,8 @@ domain.](sd_clocking.svg)
 domain through a buffer. The latency through the elastic buffer can differ from one reset to the
 next.
 
-**TX buffer bypassed** (the default). On the GTP, GTX and GTH, TXOUTCLK is the reference clock,
-and the wrapper derives the user clock from it. The ratio of the reference clock to the user clock
+**TX buffer bypassed** (the default). TXOUTCLK is the reference clock (`TXOUTCLKSEL` set to
+the reference clock divided by 1), and the wrapper derives the user clock from it. The ratio of the reference clock to the user clock
 decides how:
 
 | Ratio | 7-Series | UltraScale, UltraScale+ |
@@ -181,9 +181,9 @@ ratio 1. The same reference at 5 Gbps and 40 bits gives the same ratio. The test
 The UltraScale wrappers also check that the ratio is 8 or less: the BUFG_GT divider input has 3
 bits, and a larger ratio would be truncated and give a wrong user clock.
 
-The GTY selects its program divider output as TXOUTCLK in bypass mode instead of the
-reference clock, while its divider is computed for the reference clock. That path has no recorded
-run: use the GTY with `tx_buffer_enable=True`.
+The GTP has a 2-byte internal datapath only. With 40-bit words, its user clock pins run at the
+line rate divided by 20 and the `tx` and `rx` domains at half that frequency, both from a LiteX
+`S7PLL` ([Limitations](#s7-limitations)).
 
 **External user clocks.** The constructor takes `tx_clk` and `rx_clk` to clock the domains from
 outside, for example one clock for several channels. Each requires its buffer
