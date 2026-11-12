@@ -12,6 +12,7 @@ from migen.genlib.cdc import MultiReg
 from litex.gen import *
 
 from litex.soc.interconnect        import stream
+from litex.soc.interconnect        import wishbone
 from litex.soc.interconnect.csr    import CSRStatus
 from litex.soc.interconnect.packet import Arbiter, Dispatcher
 
@@ -104,9 +105,19 @@ class SERWBCore(LiteXModule):
         # ----
         self.bus = bus
 
-        # Return an error on accesses when link is down (instead of stalling the bus).
+        # Return an error on accesses when link is down (instead of stalling the bus): accesses are
+        # not forwarded to the protocol (that would ack posted writes along with the error).
         if mode == "slave":
-            self.comb += If(~phy.init.ready, bus.err.eq(bus.cyc & bus.stb))
+            self.bus = wishbone.Interface(data_width=32, adr_width=len(bus.adr))
+            self.comb += [
+                self.bus.connect(bus),
+                If(~phy.init.ready,
+                    bus.cyc.eq(0),
+                    bus.stb.eq(0),
+                    self.bus.ack.eq(0),
+                    self.bus.err.eq(self.bus.cyc & self.bus.stb),
+                )
+            ]
 
         # Packetizer / Depacketizer.
         # --------------------------
