@@ -80,8 +80,8 @@ Bank `serdes_gtp`.
 | `tx_precursor` | `0x0040` | 5 | rw | TX Pre Cursor Pre-emphasis Control, see UG482. Reset `0x0`. |
 | `tx_precursor_` `inv` | `0x0044` | 1 | rw | Invert polarity of TX Pre Cursor, see UG482. Reset `0x0`. |
 | `clock_latch` | `0x0048` | 1 | rw | Write to latch TX/RX clock cycles. Reset `0x0`. |
-| `clock_tx_cycles` | `0x004c` | 32 | rw | TX clock cycles. Reset `0x0`. |
-| `clock_rx_cycles` | `0x0050` | 32 | rw | RX clock cycles. Reset `0x0`. |
+| `clock_tx_cycles` | `0x004c` | 32 | ro | TX clock cycles. |
+| `clock_rx_cycles` | `0x0050` | 32 | ro | RX clock cycles. |
 
 Fields of `rx_prbs_config`:
 
@@ -120,8 +120,8 @@ Bank `serdes_gtx`.
 | `tx_precursor` | `0x0040` | 5 | rw | TX Pre Cursor Pre-emphasis Control, see UG476. Reset `0x0`. |
 | `tx_precursor_` `inv` | `0x0044` | 1 | rw | Invert polarity of TX Pre Cursor, see UG476. Reset `0x0`. |
 | `clock_latch` | `0x0048` | 1 | rw | Write to latch TX/RX clock cycles. Reset `0x0`. |
-| `clock_tx_cycles` | `0x004c` | 32 | rw | TX clock cycles. Reset `0x0`. |
-| `clock_rx_cycles` | `0x0050` | 32 | rw | RX clock cycles. Reset `0x0`. |
+| `clock_tx_cycles` | `0x004c` | 32 | ro | TX clock cycles. |
+| `clock_rx_cycles` | `0x0050` | 32 | ro | RX clock cycles. |
 
 Fields of `rx_prbs_config`:
 
@@ -161,8 +161,8 @@ Bank `serdes_gth3`.
 | `tx_postcursor_` `inv` | `0x0040` | 1 | rw | TX Post Cursor Polarity, see UG576. Reset `0x0`. |
 | `tx_precursor_` `inv` | `0x0044` | 1 | rw | Invert polarity of TX Pre Cursor, see UG576. Reset `0x0`. |
 | `clock_latch` | `0x0048` | 1 | rw | Write to latch TX/RX clock cycles. Reset `0x0`. |
-| `clock_tx_cycles` | `0x004c` | 32 | rw | TX clock cycles. Reset `0x0`. |
-| `clock_rx_cycles` | `0x0050` | 32 | rw | RX clock cycles. Reset `0x0`. |
+| `clock_tx_cycles` | `0x004c` | 32 | ro | TX clock cycles. |
+| `clock_rx_cycles` | `0x0050` | 32 | ro | RX clock cycles. |
 
 Fields of `rx_prbs_config`:
 
@@ -200,8 +200,8 @@ Bank `serdes_gty`.
 | `tx_postcursor` | `0x0038` | 5 | rw | TX Post Cursor Pre-emphasis Control, see UG578. Reset `0x0`. |
 | `tx_precursor` | `0x003c` | 5 | rw | TX Pre Cursor Pre-emphasis Control, see UG578. Reset `0x0`. |
 | `clock_latch` | `0x0040` | 1 | rw | Write to latch TX/RX clock cycles. Reset `0x0`. |
-| `clock_tx_cycles` | `0x0044` | 32 | rw | TX clock cycles. Reset `0x0`. |
-| `clock_rx_cycles` | `0x0048` | 32 | rw | RX clock cycles. Reset `0x0`. |
+| `clock_tx_cycles` | `0x0044` | 32 | ro | TX clock cycles. |
+| `clock_rx_cycles` | `0x0048` | 32 | ro | RX clock cycles. |
 
 Fields of `rx_prbs_config`:
 
@@ -331,14 +331,13 @@ Bank `serwb_phy_s7`.
 | `control_delay_` `max_found` | `0x0018` | 1 | ro | 1: the upper edge of the sampling window was found. |
 | `control_delay_` `max` | `0x001c` | 9 | ro | Upper edge of the sampling window (taps). |
 | `control_shift` | `0x0020` | 6 | ro | Word alignment found by the initialization (bitslip). |
-| `control_phase` | `0x0024` | 2 | ro | Sampling phase found by the initialization (Efinix PHY). |
-| `control_prbs_` `start` | `0x0028` | 1 | wo | Write strobe: clear `control_prbs_errors` and count errors for `control_prbs_cycles` cycles. |
-| `control_prbs_` `cycles` | `0x002c` | 32 | rw | Duration of a link test, in `sys` cycles. Reset `0x0`. |
-| `control_prbs_` `errors` | `0x0030` | 32 | ro | Errors counted by the last link test. |
-| `control_` `invalid_errors` | `0x0034` | 32 | ro | Number of invalid 8b10b words received (link ready). |
-| `control_link_` `drops` | `0x0038` | 32 | ro | Number of link losses (ready to not ready). |
-| `control_prbs_tx` | `0x003c` | 1 | rw | Transmit PRBS31 instead of traffic (link ready). Reset `0x0`. |
-| `control_prbs_rx` | `0x0040` | 1 | rw | Check received words against PRBS31 (traffic not forwarded). Reset `0x0`. |
+| `control_prbs_` `start` | `0x0024` | 1 | wo | Write strobe: clear `control_prbs_errors` and count errors for `control_prbs_cycles` cycles. |
+| `control_prbs_` `cycles` | `0x0028` | 32 | rw | Duration of a link test, in `sys` cycles. Reset `0x0`. |
+| `control_prbs_` `errors` | `0x002c` | 32 | ro | Errors counted by the last link test. |
+| `control_` `invalid_errors` | `0x0030` | 32 | ro | Number of invalid 8b10b words received (link ready). |
+| `control_link_` `drops` | `0x0034` | 32 | ro | Number of link losses (ready to not ready). |
+| `control_prbs_tx` | `0x0038` | 1 | rw | Transmit PRBS31 instead of traffic (link ready). Reset `0x0`. |
+| `control_prbs_rx` | `0x003c` | 1 | rw | Check received words against PRBS31 (traffic not forwarded). Reset `0x0`. |
 
 ## SerWB PHY, generic {#reg-serwb-phy-gen}
 
