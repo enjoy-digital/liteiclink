@@ -22,12 +22,23 @@ def load_bench(name):
     spec.loader.exec_module(mod)
     return mod
 
+def _efinity_available():
+    # Efinix platforms need the Efinity toolchain to elaborate (litex/build/efinix/toolchain.py).
+    try:
+        from litex.build.efinix.toolchain import find_efinity_path
+        find_efinity_path()
+        return True
+    except Exception:
+        return False
+
+
 class _Built(Exception):
     pass
 
 # Test SerWB Bench Targets -------------------------------------------------------------------------
 
 class TestBenchSerWBTargets(unittest.TestCase):
+    @unittest.skipUnless(_efinity_available(), "Efinity toolchain not available")
     def test_t120_lvds_delays(self):
         # --lvds-rx-delay/--lvds-clk-delay must reach the LVDS RX blocks of the PHYs.
         t120     = load_bench("t120_bga576_dev_kit")
@@ -41,6 +52,7 @@ class TestBenchSerWBTargets(unittest.TestCase):
             "serwb_slave0_clk_p0" : 5,
         })
 
+    @unittest.skipUnless(_efinity_available(), "Efinity toolchain not available")
     def test_ti60_serio_domain(self):
         # The slave SerIO must run in rx_sys, like the slave core it is connected to.
         ti60     = load_bench("ti60_f225_dev_kit")
