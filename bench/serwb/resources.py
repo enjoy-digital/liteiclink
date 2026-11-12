@@ -100,8 +100,15 @@ def synthesize(top, device):
         log = subprocess.run(["yosys", "-q", "-p", f"read_verilog {v}; synth_xilinx -top top -flatten; tee -o {tmp}/stat.txt stat"],
             capture_output=True, text=True, check=True)
         stat = open(os.path.join(tmp, "stat.txt")).read()
+    return parse_stat(stat)
+
+def parse_stat(stat):
+    """Cell counts from the Yosys stat report, with "<cell> <count>" lines (older Yosys) or
+    "<count> <cell>" lines (newer Yosys, for example 0.70)."""
     results = {k: 0 for k in CELLS}
-    for cell, count in re.findall(r"^\s+(\S+)\s+(\d+)\s*$", stat, re.M):
+    cells   = re.findall(r"^\s+(\S+)\s+(\d+)\s*$", stat, re.M)
+    cells  += [(cell, count) for count, cell in re.findall(r"^\s+(\d+)\s+(\S+)\s*$", stat, re.M)]
+    for cell, count in cells:
         for k, pattern in CELLS.items():
             if re.fullmatch(pattern, cell):
                 results[k] += int(count)
