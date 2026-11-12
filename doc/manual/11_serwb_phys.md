@@ -12,18 +12,18 @@ The source synchronous concepts (forwarded clock, delay taps, bitslip) are in
 | PHY | Device names | Delay taps | Bits per cycle |
 |------------------|-----------------------------------------|--------------|---------------------|
 | 7-Series | `xc7a`, `xc7k`, `xc7v`, `xc7z`, `xc7s` | 32, dynamic | 8 per `sys` cycle |
-| UltraScale(+) | `xcku`, `xczu` | 512, dynamic | 8 per `sys` cycle |
+| UltraScale(+) | `xcku`, `xcvu`, `xczu`, `xcau` | 512, dynamic | 8 per `sys` cycle |
 | Efinix Titanium | `Ti` | 64, dynamic | 8 per `clk` cycle |
-| Efinix Trion | `T1`, `T2` (T13, T20, T120) | Static | 8 per `clk` cycle |
+| Efinix Trion | `T` and a digit (T4 to T120) | Static | 8 per `clk` cycle |
 | Generic | Any | None | 1 per `sys` cycle |
 
 The four high-speed PHYs share one class, `SERWBPHY` of `liteiclink/serwb/phy.py`. It picks the
 I/O module from the start of the device name: four letters for Xilinx, two for Efinix. Other names
 raise a `NotImplementedError`.
 
-These include Virtex UltraScale(+) devices: the Xilinx list holds
-`xvu`, three letters, which a four-letter prefix never matches. Artix UltraScale+ (`xcau`) and the
-Trion devices whose name does not start with `T1` or `T2` (T4, T8, T35, T55, T85) are refused too.
+Artix UltraScale+ (`xcau`) always uses the UltraScale+ settings, whatever `usp`. The Artix
+UltraScale+ and the Trion devices other than the T120 have no SerWB target, so they are not
+validated on hardware.
 
 The generic PHY is another class with the same name, in `liteiclink/serwb/genphy.py`. The hardware
 status of each PHY is in the [status table](#intro-status) of the introduction.

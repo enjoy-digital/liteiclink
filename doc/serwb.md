@@ -27,8 +27,8 @@ protocol over a small packet layer with 8b10b line coding.
 | Module                          | Devices                                         | Line rate              |
 |---------------------------------|-------------------------------------------------|------------------------|
 | `liteiclink.serwb.phy.SERWBPHY` | Xilinx 7-Series (`xc7a/k/v/z/s`)                | 8 bits/cycle (DDR 4x)  |
-|                                 | Xilinx UltraScale(+) (`xcku`, `xvu`, `xczu`)    | 8 bits/cycle (DDR 4x)  |
-|                                 | Efinix Titanium (`Ti*`), Trion (`T1*`/`T2*`)    | 8 bits/cycle, `clk_ratio` 1:1/1:2/1:4 |
+|                                 | Xilinx UltraScale(+) (`xcku`, `xcvu`, `xczu`, `xcau`) | 8 bits/cycle (DDR 4x)  |
+|                                 | Efinix Titanium (`Ti*`), Trion (`T4*` to `T120*`) | 8 bits/cycle, `clk_ratio` 1:1/1:2/1:4 |
 | `liteiclink.serwb.genphy.SERWBPHY` | Vendor agnostic (SDR I/Os)                   | 1 bit/cycle            |
 
 Each 32-bit word is sent as 40 bits on the line (8b10b). For example, a 7-Series PHY with a 156.25MHz

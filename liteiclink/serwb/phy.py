@@ -223,11 +223,11 @@ class SERWBPHY(SERWBPHYBase):
         # SerDes.
         # -------
 
-        # Xilinx Ultrascale(+).
-        if device[:4] in ["xcku", "xcvu", "xczu"]:
+        # Xilinx Ultrascale(+) (Artix UltraScale+ only exists as UltraScale+).
+        if device[:4] in ["xcku", "xcvu", "xczu", "xcau"]:
             assert clk_ratio == "1:1"
             taps = 512
-            self.serdes = KUSerdes(pads, mode, usp=usp)
+            self.serdes = KUSerdes(pads, mode, usp=usp or (device[:4] == "xcau"))
 
         # Xilinx 7-Series.
         elif device[:4] in ["xc7a", "xc7k", "xc7v", "xc7z", "xc7s"]:
@@ -244,8 +244,8 @@ class SERWBPHY(SERWBPHYBase):
                 clk_ratio = clk_ratio,
             )
 
-        # Efinix Trion.
-        elif device[:2] in ["T1", "T2"]:
+        # Efinix Trion (T4 to T120, Titanium being Ti).
+        elif (device[0] == "T") and device[1].isdigit():
             taps = 4 # No dynamic delay
             self.serdes = EfinixSerdes(pads, mode,
                 clk            = clk,

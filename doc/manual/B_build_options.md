@@ -139,15 +139,14 @@ in the last column.
 
 | Device prefix | I/O blocks | Delay taps |
 |---------------------------------------------------------------------------------------------|--------------------------|---------------------|
-| `xcku`, `xczu` | UltraScale(+) | 512 |
+| `xcku`, `xcvu`, `xczu`, `xcau` | UltraScale(+) | 512 |
 | `xc7a`, `xc7k`, `xc7v`, `xc7z`, `xc7s` | 7-Series | 32 |
 | `Ti` | Efinix Titanium | 64 |
-| `T1`, `T2` | Efinix Trion | static |
+| `T` and a digit | Efinix Trion | static |
 
-The match is on the first four characters (two for Efinix). The code also lists `xvu`, which a
-four-character prefix never equals, so Virtex UltraScale(+) devices (`xcvu`) raise a
-`NotImplementedError`, as do Artix UltraScale+ (`xcau`) and the Trion devices whose name does not
-start with `T1` or `T2` (T4, T8, T35, T55, T85).
+The match is on the first four characters for Xilinx and on the first two for Efinix: `Ti` for
+Titanium, `T` and a digit for Trion. Artix UltraScale+ (`xcau`) always uses the UltraScale+
+settings. Other names raise a `NotImplementedError`.
 
 ## SerWB core {#opt-serwb-core}
 
