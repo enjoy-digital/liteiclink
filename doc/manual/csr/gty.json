@@ -410,21 +410,21 @@
     "size": 1
    },
    {
-    "access": "rw",
+    "access": "ro",
     "description": "TX clock cycles.",
     "fields": [],
     "name": "clock_tx_cycles",
     "offset": 68,
-    "reset": 0,
+    "reset": null,
     "size": 32
    },
    {
-    "access": "rw",
+    "access": "ro",
     "description": "RX clock cycles.",
     "fields": [],
     "name": "clock_rx_cycles",
     "offset": 72,
-    "reset": 0,
+    "reset": null,
     "size": 32
    }
   ]

@@ -285,24 +285,12 @@ litescope_cli --csv analyzer.csv --list
 The points below are limitations of the code as it stands; they are worth knowing before reading a
 register.
 
-- `clock_tx_cycles` and `clock_rx_cycles` are written by the hardware but declared as writable
-  registers; never write them.
-- `test_prbs.py` writes 0 when it announces that it disables the clock aligner, and its
-  `--loopback` has no effect on ECP5 ([PRBS test](#ex-test-prbs)).
 - On ECP5, the `tx_inhibit` and `loopback` registers drive signals marked FIXME in the code.
-- `control_phase` exists on the 7-Series and UltraScale SerWB PHYs, where it has no meaning.
 - `rx_prbs_errors` wraps at 2^32; read it periodically on long runs, as `test_prbs.py` does.
-- `test_prbs.py` prints a stopped user clock as 2147.484 MHz, and its BER column keeps the time of
-  the first interval while it drops its errors ([PRBS test](#ex-test-prbs)).
-- On the GTY, the near-end PCS loopback (`0b001`) is meant to hold the CDR (`RXCDRHOLD`), but the
-  condition is evaluated once at elaboration and is always false: the CDR is never held.
 - On the GTP, the wrapper never drives `drp_mux.sel`, so the user DRP port is unreachable until the
   design drives it ([DRP](#dbg-drp)).
-- The `clock_tx_cycles` and `clock_rx_cycles` latches copy counters of the `tx` and `rx` domains
-  in `sys` without synchronization: repeat a measurement that gives an implausible value.
-- With the native SerWB protocol and the link down, a write gets the acknowledge and the error in
-  the same cycle.
-- Several bench targets have option or pin issues, listed in [Benches and examples](#ex-serwb).
+- The ECPIX-5 demo maps the remote peripherals as a cached region: firmware that polls a remote
+  register through the data cache can read a stale value.
 
 ## Where to go next {#dbg-next}
 

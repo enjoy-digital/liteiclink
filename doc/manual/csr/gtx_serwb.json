@@ -484,21 +484,21 @@
     "size": 1
    },
    {
-    "access": "rw",
+    "access": "ro",
     "description": "TX clock cycles.",
     "fields": [],
     "name": "clock_tx_cycles",
     "offset": 76,
-    "reset": 0,
+    "reset": null,
     "size": 32
    },
    {
-    "access": "rw",
+    "access": "ro",
     "description": "RX clock cycles.",
     "fields": [],
     "name": "clock_rx_cycles",
     "offset": 80,
-    "reset": 0,
+    "reset": null,
     "size": 32
    }
   ],
@@ -605,20 +605,11 @@
     "size": 6
    },
    {
-    "access": "ro",
-    "description": "Sampling phase found by the initialization (Efinix PHY).",
-    "fields": [],
-    "name": "control_phase",
-    "offset": 36,
-    "reset": null,
-    "size": 2
-   },
-   {
     "access": "wo",
     "description": "Write strobe: clear `control_prbs_errors` and count errors for `control_prbs_cycles` cycles.",
     "fields": [],
     "name": "control_prbs_start",
-    "offset": 40,
+    "offset": 36,
     "reset": null,
     "size": 1
    },
@@ -627,7 +618,7 @@
     "description": "Duration of a link test, in `sys` cycles.",
     "fields": [],
     "name": "control_prbs_cycles",
-    "offset": 44,
+    "offset": 40,
     "reset": 0,
     "size": 32
    },
@@ -636,7 +627,7 @@
     "description": "Errors counted by the last link test.",
     "fields": [],
     "name": "control_prbs_errors",
-    "offset": 48,
+    "offset": 44,
     "reset": null,
     "size": 32
    },
@@ -645,7 +636,7 @@
     "description": "Number of invalid 8b10b words received (link ready).",
     "fields": [],
     "name": "control_invalid_errors",
-    "offset": 52,
+    "offset": 48,
     "reset": null,
     "size": 32
    },
@@ -654,7 +645,7 @@
     "description": "Number of link losses (ready to not ready).",
     "fields": [],
     "name": "control_link_drops",
-    "offset": 56,
+    "offset": 52,
     "reset": null,
     "size": 32
    },
@@ -663,7 +654,7 @@
     "description": "Transmit PRBS31 instead of traffic (link ready).",
     "fields": [],
     "name": "control_prbs_tx",
-    "offset": 60,
+    "offset": 56,
     "reset": 0,
     "size": 1
    },
@@ -672,7 +663,7 @@
     "description": "Check received words against PRBS31 (traffic not forwarded).",
     "fields": [],
     "name": "control_prbs_rx",
-    "offset": 64,
+    "offset": 60,
     "reset": 0,
     "size": 1
    }
