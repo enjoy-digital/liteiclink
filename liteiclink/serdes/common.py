@@ -5,10 +5,33 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
+from migen.genlib.cdc import MultiReg, GrayCounter
 
 from litex.gen import *
 
 from litex.soc.interconnect.csr import *
+
+# Clock Cycles -------------------------------------------------------------------------------------
+
+class ClockCycles(LiteXModule):
+    """Free-running cycles counter of the clock domain `cd`, readable in sys (`value`).
+
+    The counter is Gray coded in `cd` (one bit changes per cycle) and resynchronized to sys, so
+    that `value` is always a coherent count (lagging by the synchronization latency).
+    """
+    def __init__(self, cd, width=32):
+        self.value = Signal(width)
+
+        # # #
+
+        # Gray Counter (cd).
+        self.counter = counter = ClockDomainsRenamer(cd)(GrayCounter(width))
+        self.comb += counter.ce.eq(1)
+
+        # Resynchronization / Decoding (sys): binary bit n is the XOR of the Gray bits n and above.
+        gray = Signal(width)
+        self.specials += MultiReg(counter.q, gray)
+        self.sync += [self.value[n].eq(Reduce("XOR", gray[n:])) for n in range(width)]
 
 # DRP Layout ---------------------------------------------------------------------------------------
 

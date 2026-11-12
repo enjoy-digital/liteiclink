@@ -371,9 +371,8 @@ chapter gives them. The wrappers do not tune the receiver equalizers.
 `clock_latch` copies both into `clock_tx_cycles` and `clock_rx_cycles`. Two latches a known time
 apart give the frequencies of the user clocks, which `test_prbs.py` prints first.
 
-The counters
-are copied into `sys` without synchronization, so a latch can catch one while it changes: repeat
-the measurement when a value is implausible.
+The counters are Gray coded and resynchronized to `sys` (`ClockCycles`), so a latch always
+gets a coherent count, a few cycles late.
 
 ## Registers {#sd-registers}
 
@@ -470,7 +469,7 @@ The wrapper files are in `liteiclink/serdes/`; the 8b/10b and PRBS modules come 
 
 | File | Content |
 |-----------------------------|-----------------------------------------------------|
-| `common.py` | `DRPInterface`, `DRPMux`, `DRPControl` |
+| `common.py` | `DRPInterface`, `DRPMux`, `DRPControl`, `ClockCycles` |
 | `clock_aligner.py` | `BruteforceClockAligner` |
 | `*_init.py` | TX and RX init FSMs of each Xilinx family |
 | LiteX `code_8b10b.py` | `Encoder`, `Decoder` |
