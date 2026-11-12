@@ -207,6 +207,8 @@ class GTP(LiteXModule):
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
 
+        self.linerate    = qpll.config["linerate"] # Line rate (bps).
+        self.data_width  = data_width
         self.tx_clk_freq = qpll.config["linerate"]/data_width
         self.rx_clk_freq = qpll.config["linerate"]/data_width
 

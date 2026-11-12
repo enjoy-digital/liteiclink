@@ -300,9 +300,16 @@ class GTR12(LiteXModule):
     tx_produce_pattern/tx_pattern, cd_tx/cd_rx, add_stream_endpoints(). rx_align enables the PCS
     comma alignment (when configured). Lane status (pll_lock, cdr_lock, aligned, rx_elecidle,
     astat, stat) for the users/bring-up.
+
+    linerate: line rate (bps), the name of the other wrappers (constructor argument and attribute);
+    line_rate is the same, kept for compatibility (deprecated name). csr_config is required.
     """
-    def __init__(self, platform, line_rate, csr_config, data_width=40, raw_width=None, position="Q1", lane=0, pll="QPLL1",
-        tx_polarity=0, rx_polarity=0, csr_name="gtr12.csr", with_upar=True, upar_clk=None):
+    def __init__(self, platform, line_rate=None, csr_config=None, data_width=40, raw_width=None, position="Q1", lane=0, pll="QPLL1",
+        tx_polarity=0, rx_polarity=0, csr_name="gtr12.csr", with_upar=True, upar_clk=None, linerate=None):
+        # linerate/line_rate: same argument (one of them).
+        assert (line_rate is None) != (linerate is None), "Provide linerate (or line_rate)."
+        assert csr_config is not None, "csr_config is required."
+        line_rate = linerate if line_rate is None else line_rate
         assert data_width in [20, 40, 80]
         assert pll in ["QPLL0", "QPLL1", "CPLL"] # PLL used by the configuration (lock status).
         # raw_width: width of the raw TX/RX words (tx_raw/rx_raw, >= data_width), ex: 80-bit raw words
@@ -312,7 +319,8 @@ class GTR12(LiteXModule):
         self.nwords     = nwords = data_width//10
         self.data_width = data_width
         self.raw_width  = raw_width
-        self.line_rate  = line_rate
+        self.linerate   = line_rate
+        self.line_rate  = line_rate # Deprecated name of linerate.
 
         self.tx_enable          = Signal(reset=1) # i
         self.tx_ready           = Signal()        # o
