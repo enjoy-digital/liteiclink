@@ -132,13 +132,16 @@ That failure was seen on the Acorn at
 hardware](#perf-recorded)). The tests `test_gtp_rx_drp_sequence` and
 `test_gtp_rx_drp_restart_before_restore` model it.
 
-The RX init FSM uses input 0 of the channel DRP mux; the user `drp` is input 1. The wrapper never
-drives the mux select (`drp_mux.sel`), so it stays 0 and a user access through `drp`, for example
-with `DRPControl`, never completes.
+The channel DRP mux of the GTP (`GTPDRPMux`) shares its input 0, the default select, between the
+RX init FSM and the user `drp`. The FSM requests the DRP before its sequence and gets it between two
+accesses; the user `drp` has the DRP the rest of the time. A user access issued during the sequence
+is held and issued after it, so a `DRPControl` access completes with the select left at 0.
 
-A design that uses the user `drp` must drive the select to 1,
-and back to 0 before an RX init runs. Otherwise the DRP access of the FSM never completes and its
-4 ms watchdog restarts it again and again.
+The shared input is clocked by `sys`, the clock of the RX init FSM: use the user `drp` from `sys`,
+as `DRPControl` does. Input 1 is the user `drp` alone, with its own DRP clock, for a design that
+selects it (as USB3-PIPE does with a register). While input 1 is selected, the DRP access of the FSM
+never completes and its 4 ms watchdog restarts it again and again: select it only around the user
+accesses. The tests of `test_serdes_gtp_drp.py` model both cases.
 
 ### RX timing {#s7-gtp-rx-timing}
 
@@ -189,8 +192,6 @@ descriptions cite them.
 - **GTP 40-bit words.** `data_width=40` elaborates (its commit says it allows compilation), but
   the wrapper drives `TXUSRCLK` and `TXUSRCLK2`, and the RX pair, with one clock at the line rate
   divided by 40. Check the 4-byte interface clocking of UG482 before using it; no run records it.
-- **GTP user DRP.** The wrapper never drives the DRP mux select ([RX init and the DRP
-  workaround](#s7-gtp-rx-init)).
 - **Init delay.** The 500 ns delay of the GTP and GTX runs once after the `sys` reset, not after
   each restart.
 - **Virtex-7 GTH ranges.** The GTH solvers use ranges of other families ([PLLs and line

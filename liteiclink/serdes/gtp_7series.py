@@ -156,6 +156,102 @@ CLKIN +----> /M  +-->       Charge Pump         +-> VCO +---> CLKOUT
            linerate = config["linerate"]/1e9)
         return r
 
+# GTP DRP Mux -------------------------------------------------------------------------------------
+
+class GTPDRPMux(DRPMux):
+    """DRP Mux of the GTP channel.
+
+    Input 0 (sel = 0, default) is shared by the RX initialization (`init_drp`: RX PMA reset
+    workaround, DRP granted during its sequence) and the user DRP port (`user_drp`): the user port
+    reaches the GTP when the RX initialization does not use the DRP, a user access issued during
+    the sequence is held and issued after it. The ownership only changes between DRP accesses. This
+    shared input is clocked by sys (DRPCLK of the RX initialization): the user port is then used
+    from sys (as DRPControl). Input 1 is the user DRP port alone (with its own DRPCLK, the RX
+    initialization does not get the DRP while selected), inputs 2+ are added by the design.
+    """
+    def __init__(self, init_drp, user_drp):
+        DRPMux.__init__(self)
+        self.init_req   = Signal() # i: RX initialization requests the DRP.
+        self.init_grant = Signal() # o: DRP granted to the RX initialization.
+        self.init_drp   = init_drp
+        self.user_drp   = user_drp
+        self.add_interface(init_drp)
+        self.add_interface(user_drp)
+
+        # # #
+
+        shared         = Signal()
+        pending        = Signal()
+        self.hold      = Signal()
+        self.hold_we   = Signal()
+        self.hold_addr = Signal(len(user_drp.addr))
+        self.hold_di   = Signal(len(user_drp.di))
+        self.comb += shared.eq(self.sel == 0)
+
+        # Pending DRP access on the shared input.
+        self.sync += [
+            If(~shared,
+                pending.eq(0)
+            ).Elif(pending,
+                If(self.rdy, pending.eq(0))
+            ).Elif(self.en,
+                pending.eq(1)
+            )
+        ]
+
+        # Ownership: follows the request of the RX initialization between DRP accesses.
+        self.sync += If(~shared | (~pending & ~self.en),
+            self.init_grant.eq(self.init_req)
+        )
+
+        # User access during the RX initialization sequence: held, issued once the user port owns
+        # the shared input.
+        self.sync += [
+            If(~shared | ~self.init_grant,
+                self.hold.eq(0)
+            ).Elif(user_drp.en,
+                self.hold.eq(1),
+                self.hold_we.eq(user_drp.we),
+                self.hold_addr.eq(user_drp.addr),
+                self.hold_di.eq(user_drp.di),
+            )
+        ]
+
+    def do_finalize(self):
+        assert len(self.interfaces) <= 16
+        init, user = self.init_drp, self.user_drp
+        cases = {}
+        # Shared input.
+        cases[0] = [
+            self.clk.eq(init.clk),
+            If(self.init_grant,
+                self.en.eq(init.en),
+                self.we.eq(init.we),
+                self.addr.eq(init.addr),
+                self.di.eq(init.di),
+                init.rdy.eq(self.rdy),
+                init.do.eq(self.do),
+            ).Elif(self.hold,
+                self.en.eq(1),
+                self.we.eq(self.hold_we),
+                self.addr.eq(self.hold_addr),
+                self.di.eq(self.hold_di),
+                user.rdy.eq(self.rdy),
+                user.do.eq(self.do),
+            ).Else(
+                self.en.eq(user.en),
+                self.we.eq(user.we),
+                self.addr.eq(user.addr),
+                self.di.eq(user.di),
+                user.rdy.eq(self.rdy),
+                user.do.eq(self.do),
+            )
+        ]
+        # Other inputs.
+        for i, interface in enumerate(self.interfaces[1:], start=1):
+            cases[i] = interface.connect(self)
+        self.comb += Case(self.sel, cases)
+
 # GTP ----------------------------------------------------------------------------------------------
 
 class GTP(LiteXModule):
@@ -271,9 +367,13 @@ class GTP(LiteXModule):
             self.comb += qpll.reset.eq(tx_init.pllreset)
 
         # DRP mux ----------------------------------------------------------------------------------
-        self.drp_mux = drp_mux = DRPMux()
-        drp_mux.add_interface(rx_init.drp)
-        drp_mux.add_interface(self.drp)
+        # sel = 0 (default): RX initialization during its sequence, user DRP port (self.drp) otherwise.
+        # sel = 1: user DRP port only. sel >= 2: interfaces added by the design.
+        self.drp_mux = drp_mux = GTPDRPMux(init_drp=rx_init.drp, user_drp=self.drp)
+        self.comb += [
+            drp_mux.init_req.eq(rx_init.drp_req),
+            rx_init.drp_grant.eq(drp_mux.init_grant),
+        ]
 
         # GTPE2_CHANNEL instance -------------------------------------------------------------------
         txdata = Signal(data_width)

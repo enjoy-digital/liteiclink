@@ -196,11 +196,11 @@ Software writes `addr`, `we` and, for a write, `di`, then writes `start`. It pol
 reads the result in `do`.
 
 On GTX, GTH and GTY, the user interface is the only input of the
-multiplexer. On GTP, input 0 belongs to the receive initialization, which uses the DRP for a reset
-workaround, and the user interface is input 1. The GTP wrapper never drives `drp_mux.sel`, so it
-stays at 0: without logic of the design on `drp_mux.sel`, a `DRPControl` access on the GTP never
-completes and `done` stays at 0. Select input 1 only around the user accesses, as USB3-PIPE does
-with a register.
+multiplexer. On GTP, input 0, the default select, is shared by the receive initialization, which
+uses the DRP for a reset workaround during its sequence, and the user interface, the rest of the
+time: `DRPControl` works without logic of the design on `drp_mux.sel`, from `sys`. Input 1 is the
+user interface alone; a design that selects it (as USB3-PIPE does with a register) blocks the
+receive initialization and must select it only around the user accesses.
 
 The ECP5 DCU has an equivalent serial interface, SCI, and the Gowin GTR12 a runtime register
 access, UPAR. Their registers are in [Lattice ECP5 DCU](#lattice-ecp5) and
