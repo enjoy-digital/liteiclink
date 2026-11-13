@@ -50,26 +50,12 @@ SerDes (see [doc/serdes.md](doc/serdes.md)):
 
 [> Documentation
 ----------------
-The **Transceivers & Inter-Chip Links manual** is the reference of LiteICLink: a nightly
-[PDF](https://github.com/enjoy-digital/liteiclink/releases/download/manual-nightly/liteiclink_manual.pdf)
-and [HTML page](https://github.com/enjoy-digital/liteiclink/releases/download/manual-nightly/liteiclink_manual.html)
-are published on the [manual-nightly](https://github.com/enjoy-digital/liteiclink/releases/tag/manual-nightly)
-release. Sources in [doc/manual](doc/manual/README.md) (build: `python3 doc/manual/build.py`, outputs in
-`build/doc/`; pandoc, XeLaTeX and the fonts listed in the README of `doc/manual`):
+The **Transceivers & Inter-Chip Links manual** is the reference of the project, from the primers to the integration,
+the examples, the debugging and the registers:
 
-- **Understand**: [introduction](doc/manual/01_introduction.md), [serial links in a nutshell](doc/manual/02_serial_primer.md),
-  [FPGA transceivers](doc/manual/03_transceiver_primer.md), [Wishbone over serial](doc/manual/04_serwb_primer.md).
-- **The SerDes wrappers**: [architecture](doc/manual/05_serdes_architecture.md), [Xilinx 7-Series](doc/manual/06_xilinx_7series.md),
-  [Xilinx UltraScale and UltraScale+](doc/manual/07_xilinx_ultrascale.md), [Lattice ECP5 DCU](doc/manual/08_lattice_ecp5.md),
-  [Gowin GW5 GTR12](doc/manual/09_gowin_gw5.md).
-- **SerWB**: [architecture](doc/manual/10_serwb_architecture.md), [PHYs and link initialization](doc/manual/11_serwb_phys.md),
-  [packets and protocol](doc/manual/12_serwb_protocol.md).
-- **Use it**: [supported FPGAs and boards](doc/manual/13_boards.md), [getting started](doc/manual/14_getting_started.md),
-  [integration](doc/manual/15_integration.md), [benches and examples](doc/manual/16_examples.md),
-  [simulation and tests](doc/manual/17_simulation.md), [debugging](doc/manual/18_debugging.md).
-- **Appendices**: [registers](doc/manual/A_registers.md), [build options](doc/manual/B_build_options.md),
-  [glossary](doc/manual/C_glossary.md), [performance and resources](doc/manual/D_performance.md),
-  [maintaining this manual](doc/manual/E_maintenance.md) (for contributors).
+- Read it: [PDF](https://github.com/enjoy-digital/liteiclink/releases/download/manual-nightly/liteiclink_manual.pdf) or
+  [HTML](https://github.com/enjoy-digital/liteiclink/releases/download/manual-nightly/liteiclink_manual.html) (rebuilt nightly).
+- Sources and local build: [doc/manual](doc/manual/README.md).
 
 [> FPGA Proven
 ---------------
