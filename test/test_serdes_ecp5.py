@@ -59,6 +59,28 @@ class TestSerDesECP5(unittest.TestCase):
         self.assertEqual(oob.serdes_params["p_CHX_LSM_DISABLE"], "0b1")
         self.assertIn("i_CHX_FFC_EI_EN", oob.serdes_params)
 
+    def test_rx_los_is_exposed(self):
+        # Raw DCU loss of signal, for the user's own filtering (ex: LitePCIe Electrical Idle).
+        for with_oob in [False, True]:
+            serdes = self.serdes(with_oob=with_oob)
+            self.assertIs(serdes.serdes_params["o_CHX_FFS_RLOS"], serdes.rx_los)
+
+    def test_serdes_params_user_update(self):
+        # Protocol specific attributes/ports (ex: PCI Express mode and receiver detection in LitePCIe)
+        # are set by the user through serdes_params and reach the DCUA instance of the channel.
+        serdes = self.serdes(with_oob=True, data_width=40)
+        pcie_ct = Signal()
+        serdes.serdes_params.update(
+            p_CHX_PCIE_MODE    = "0b1",
+            p_CHX_CDR_MAX_RATE = "2.5",
+            i_CHX_FFC_PCIE_CT  = pcie_ct,
+        )
+        serdes.finalize()
+        items = {item.name: item for item in serdes.dcu0.items}
+        self.assertEqual(items["CH0_PCIE_MODE"].value,    "0b1")
+        self.assertEqual(items["CH0_CDR_MAX_RATE"].value, "2.5")
+        self.assertIs(items["CH0_FFC_PCIE_CT"].expr, pcie_ct)
+
     def test_legacy_init_interface_is_preserved(self):
         init = self.serdes().init
         for name in ["rst", "tx_rst", "rx_rst", "pcs_rst", "ready"]:

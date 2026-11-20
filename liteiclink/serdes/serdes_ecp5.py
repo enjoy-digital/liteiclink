@@ -764,6 +764,10 @@ class SerDesECP5(LiteXModule):
 
     Raw words: tx_raw_enable/tx_raw (TX, with_oob) and rx_raw (RX), the names of the other wrappers;
     tx_raw_data/rx_raw_data are the same signals, kept for compatibility (deprecated names).
+
+    rx_los is the raw (asynchronous) DCU loss of signal, for the user's own filtering (rx_idle is the same
+    signal resynchronized in "sys"). Protocol specific DCU attributes/ports (ex: PCI Express mode and receiver
+    detection in LitePCIe) are set by the user through serdes_params, before the design is finalized.
     """
     def __init__(self, pll, tx_pads, rx_pads,
         dual        = 0,
@@ -827,7 +831,7 @@ class SerDesECP5(LiteXModule):
         self.rx_clk_freq = pll.config["linerate"]/data_width
 
         # Internal signals -------------------------------------------------------------------------
-        rx_los     = Signal()
+        rx_los     = self.rx_los = Signal() # Raw (asynchronous) DCU loss of signal.
         rx_lol     = Signal()
         rx_lsm     = Signal()
         rx_align   = Signal()

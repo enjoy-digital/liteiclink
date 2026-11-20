@@ -230,7 +230,8 @@ Clearing `rx_enable` holds the RX resets of the channel. Clearing `tx_enable` ho
 reset and the TX PLL reset of the DCU, which the other channel would also use. The DCU macro and
 dual resets follow the `sys` reset.
 
-The loss of signal is also available in `sys` as `rx_idle`, and the
+The loss of signal is also available in `sys` as `rx_idle` and, raw and not synchronized, as
+`rx_los` for a user core that filters it itself. The
 state machine and lock signals (`init.fsm`, `init.tx_lol`, `init.rx_lol`) can be captured with
 LiteScope, as the ECPIX-5 bench target does.
 
@@ -302,7 +303,9 @@ undocumented values; the source comments give the origin of each value.
 
 A user core can update the
 dictionary before the design is finalized, with `CHX` in the names for the channel, as USB3-PIPE
-does for its receive settings.
+does for its receive settings. The soft PHY of LitePCIe sets the PCI Express mode of the DCU, its
+receiver detection ports and its analog attributes this way (`litepcie/phy/soft/serdes/ecp5.py`),
+as it does on the Xilinx wrappers: the wrapper has no PCI Express option.
 
 ## Control registers {#ecp5-controls}
 
@@ -347,6 +350,10 @@ selects the serial loopback, which keeps the earlier one-bit `loopback` signal w
 
 Commit `939f4ad`, which added the 40-bit mode, records a 40-bit loopback and a USB 3 device run at
 5 Gbps on the LambdaConcept ECPIX-5 ([Results recorded on hardware](#perf-recorded)).
+
+The soft PHY of LitePCIe runs on the wrapper at 2.5 Gbps on the Lattice ECP5 Versa (LFE5UM-45F),
+with the PCI Express settings that it adds through `serdes_params`. The measurements are in the
+manual of LitePCIe.
 
 ## In the code {#ecp5-code}
 
