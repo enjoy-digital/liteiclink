@@ -49,7 +49,7 @@ The tests are in `test/`, one file per area, and run with pytest.
 | `test_serdes_init.py` | Init state machines of every Xilinx family: done, restart, watchdog, GTP DRP sequence |
 | `test_serdes_gtp_drp.py` | GTP user DRP: `DRPControl` accesses with the default mux select, shared with the RX init DRP sequence |
 | `test_serdes_clock_aligner.py` | Clock aligner: aligned, no comma, errors after ready, disable |
-| `test_serdes_ecp5.py` | ECP5: OOB opt-in, word aligner, 5 Gbps PLL, 40-bit mode and gearboxes, PCI Express mode |
+| `test_serdes_ecp5.py` | ECP5: OOB opt-in, raw loss of signal, user `serdes_params`, word aligner, 5 Gbps PLL, 40-bit mode and gearboxes |
 | `test_serdes_ecp5_loopback.py` | ECP5 loopback register (3-bit encoding) and its DCU loopbacks, far-end parallel loopback |
 | `test_serdes_ecp5_sci.py` | ECP5 SCI: dual select not driven by the DCU index, reconfiguration loop on the channel registers |
 | `test_serdes_gtr12.py` | GTR12: primitives, tie-offs, lane wiring, quad configuration, decoder, UPAR nets, Verilog |
